@@ -1,0 +1,301 @@
+/* ==========================================================================
+   正文排版（.mn-content）
+   --------------------------------------------------------------------------
+   所有尺寸都走 CSS 变量，变量由 store/settings.ts 写在阅读器容器上。
+   于是「改字号」= 写一个 style 属性，正文 DOM 不重渲染、不重排 React 树。
+
+   这里也是「一套排版管两种格式」的落点：TXT 生成的 <p> 和 EPUB 迁进来的
+   XHTML 走同一组规则。所以不需要像 epub.js 那样再往 iframe 里注入第二份 CSS
+   ——主题和排版各只有一份，加主题不用改两处。
+   ========================================================================== */
+
+.mn-content {
+  font-family: var(--mn-reader-font);
+  font-size: var(--mn-font-size);
+  line-height: var(--mn-line-height);
+  letter-spacing: var(--mn-letter-spacing);
+  color: var(--mn-reader-fg);
+  text-align: var(--mn-align);
+  overflow-wrap: break-word;
+  hanging-punctuation: allow-end;
+}
+
+.mn-content ::selection {
+  background: var(--mn-reader-selection);
+}
+
+/* ---- 段落 ---- */
+
+.mn-content p {
+  margin: 0 0 var(--mn-para-gap);
+  text-indent: var(--mn-indent);
+}
+
+/* TXT 里的空行：保留原本的纵向节奏，但不显示任何东西 */
+.mn-content p.mn-blank {
+  margin: 0;
+  height: calc(var(--mn-para-gap) * 0.6);
+  text-indent: 0;
+}
+
+/* 列表项里的段落不该再缩进一次 */
+.mn-content li p {
+  text-indent: 0;
+  margin-bottom: 0.3em;
+}
+
+/* ---- 标题 ---- */
+
+.mn-content h1,
+.mn-content h2,
+.mn-content h3,
+.mn-content h4,
+.mn-content h5,
+.mn-content h6 {
+  margin: 1.8em 0 1.1em;
+  font-weight: 600;
+  line-height: 1.35;
+  text-indent: 0;
+}
+
+.mn-content h1 {
+  font-size: 1.42em;
+}
+.mn-content h2 {
+  font-size: 1.26em;
+}
+.mn-content h3 {
+  font-size: 1.12em;
+}
+.mn-content h4,
+.mn-content h5,
+.mn-content h6 {
+  font-size: 1em;
+}
+
+/* 章标题（TXT 分章时生成的）单独标一下：居中、上方留白多一点 */
+.mn-content h2.mn-chapter-title {
+  margin: 0 0 1.6em;
+  text-align: center;
+  font-size: 1.26em;
+}
+
+.mn-content > :first-child {
+  margin-top: 0;
+}
+
+/* ---- 图片 ---- */
+
+.mn-content img,
+.mn-content svg,
+.mn-content video {
+  max-width: 100%;
+  height: auto;
+}
+
+.mn-content img {
+  vertical-align: middle;
+}
+
+/* 独占一段的图居中，且不要额外的首行缩进 */
+.mn-content p:has(> img:only-child),
+.mn-content div:has(> img:only-child) {
+  text-indent: 0;
+}
+
+.mn-content p > img:only-child,
+.mn-content div > img:only-child {
+  display: block;
+  margin: 1.2em auto;
+}
+
+.mn-content figure {
+  margin: 1.2em 0;
+  text-indent: 0;
+}
+
+.mn-content figcaption {
+  margin-top: 0.5em;
+  font-size: 0.88em;
+  color: var(--mn-reader-fg-muted);
+  text-align: center;
+}
+
+/* ---- 链接、脚注 ---- */
+
+.mn-content a {
+  color: var(--mn-reader-link);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--mn-reader-link) 40%, transparent);
+}
+
+.mn-content sup,
+.mn-content sub {
+  font-size: 0.72em;
+  line-height: 0;
+}
+
+/* 注音（中文拼音 / 日文振假名） */
+.mn-content ruby rt {
+  font-size: 0.5em;
+  color: var(--mn-reader-fg-muted);
+}
+
+/* ---- 引用、分隔线、表格、列表 ---- */
+
+.mn-content blockquote {
+  margin: 1em 0;
+  padding: 0.1em 0 0.1em 1em;
+  border-left: 3px solid var(--mn-reader-rule);
+  color: var(--mn-reader-fg-muted);
+  text-indent: 0;
+}
+
+.mn-content hr {
+  border: 0;
+  border-top: 1px solid var(--mn-reader-rule);
+  margin: 1.8em 0;
+}
+
+.mn-content table {
+  border-collapse: collapse;
+  margin: 1.2em 0;
+  max-width: 100%;
+  font-size: 0.95em;
+}
+
+.mn-content th,
+.mn-content td {
+  border: 1px solid var(--mn-reader-rule);
+  padding: 0.4em 0.65em;
+  text-indent: 0;
+}
+
+.mn-content th {
+  background: color-mix(in srgb, var(--mn-reader-rule) 35%, transparent);
+}
+
+.mn-content ul,
+.mn-content ol {
+  margin: 0 0 var(--mn-para-gap);
+  padding-left: 1.7em;
+}
+
+.mn-content li {
+  margin: 0.25em 0;
+}
+
+.mn-content pre {
+  margin: 1em 0;
+  padding: 0.9em 1em;
+  background: var(--mn-surface);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: var(--mn-font-mono);
+  font-size: 0.9em;
+  line-height: 1.55;
+  text-indent: 0;
+}
+
+.mn-content code {
+  font-family: var(--mn-font-mono);
+  font-size: 0.92em;
+}
+
+/* 书里偶尔会有小字号、居中这类语义，我们只保留对齐，字号一律归我们 */
+.mn-content center {
+  text-align: center;
+  text-indent: 0;
+}
+
+/* TXT 分章时卷标题的样子：居中、加粗、上下留白 */
+.mn-content p.mn-volume-title {
+  margin: 1.6em 0 1.2em;
+  text-align: center;
+  text-indent: 0;
+  font-weight: 600;
+  font-size: 1.12em;
+}
+
+/* 章末的上下章按钮。它是正文的一部分（见 ReaderView 里的注释），
+   所以样式也放在这套排版规则里 */
+.mn-content nav.mn-chapter-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2.4em 0 1em;
+  padding-top: 1.4em;
+  border-top: 1px solid var(--mn-reader-rule);
+  text-indent: 0;
+}
+
+.mn-content nav.mn-chapter-nav button {
+  padding: 0.5em 1.1em;
+  border: 1px solid var(--mn-reader-rule);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mn-reader-fg);
+  font-size: 0.92em;
+  cursor: pointer;
+  transition: background-color 150ms var(--mn-ease);
+}
+
+.mn-content nav.mn-chapter-nav button:hover {
+  background: color-mix(in srgb, var(--mn-reader-fg) 8%, transparent);
+}
+
+.mn-content .mn-chapter-nav__end {
+  font-size: 0.88em;
+  color: var(--mn-reader-fg-muted);
+}
+
+/* ==========================================================================
+   阅读容器
+   ========================================================================== */
+
+/* 滚动模式：容器自己滚，不要把滚动交给 window——否则工具栏淡出、
+   进度计算、切章重置都要和页面滚动耦合。 */
+.mn-scroll {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(18px, 3.5vw, 40px) clamp(16px, 4vw, 44px);
+  background: var(--mn-reader-bg);
+}
+
+.mn-scroll .mn-content {
+  max-width: var(--mn-content-width);
+  margin: 0 auto;
+}
+
+/* 翻页模式：CSS 多列。
+   列宽 = 一页的宽度（由 usePagedMode 量出来写进 --mn-page-width），column-gap 为 0，
+   于是「一列 = 一页」，总页数 = scrollWidth / 列宽。
+   column-fill: auto 是关键：内容按顺序填满一列再排下一列；缺了它浏览器会把内容
+   平均分配到所有列里，翻页顺序就乱了。
+   左右内边距留给 .mn-scroll，这样每一页两侧都有留白，而不是只有第一页有。 */
+.mn-paged {
+  overflow: hidden !important;
+}
+
+.mn-paged .mn-content {
+  height: 100%;
+  /* 覆盖滚动模式下的 max-width：列宽自己就是宽度上限，再叠一层会把列算窄 */
+  max-width: none;
+  margin: 0 auto;
+  column-width: var(--mn-page-width, 100vw);
+  column-gap: 0;
+  column-fill: auto;
+  will-change: transform;
+}
+
+.mn-paged .mn-content.mn-turning {
+  transition: transform 220ms var(--mn-ease);
+}
+
+/* 工具栏淡出时把状态栏区域的底部留白也收掉，不然正文最后一行会贴在边上 */
+.mn-immersive .mn-scroll {
+  padding-bottom: clamp(18px, 3.5vw, 40px);
+}

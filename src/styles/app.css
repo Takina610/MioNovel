@@ -1,0 +1,197 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   主题 token → Tailwind 工具类
+   --------------------------------------------------------------------------
+   必须用 @theme inline。这里的值是 var() 引用，inline 才会把值内联进工具类
+   （bg-bg 编译成 background-color: var(--mn-bg)）。不用 inline 的话 Tailwind
+   会先在 :root 里把 --color-bg 固化成当时的颜色，运行时换主题就换不动了。
+
+   接上之后：bg-bg / bg-surface / text-fg / text-fg-muted / border-border /
+   bg-accent / text-danger … 全部自动跟随主题，组件里不写死任何颜色。
+   ========================================================================== */
+@theme inline {
+  --color-bg: var(--mn-bg);
+  --color-surface: var(--mn-surface);
+  --color-surface-2: var(--mn-surface-2);
+  --color-border: var(--mn-border);
+  --color-border-strong: var(--mn-border-strong);
+  --color-fg: var(--mn-fg);
+  --color-fg-muted: var(--mn-fg-muted);
+  --color-fg-faint: var(--mn-fg-faint);
+  --color-accent: var(--mn-accent);
+  --color-accent-soft: var(--mn-accent-soft);
+  --color-danger: var(--mn-danger);
+  --color-overlay: var(--mn-overlay);
+  --color-reader-bg: var(--mn-reader-bg);
+  --color-reader-fg: var(--mn-reader-fg);
+  --color-reader-fg-muted: var(--mn-reader-fg-muted);
+  --color-reader-link: var(--mn-reader-link);
+  --color-reader-rule: var(--mn-reader-rule);
+
+  --radius-card: 10px;
+}
+
+:root {
+  /* ---- 默认主题（日间）兜底 ----
+     apply.ts 生成的主题样式表会在启动时接管；留这一份是为了 JS 还没跑起来的
+     那几十毫秒里页面不会闪一下没颜色。 */
+  --mn-bg: #ffffff;
+  --mn-surface: #f7f7f8;
+  --mn-surface-2: #eff0f2;
+  --mn-border: #e4e5e9;
+  --mn-border-strong: #d3d6dc;
+  --mn-fg: #1f2328;
+  --mn-fg-muted: #6b7280;
+  --mn-fg-faint: #9aa3b2;
+  --mn-accent: #2f6feb;
+  --mn-accent-soft: #eaf1ff;
+  --mn-danger: #b42318;
+  --mn-overlay: rgba(17, 19, 23, 0.45);
+  --mn-reader-bg: #ffffff;
+  --mn-reader-fg: #23262b;
+  --mn-reader-fg-muted: #6b7280;
+  --mn-reader-link: #2f6feb;
+  --mn-reader-selection: #cfe0ff;
+  --mn-reader-rule: #e4e5e9;
+
+  /* ---- 阅读设置的默认值 ----
+     运行时由 store/settings.ts 写到阅读器容器上（SETTING_VARS）。
+     改这里的名字要同步改那边。 */
+  --mn-font-size: 19px;
+  --mn-line-height: 1.8;
+  --mn-letter-spacing: 0.01em;
+  --mn-para-gap: 1em;
+  --mn-indent: 2em;
+  --mn-content-width: 42rem;
+  --mn-align: left;
+  --mn-reader-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    'Source Han Sans SC', 'Noto Sans CJK SC', sans-serif;
+
+  /* CJK 字体一律走系统栈。中文字体动辄好几 MB，打进包里和「离线可读的 PWA」
+     是直接冲突的，而且系统自带的那几款本来就是这个场景下最好看的选择。 */
+  --mn-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    'Source Han Sans SC', 'Noto Sans CJK SC', sans-serif;
+  --mn-font-mono: 'Cascadia Mono', 'Cascadia Code', 'JetBrains Mono', 'Sarasa Mono SC', Consolas,
+    'Courier New', monospace;
+
+  --mn-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--mn-bg);
+    color: var(--mn-fg);
+    font-family: var(--mn-font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 主题都在往同一个色系里调，滚动条不跟随的话暗色主题配白色滚动条很难看。
+     color-scheme 由生成的主题样式表声明，这里只把滚动条压细一点。 */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--mn-border-strong);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--mn-fg-faint);
+    background-clip: content-box;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+/* 滑动条。原生 range 在各浏览器上的默认样子差太多，自己画一遍反而最短 */
+.mn-range {
+  appearance: none;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mn-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--mn-border-strong);
+}
+
+.mn-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 999px;
+  background: var(--mn-accent);
+  border: 2px solid var(--mn-surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
+}
+
+.mn-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--mn-border-strong);
+}
+
+.mn-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--mn-accent);
+  border: 2px solid var(--mn-surface);
+}
+
+.mn-range:focus-visible {
+  outline: 2px solid var(--mn-accent);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
+/* 书架这些「外壳」界面：处于拖拽导入状态时给整页一个提示边框 */
+.mn-drop-active::after {
+  content: '';
+  position: fixed;
+  inset: 8px;
+  border: 2px dashed var(--mn-accent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--mn-accent) 6%, transparent);
+  pointer-events: none;
+  z-index: 70;
+}

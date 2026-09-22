@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.vite/
+.cache/
+*.local
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 验收用的样例文件由 `bun run samples` 生成，不进仓库
+samples/
+
+# 编辑器 / 工具的运行状态，不属于项目源码
+.zcode/
+
+# 注意：public/ 里的图标虽然是 `bun run icons` 从 logo.svg 生成的，
+# 但它们要进仓库——这样 clone 下来不用先装 pwa-assets-generator 就能构建。
