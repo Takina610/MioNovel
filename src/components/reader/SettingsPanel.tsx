@@ -6,12 +6,20 @@ import {
   SETTING_RANGES,
   type ReaderSettings,
 } from '../../store/settings'
-import { themePreset } from '../../themes/apply'
+import { chromeOf, getTheme, themePreset } from '../../themes/apply'
 import { DECOY_PRESETS } from '../../lib/decoy'
 import { useDecoy } from '../../store/decoy'
+import { DIM_LEVEL_RANGE, useDim } from '../../store/dim'
+import {
+  HOTKEY_LABELS,
+  resolveCombo,
+  useHotkeyBindings,
+  type HotkeyId,
+} from '../../store/hotkeys'
 import { cx } from '../../lib/cx'
 import { Panel } from '../ui/Panel'
 import { Button } from '../ui/Button'
+import { HotkeyInput } from '../ui/HotkeyInput'
 import { Slider } from '../ui/Slider'
 import { Switch } from '../ui/Switch'
 import { ThemePicker } from './ThemePicker'
@@ -40,6 +48,28 @@ export function SettingsPanel({
   const decoyPresetId = useDecoy((state) => state.preset)
   const setDecoyEnabled = useDecoy((state) => state.setEnabled)
   const setDecoyPreset = useDecoy((state) => state.setPreset)
+  const dimEnabled = useDim((state) => state.enabled)
+  const dimLevel = useDim((state) => state.level)
+  const setDimEnabled = useDim((state) => state.setEnabled)
+  const setDimLevel = useDim((state) => state.setLevel)
+  const combos = useHotkeyBindings((state) => state.combos)
+  const setCombo = useHotkeyBindings((state) => state.setCombo)
+  const resetCombo = useHotkeyBindings((state) => state.resetCombo)
+
+  // 摸鱼模式只在编辑器形态里存在，所以它那一栏也只在编辑器主题下出现。
+  // 判断和 hook 里一样走 chromeOf(getTheme(...))，不认主题 id：
+  // 再加一套编辑器主题，这里不用改
+  const codeChrome = chromeOf(getTheme(settings.themeId)) === 'code'
+
+  /** 两个功能不能绑同一个组合：谁先响应说不清，索性在录的时候挡住 */
+  const conflictWith = (id: HotkeyId, combo: string): string | null => {
+    for (const other of Object.keys(HOTKEY_LABELS) as HotkeyId[]) {
+      if (other !== id && combo === resolveCombo(combos, other)) {
+        return `这个组合已经给了${HOTKEY_LABELS[other]}`
+      }
+    }
+    return null
+  }
 
   useEffect(() => {
     if (!open) return
@@ -98,10 +128,44 @@ export function SettingsPanel({
               </button>
             ))}
           </div>
+          <HotkeyInput
+            name={HOTKEY_LABELS.decoy}
+            combo={resolveCombo(combos, 'decoy')}
+            onChange={(combo) => setCombo('decoy', combo)}
+            onReset={() => resetCombo('decoy')}
+            check={(combo) => conflictWith('decoy', combo)}
+          />
           <p className="text-[11.5px] leading-relaxed text-fg-faint">
-            Alt+Q 也能开关。只在 VS Code 那两套主题下生效。
+            只在 VS Code 那两套主题下生效。
           </p>
         </section>
+
+        {/* 摸鱼模式那一栏只属于编辑器形态：普通主题下没有文件树、也没有代码区 */}
+        {codeChrome ? (
+          <section className="space-y-3">
+            <SectionTitle>摸鱼模式</SectionTitle>
+            <Switch
+              label="把编辑区调暗"
+              description="文件树和代码区盖一层黑纱，标题栏、状态栏不动"
+              checked={dimEnabled}
+              onChange={setDimEnabled}
+            />
+            <Slider
+              label="变暗程度"
+              value={dimLevel}
+              {...DIM_LEVEL_RANGE}
+              onChange={setDimLevel}
+              format={(value) => `${Math.round(value * 100)}%`}
+            />
+            <HotkeyInput
+              name={HOTKEY_LABELS.dim}
+              combo={resolveCombo(combos, 'dim')}
+              onChange={(combo) => setCombo('dim', combo)}
+              onReset={() => resetCombo('dim')}
+              check={(combo) => conflictWith('dim', combo)}
+            />
+          </section>
+        ) : null}
 
         <section className="space-y-3">
           <SectionTitle>阅读模式</SectionTitle>

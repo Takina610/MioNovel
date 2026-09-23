@@ -30,6 +30,8 @@ import { formatBytes, formatChars, formatPercent } from '../lib/format'
 import { bookPercent } from '../lib/progress'
 import { SettingsPanel } from '../components/reader/SettingsPanel'
 import { useDecoy } from '../store/decoy'
+import { useDim } from '../store/dim'
+import { useHotkeyCombo } from '../store/hotkeys'
 import { useImports } from '../store/imports'
 import { useSettings } from '../store/settings'
 import { cx } from '../lib/cx'
@@ -330,6 +332,10 @@ function CodeShelfPage() {
   const decoy = useDecoy((state) => state.enabled)
   const decoyId = useDecoy((state) => state.preset)
   const toggleDecoy = useDecoy((state) => state.toggle)
+  const dim = useDim((state) => state.enabled)
+  const toggleDim = useDim((state) => state.toggle)
+  const decoyHotkey = useHotkeyCombo('decoy')
+  const dimHotkey = useHotkeyCombo('dim')
   const list = useMemo(() => filterAndSort(books ?? [], '', sort), [books, sort])
   const selected = useMemo(
     () => (selectedId ? (list.find((book) => book.id === selectedId) ?? null) : null),
@@ -476,10 +482,16 @@ function CodeShelfPage() {
             : []),
           {
             // 演示模式的入口。写在菜单里是为了让人知道有这回事——
-            // 快捷键记不住，但菜单里看得见（见 SPEC 决定记录 22）
+            // 快捷键记不住，但菜单里看得见（见 SPEC 决定记录 22）。
+            // 提示里写的是**当前生效的**组合，用户改过键之后菜单跟着变
             label: decoy ? 'View: Exit Presentation' : '演示模式（老板来了）',
-            hint: 'Alt+Q',
+            hint: decoyHotkey,
             onSelect: () => toggleDecoy(),
+          },
+          {
+            label: dim ? 'View: Exit Dim Mode' : '摸鱼模式（调暗编辑区）',
+            hint: dimHotkey,
+            onSelect: () => toggleDim(),
           },
           {
             label: decoy ? 'Preferences: Open Settings' : '阅读设置',

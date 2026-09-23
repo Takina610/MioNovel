@@ -18,8 +18,9 @@ bun run build      # 生产构建（含 Service Worker）
 bun run preview    # 预览构建产物
 bun run typecheck  # tsc --noEmit
 bun run samples    # 生成验收用的样例文件到 samples/
-bun run verify     # 跑验收（38 项 txt + 45 项 epub + 640 份演示模式文件）
+bun run verify     # 跑验收（38 项 txt + 45 项 epub + 640 份演示模式文件 + 28 项快捷键断言）
 bun run verify:decoy   # 只跑演示模式：括号配对、空块、重名方法、行数对齐等
+bun run verify:hotkey  # 只跑快捷键：组合解析、键位匹配、录键校验
 bun run icons      # 从 public/MioNovel.png 重新生成全套图标（favicon / PWA / apple-touch）
 bun run logo       # 从同一张原图派生界面用的小图（logo-64 / logo-192 / favicon.svg）
 ```
@@ -81,6 +82,21 @@ C++ · CMake、React · TypeScript、Vue 3 单文件组件、Go、Rust。每种�
 
 右侧缩略图跟着一起换——它写的是屏幕上真实显示的那份内容，所以演示模式下也是代码。
 
+### 摸鱼模式（Alt+S）
+
+按 `Alt+S`（或 ☰ 菜单里那一项），左侧文件树和右侧代码区会压暗一层：隔着几步看过去，
+屏幕上是一块暗着的编辑区，看不清一行行是什么字，但标题栏、活动栏、状态栏还是亮的，
+所以远处看仍然是「开着编辑器」。变暗程度在阅读设置里调（10%–90%，默认 50%）。
+
+这一栏只在 VS Code 那两套主题下出现——普通形态里既没有文件树，也没有代码区。
+开关会记住（`mionovel:dim`）。它和演示模式互不依赖，可以只开一个，也可以一起开：一份暗着的代码。
+
+### 改快捷键
+
+演示模式（`Alt+Q`）和摸鱼模式（`Alt+S`）的键都能改：阅读设置里点一下那一行的键位，
+接着按你想用的组合就行——必须带 Ctrl 或 Alt，两个功能不能绑成同一个。`Esc` 取消，
+`Backspace` 恢复默认。改完 ☰ 菜单里的提示跟着变。
+
 ## 目录结构
 
 ```
@@ -93,16 +109,16 @@ src/
                     封面回退链（cover）、路径解析（paths）、净化与重写（html）
   db/               Dexie schema 与所有数据访问
   themes/           主题注册表、内置主题、样式表生成
-  store/            zustand：阅读设置（持久化）、导入队列（内存）
+  store/            zustand：阅读设置、演示模式、摸鱼模式、快捷键（持久化）、导入队列（内存）
   components/
     shelf/          书架卡片、书详情面板
     reader/         正文视图（滚动/翻页）、工具栏、目录、阅读设置
     code/           编辑器形态的外壳：窗口/资源管理器/搜索/缩略图/正文预览
-    ui/             手写基础件：Button / Slider / Switch / Panel / Dialog /
-                    Select / Toast / Logo / icons
-  hooks/            取书、取章、主题、快捷键、拖拽、翻页测量、淡出用的 presence
+    ui/             手写基础件：Button / Slider / Switch / HotkeyInput / Panel /
+                    Dialog / Select / Toast / Logo / icons
+  hooks/            取书、取章、主题、全局快捷键、拖拽、翻页测量、淡出用的 presence
   lib/              纯函数：进度换算、格式化、className 拼接、
-                    正文的代码标签（code.ts）
+                    正文的代码标签（code.ts）、快捷键判定（hotkey.ts）
   styles/           app.css（Tailwind、主题 token、动效工具类）content.css（正文排版）
                     code.css（编辑器形态）
 docs/SPEC.md        设计决定与理由 —— 动手改之前先看它
@@ -137,6 +153,15 @@ public/             MioNovel.png（标识原图）与由它生成的图标
 - **动效只用 `--mn-dur-*` 和 `mn-*` 那几个工具类**（见 `styles/app.css`），不要在组件里现编毫秒数或
   新写一套 keyframes。新加一种「出场感」之前先看现有的四条能不能复用；所有动画都要能被
   `prefers-reduced-motion` 压掉——那条 `@media` 块不能删。
+- **摸鱼模式压暗的是文件树和代码区，不是整个窗口**。程度写在 `.mn-code` 上的 `--mn-dim`，
+  两块正文区各自用 `::after` 盖一层黑纱（`styles/code.css`）；标题栏、活动栏、状态栏不压暗。
+  以后再往编辑器形态里加正文区，要么让它落在这两块里，要么在那个新块上也补一条同样的规则——
+  整窗压暗会让它从「暗着的编辑器」变成「屏幕关了」，那是另一回事。
+- **全局快捷键只有一处监听**（`hooks/useGlobalHotkeys.ts`），判定在 `lib/hotkey.ts`。
+  加功能不要自己再挂一个 window 监听；判定按 `event.code`（物理键位）而不是 `event.key`——
+  Alt 组合下 `key` 会跟着键盘布局变。录键期间 store 里的 `recording` 标记会让全局监听整个让位，
+  录键控件自己也要吃掉那一下按键（capture + preventDefault + `data-mn-esc-local`）：
+  少了这两条，用户想把 Alt+S 绑给别的功能时，摸鱼模式会先被切一遍。
 - **翻页模式下别给 `.mn-content` 加位移/缩放动画**。`transform` 是翻页的地盘（translateX 表示当前页），
   两条动画抢同一个属性会让翻页一顿一顿的——所以换章的淡入在翻页模式只动 `opacity`。
 - **`parsers/epub/html.ts` 里的 `scrubDocument()` 不能删**，也别把安全性完全交给 DOMPurify。

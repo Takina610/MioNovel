@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useDocumentTitle } from '../../hooks/useDocumentChrome'
 import { cx } from '../../lib/cx'
+import { useDimLevel } from '../../store/dim'
 import {
   IconFiles,
   IconMenu,
@@ -89,6 +90,8 @@ export function CodeShell({
 }: CodeShellProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  // 摸鱼模式的压暗程度。挂在窗口根上，文件树和代码区各自那层黑纱都读它（见 styles/code.css）
+  const dim = useDimLevel()
   // 窗口标题也写进浏览器标签页：外面看到的那行字必须和里面一致
   useDocumentTitle(title)
 
@@ -116,7 +119,10 @@ export function CodeShell({
   ]
 
   return (
-    <div className={cx('mn-code', dropping && 'mn-drop-active')}>
+    <div
+      className={cx('mn-code', dropping && 'mn-drop-active')}
+      style={{ '--mn-dim': String(dim) } as CSSProperties}
+    >
       <header className="mn-code__title">
         <div ref={menuRef} className="flex items-center">
           <button
@@ -274,11 +280,13 @@ export function CodeShell({
  * 一模一样（同样高的标题栏、同样宽的活动栏、同一条状态栏），否则从书架点进来时
  * 会先闪一下另一个形状的页面——用户看到的就是「加载了一下」。
  * 所以这里不摆标识、不摆转圈，也不写「正在打开」：编辑器打开文件时也不会弹这些。
+ * 摸鱼模式的压暗也照做：不然开着摸鱼模式点一本书，中间那几帧会亮一下。
  */
 export function CodeFrame({ title, children }: { title?: string; children?: ReactNode }) {
   useDocumentTitle(title)
+  const dim = useDimLevel()
   return (
-    <div className="mn-code">
+    <div className="mn-code" style={{ '--mn-dim': String(dim) } as CSSProperties}>
       <header className="mn-code__title">
         <div className="mn-code__title-text" title={title}>
           {title ?? ''}

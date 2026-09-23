@@ -411,6 +411,31 @@ html[data-chrome='code'] ::-webkit-scrollbar-thumb {
   min-width: 0;
 }
 
+/* ---- 摸鱼模式 ----
+   两块正文区（左侧文件树、右侧代码区）各盖一层黑纱，不透明度取 --mn-dim
+   （0-1，写在 .mn-code 上，见 components/code/CodeShell.tsx）。
+   标题栏、活动栏、状态栏**不盖**：隔着几步看过去，亮的边框围着一块暗的内容区
+   正是「开着编辑器」的样子——整屏压暗反而像屏幕关了、或者人不在。
+   用 ::after 而不是真塞一个元素：它纯装饰，不必进 DOM，也不必进无障碍树。 */
+.mn-code__side,
+.mn-code__main {
+  position: relative;
+}
+
+.mn-code__side::after,
+.mn-code__main::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* 盖住各自内部那些定位过的元素（缩略图、行内操作）；活动栏和标题栏在自己的
+     容器里，不受影响 */
+  z-index: 5;
+  background: #000;
+  opacity: var(--mn-dim, 0);
+  pointer-events: none;
+  transition: opacity var(--mn-dur-3) var(--mn-ease);
+}
+
 /* 正文区在代码形态下贴左上：编辑器不留居中的大留白 */
 .mn-code .mn-scroll {
   padding: 10px 16px 64px 10px;

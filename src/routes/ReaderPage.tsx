@@ -30,6 +30,8 @@ import { bookPercent, clamp01, locateByPercent } from '../lib/progress'
 import { formatChars, formatPercent } from '../lib/format'
 import { cx } from '../lib/cx'
 import { useDecoy } from '../store/decoy'
+import { useDim } from '../store/dim'
+import { useHotkeyCombo } from '../store/hotkeys'
 import { resolveSettings, settingsToVars, useSettings } from '../store/settings'
 import { chromeOf, getTheme } from '../themes/apply'
 
@@ -70,10 +72,16 @@ export function ReaderPage() {
   // 症状是刷新之后字号、栏宽、双语模式全部退回 CSS 默认值。
   const [readerRoot, setReaderRoot] = useState<HTMLDivElement | null>(null)
 
-  /** 全局「演示模式」开关。Alt+Q 或菜单里切（见 store/decoy） */
+  /** 全局「演示模式」开关。快捷键或菜单里切（见 store/decoy） */
   const decoy = useDecoy((state) => state.enabled)
   const decoyId = useDecoy((state) => state.preset)
   const toggleDecoy = useDecoy((state) => state.toggle)
+
+  /** 摸鱼模式（把文件树和代码区压暗）。开关在 store/dim，键位可改 */
+  const dim = useDim((state) => state.enabled)
+  const toggleDim = useDim((state) => state.toggle)
+  const decoyHotkey = useHotkeyCombo('decoy')
+  const dimHotkey = useHotkeyCombo('dim')
 
   const perBookStyle = bookId ? perBook[bookId] : undefined
   const perBookEnabled = perBookStyle?.enabled ?? false
@@ -452,10 +460,16 @@ export function ReaderPage() {
             },
             {
               // 演示模式的入口。写在菜单里是为了让人知道有这回事——
-              // 快捷键记不住，但菜单里看得见（见 SPEC 决定记录 22）
+              // 快捷键记不住，但菜单里看得见（见 SPEC 决定记录 22）。
+              // 提示里写的是**当前生效的**组合，用户改过键之后菜单跟着变
               label: decoy ? 'View: Exit Presentation' : '演示模式（老板来了）',
-              hint: 'Alt+Q',
+              hint: decoyHotkey,
               onSelect: () => toggleDecoy(),
+            },
+            {
+              label: dim ? 'View: Exit Dim Mode' : '摸鱼模式（调暗编辑区）',
+              hint: dimHotkey,
+              onSelect: () => toggleDim(),
             },
             {
               label: decoy ? 'Preferences: Open Settings' : '阅读设置',
