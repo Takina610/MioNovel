@@ -1,9 +1,11 @@
 import { BUILTIN_THEMES } from './builtin'
-import type { ReaderTheme } from './types'
-import { TOKEN_VARS } from './vars'
+import type { ReaderTheme, ThemeChrome } from './types'
+import type { ReaderSettings } from '../store/settings'
+import { CODE_TOKEN_VARS, TOKEN_VARS } from './vars'
 
 const STYLE_ID = 'mn-theme'
 const TOKEN_KEYS = Object.keys(TOKEN_VARS) as (keyof typeof TOKEN_VARS)[]
+const CODE_TOKEN_KEYS = Object.keys(CODE_TOKEN_VARS) as (keyof typeof CODE_TOKEN_VARS)[]
 
 /**
  * 主题注册表——唯一事实来源。
@@ -45,9 +47,30 @@ function themeBlock(theme: ReaderTheme): string {
   const declarations = TOKEN_KEYS.map(
     (key) => `  ${TOKEN_VARS[key]}: ${theme.tokens[key]};`,
   ).join('\n')
+  // 编辑器形态多出来的那几个变量：只有给得出值的主题才写。
+  // 代码形态本身不靠这些变量判断（形态由组件读注册表决定），所以缺了它们
+  // 只会让语法色退回继承色，不会让界面塌掉。
+  const codeDeclarations = theme.code
+    ? `\n${CODE_TOKEN_KEYS.map(
+        (key) => `  ${CODE_TOKEN_VARS[key]}: ${theme.code![key]};`,
+      ).join('\n')}`
+    : ''
   // color-scheme 交给主题声明：滚动条、<select> 这些原生控件才会跟着明暗走，
   // 而不是靠我们逐个去画。
-  return `:root[data-theme='${theme.id}'] {\n  color-scheme: ${theme.scheme};\n${declarations}\n}`
+  return `:root[data-theme='${theme.id}'] {\n  color-scheme: ${theme.scheme};\n${declarations}${codeDeclarations}\n}`
+}
+
+/** 主题声明的界面形态。组件用它决定外壳长什么样（见 hooks/useTheme.ts）。 */
+export function chromeOf(theme: ReaderTheme): ThemeChrome {
+  return theme.chrome ?? 'plain'
+}
+
+/**
+ * 主题自带的排版参数。选中主题时和 themeId 一起写进阅读设置——
+ * 「同时改」而不是「之后一直覆盖」，用户改完字号不会被主题顶回去。
+ */
+export function themePreset(themeId: string): Partial<ReaderSettings> {
+  return getTheme(themeId).preset ?? {}
 }
 
 export function buildThemeSheet(themes: ReaderTheme[] = registry): string {
@@ -73,6 +96,10 @@ export function applyTheme(theme: ReaderTheme): void {
   const root = document.documentElement
   root.dataset.theme = theme.id
   root.dataset.scheme = theme.scheme
+  // 形态也挂一个属性：它是主题的能力，不是某一个主题的名字，
+  // 所以 CSS 里按它写规则不违反「不为某个主题写选择器」——
+  // 再加一套编辑器主题，那些规则自动也管用。
+  root.dataset.chrome = chromeOf(theme)
 
   // 手机浏览器地址栏 / 状态栏的颜色跟着主题走，不然暗色主题配白色状态栏很割裂
   const meta = document.querySelector('meta[name="theme-color"]')

@@ -1,16 +1,37 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { BookCard } from '../components/shelf/BookCard'
 import { BookPanel } from '../components/shelf/BookPanel'
+import { CodeExplorer, toggleInSet } from '../components/code/CodeExplorer'
+import { CodePreview } from '../components/code/CodePreview'
+import { CodeSearch } from '../components/code/CodeSearch'
+import { CodeShell, CodeStatusItem, type CodeView } from '../components/code/CodeShell'
 import { Button } from '../components/ui/Button'
 import { Logo } from '../components/ui/Logo'
 import { Select } from '../components/ui/Select'
 import { Toast } from '../components/ui/Toast'
-import { IconClose, IconImport, IconSearch, IconSort } from '../components/ui/icons'
+import { IconClose, IconImport, IconSearch, IconSliders, IconSort } from '../components/ui/icons'
+import { saveProgress } from '../db/books'
 import type { BookRecord } from '../db/db'
 import { useBooks } from '../hooks/useBooks'
 import { useFileDrop } from '../hooks/useFileDrop'
+import { useToc } from '../hooks/useToc'
+import { useChrome } from '../hooks/useTheme'
+import { bookFolderName, chapterFileName } from '../lib/code'
+import {
+  decoyCursor,
+  decoyEmptyState,
+  decoyFileName,
+  decoyFolderName,
+  decoySeed,
+  decoyStatus,
+} from '../lib/decoy'
+import { formatBytes, formatChars, formatPercent } from '../lib/format'
+import { bookPercent } from '../lib/progress'
+import { SettingsPanel } from '../components/reader/SettingsPanel'
+import { useDecoy } from '../store/decoy'
 import { useImports } from '../store/imports'
+import { useSettings } from '../store/settings'
 import { cx } from '../lib/cx'
 
 type SortKey = 'recent' | 'added' | 'title' | 'size'
@@ -50,12 +71,30 @@ function filterAndSort(books: BookRecord[], query: string, sort: SortKey): BookR
   })
 }
 
+/**
+ * 书架。
+ *
+ * 两套外壳共用一个入口：主题声明 chrome: 'code' 时走编辑器形态（资源管理器 +
+ * 正文预览），否则是封面墙。形态写在主题里（见 themes/types.ts），
+ * 所以这里只是「同一页数据的两种排法」，不是两套书架。
+ */
 export function ShelfPage() {
+  const chrome = useChrome()
+  return chrome === 'code' ? <CodeShelfPage /> : <GridShelfPage />
+}
+
+// ==========================================================================
+// 格子书架：默认形态
+// ==========================================================================
+
+function GridShelfPage() {
   const books = useBooks()
   const navigate = useNavigate()
   const addFiles = useImports((state) => state.addFiles)
   const notice = useImports((state) => state.notice)
   const dismissNotice = useImports((state) => state.dismissNotice)
+  const globalSettings = useSettings((state) => state.global)
+  const updateSettings = useSettings((state) => state.update)
 
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortKey>('recent')
@@ -64,6 +103,7 @@ export function ShelfPage() {
   // 刚才那一下到底成没成
   const [panelBookId, setPanelBookId] = useState<string | null>(null)
   const [scrolled, setScrolled] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const dragging = useFileDrop(addFiles)
@@ -111,9 +151,7 @@ export function ShelfPage() {
       <header
         className={cx(
           'sticky top-0 z-40 border-b transition-[background-color,border-color,backdrop-filter] duration-300 ease-[var(--mn-ease)]',
-          scrolled
-            ? 'border-border bg-bg/80 backdrop-blur-xl'
-            : 'border-transparent bg-transparent',
+          scrolled ? 'border-border bg-bg/80 backdrop-blur-xl' : 'border-transparent bg-transparent',
         )}
       >
         <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -132,10 +170,20 @@ export function ShelfPage() {
               )}
             </div>
           </div>
-          <Button variant="solid" className="gap-1.5" onClick={() => fileInput.current?.click()}>
-            <IconImport className="h-4 w-4" />
-            导入
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              className="px-2.5"
+              aria-label="阅读设置"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <IconSliders className="h-4.5 w-4.5" />
+            </Button>
+            <Button variant="solid" className="gap-1.5" onClick={() => fileInput.current?.click()}>
+              <IconImport className="h-4 w-4" />
+              导入
+            </Button>
+          </div>
           <input
             ref={fileInput}
             type="file"
@@ -224,22 +272,439 @@ export function ShelfPage() {
         onDeleted={() => setPanelBookId(null)}
       />
 
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={globalSettings}
+        onChange={updateSettings}
+      />
+
       <Toast message={notice} onDismiss={dismissNotice} />
 
-      {dragging ? (
-        <div className="pointer-events-none fixed inset-0 z-70 flex items-center justify-center p-6">
-          <div className="mn-fade absolute inset-0 bg-overlay/35 backdrop-blur-sm" />
-          <div className="mn-pop relative flex flex-col items-center gap-1.5 rounded-3xl border border-border bg-surface/95 px-9 py-7 shadow-[var(--mn-shadow-float)]">
-            <Logo size={54} className="mn-float mb-1" />
-            <div className="text-[15px] font-medium text-fg">松手就导入</div>
-            <div className="text-[12px] text-fg-faint">txt · epub</div>
-          </div>
-        </div>
-      ) : null}
+      {dragging ? <DropHint /> : null}
     </div>
   )
 }
 
+// ==========================================================================
+// 编辑器书架：chrome: 'code' 的主题
+// ==========================================================================
+
+function CodeShelfPage() {
+  const books = useBooks()
+  const navigate = useNavigate()
+  const addFiles = useImports((state) => state.addFiles)
+  const notice = useImports((state) => state.notice)
+  const dismissNotice = useImports((state) => state.dismissNotice)
+  const globalSettings = useSettings((state) => state.global)
+  const updateSettings = useSettings((state) => state.update)
+
+  const [view, setView] = useState<CodeView>('explorer')
+  // 窄屏上侧栏是浮层，默认收着——不然一进来就是它盖着正文
+  const [sideOpen, setSideOpen] = useState(() => window.innerWidth >= 768)
+  /**
+   * 树上展开了哪几本书。就是字面意思的展开状态——不要在这里掺「选中哪本」：
+   * 上一版让「选中」顺手把书加回展开集合，于是点一下永远收不起来（见 SPEC 决定记录 22）。
+   * 「选中的自动展开」只在真的需要它的时候做一次：导入完成、搜索结果点进来。
+   */
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
+  /**
+   * 选中哪本书。**默认是空的**：一进来是工作区首页，不是某一本小说。
+   *
+   * 之前的写法是「没有选中就自动挑一本有进度的」，于是切到编辑器形态的那一刻
+   * 屏幕上直接就是某本小说的正文——看着像被塞进了阅读器，而且没有明显的地方
+   * 能退回来。工作区该等用户点。
+   */
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  /** 预览到第几章。选书时定在它上次读到的地方 */
+  const [previewChapter, setPreviewChapter] = useState(0)
+  /** 预览的章内位置，用来算全书百分比（正文那边滚动时限流上报） */
+  const [previewRatio, setPreviewRatio] = useState(0)
+  const [sort, setSort] = useState<SortKey>('recent')
+  const [panelBookId, setPanelBookId] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  const dragging = useFileDrop(addFiles)
+  const tasks = useImports((state) => state.tasks)
+  const decoy = useDecoy((state) => state.enabled)
+  const decoyId = useDecoy((state) => state.preset)
+  const toggleDecoy = useDecoy((state) => state.toggle)
+  const list = useMemo(() => filterAndSort(books ?? [], '', sort), [books, sort])
+  const selected = useMemo(
+    () => (selectedId ? (list.find((book) => book.id === selectedId) ?? null) : null),
+    [list, selectedId],
+  )
+  const panelBook = useMemo(
+    () => (panelBookId ? (list.find((book) => book.id === panelBookId) ?? null) : null),
+    [list, panelBookId],
+  )
+
+  const expandBook = useCallback((id: string) => {
+    setExpanded((current) => (current.has(id) ? current : new Set([...current, id])))
+  }, [])
+
+  /** 选中一本书。**不碰展开状态**：那是树自己的事 */
+  const pickBook = useCallback((book: BookRecord, chapter = book.progress?.chapterIndex ?? 0) => {
+    setSelectedId(book.id)
+    setPreviewChapter(Math.max(0, Math.min(book.chapterCount - 1, chapter)))
+  }, [])
+
+  // 拖进来一本书之后，编辑区应该显示的就是它——不然文件进了书架，
+  // 屏幕上还是上一次那本，看着像没导进去。开场时已有任务不算「刚导入」，
+  // 所以第一轮只记下现状。
+  const seenTask = useRef<string | null>(null)
+  const tasksSeen = useRef(false)
+  useEffect(() => {
+    const newest = tasks[tasks.length - 1]
+    if (!tasksSeen.current) {
+      tasksSeen.current = true
+      seenTask.current = newest?.bookId ?? null
+      return
+    }
+    if (!newest || seenTask.current === newest.bookId) return
+    seenTask.current = newest.bookId
+    setSelectedId(newest.bookId)
+    setPreviewChapter(0)
+    expandBook(newest.bookId)
+  }, [tasks, expandBook])
+
+  const chapterIndex = selected
+    ? Math.max(0, Math.min(selected.chapterCount - 1, previewChapter))
+    : 0
+  const toc = useToc(selected?.id, selected?.groups)
+  // 预览那一章的标题和字数：标签页、面包屑、状态栏都要用
+  const chapterRow = toc?.find((row) => row.type === 'chapter' && row.index === chapterIndex)
+  const chapterTitle = chapterRow?.label ?? ''
+  const chapterFile = chapterFileName(chapterTitle, chapterIndex)
+  const folderName = selected
+    ? decoy
+      ? decoyFolderName(decoyId, selected.id)
+      : bookFolderName(selected.title)
+    : ''
+  const chapterSeed = selected ? decoySeed(selected.id, chapterIndex) : ''
+  const cursor = decoyCursor(chapterSeed || 'workspace')
+  const fakeFile = decoy ? decoyFileName(decoyId, chapterSeed) : chapterFile
+  const decoyChromeLabel = decoy ? decoyStatus(decoyId) : null
+
+  /** 打开某一章：先把进度写过去，再进阅读器——那样进去就是这一章 */
+  const openChapter = useCallback(
+    (book: BookRecord, index: number) => {
+      void (async () => {
+        await saveProgress(book.id, { chapterIndex: index, ratio: 0, updatedAt: Date.now() })
+        void navigate(`/read/${book.id}`, { viewTransition: true })
+      })()
+    },
+    [navigate],
+  )
+
+  const importFiles = () => fileInput.current?.click()
+  const hasPrev = selected !== null && chapterIndex > 0
+  const hasNext = selected !== null && chapterIndex < selected.chapterCount - 1
+  const percent = selected ? bookPercent(selected, chapterIndex, previewRatio) : 0
+  const changeChapter = (index: number) => {
+    setPreviewChapter(index)
+    setPreviewRatio(0)
+  }
+
+  return (
+    <>
+      <CodeShell
+        title={`${selected ? folderName : decoy ? decoyFolderName(decoyId, 'workspace') : '我的书架'} — ${decoy ? 'workspace' : 'MioNovel'}`}
+        view={view}
+        onView={setView}
+        sideOpen={sideOpen}
+        onToggleSide={() => setSideOpen((open) => !open)}
+        sideTitle={view === 'search' ? (decoy ? 'Search' : '搜索') : '资源管理器'}
+        dropping={dragging}
+        side={
+          view === 'search' ? (
+            <div>
+              <div className="flex items-center gap-1 pr-3 pl-4">
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11.5px] text-fg-faint">排序</span>
+                </div>
+                <Select
+                  variant="ghost"
+                  align="end"
+                  ariaLabel="排序方式"
+                  value={sort}
+                  options={SORT_OPTIONS}
+                  leadingIcon={<IconSort className="h-3.5 w-3.5" />}
+                  onChange={(value) => setSort(value as SortKey)}
+                />
+              </div>
+              <CodeSearch
+                books={list}
+                onSelectBook={(book) => {
+                  pickBook(book)
+                  expandBook(book.id)
+                  setSideOpen(false)
+                }}
+              />
+            </div>
+          ) : books === undefined ? (
+            <div className="mn-code-hint">正在打开书架…</div>
+          ) : list.length === 0 ? (
+            <div className="mn-code-hint">书架是空的。拖文件进来，或者点下面的「导入文件…」。</div>
+          ) : (
+            <CodeExplorer
+              books={list}
+              expanded={expanded}
+              // 点书名只做两件事：切预览、展开/收起。展开状态是用户的东西，
+              // 选中逻辑不许顺手把它改回去
+              onToggleBook={(id) => setExpanded((current) => toggleInSet(current, id))}
+              onSelectBook={(book) => pickBook(book)}
+              onOpenChapter={openChapter}
+              onBookMenu={(book) => setPanelBookId(book.id)}
+              current={selected ? { bookId: selected.id, index: chapterIndex } : undefined}
+              onImport={importFiles}
+              importLabel={decoy ? 'Open File…' : '导入文件…'}
+            />
+          )
+        }
+        menu={[
+          { label: decoy ? 'File: Open…' : '导入文件…', onSelect: importFiles },
+          ...(selected
+            ? [
+                {
+                  label: decoy ? 'Go to Workspace Root' : '回到工作区首页',
+                  onSelect: () => setSelectedId(null),
+                  separatorBefore: true,
+                },
+              ]
+            : []),
+          {
+            // 演示模式的入口。写在菜单里是为了让人知道有这回事——
+            // 快捷键记不住，但菜单里看得见（见 SPEC 决定记录 22）
+            label: decoy ? 'View: Exit Presentation' : '演示模式（老板来了）',
+            hint: 'Alt+Q',
+            onSelect: () => toggleDecoy(),
+          },
+          {
+            label: decoy ? 'Preferences: Open Settings' : '阅读设置',
+            onSelect: () => setSettingsOpen(true),
+            separatorBefore: true,
+          },
+          {
+            label: decoy ? 'View: Full Screen' : '全屏',
+            onSelect: () => {
+              if (document.fullscreenElement) void document.exitFullscreen()
+              else void document.documentElement.requestFullscreen()
+            },
+          },
+        ]}
+        tabs={
+          selected && selected.state === 'ready'
+            ? [
+                {
+                  key: `${selected.id}:${chapterIndex}`,
+                  label: fakeFile,
+                  active: true,
+                  onSelect: () => openChapter(selected, chapterIndex),
+                },
+              ]
+            : []
+        }
+        crumbs={
+          selected
+            ? [
+                // 面包屑的第一节就是工作区根：点它回到首页（和编辑器里点路径回上层一个意思）
+                {
+                  label: decoy ? decoyFolderName(decoyId, 'workspace') : '我的书架',
+                  onSelect: () => setSelectedId(null),
+                },
+                { label: folderName },
+                { label: fakeFile },
+              ]
+            : [{ label: decoy ? decoyFolderName(decoyId, 'workspace') : '我的书架' }]
+        }
+        statusLeft={
+          decoy ? (
+            <>
+              <CodeStatusItem>main</CodeStatusItem>
+              <CodeStatusItem>{`Ln ${cursor.line}, Col ${cursor.col}`}</CodeStatusItem>
+            </>
+          ) : (
+            <>
+              <CodeStatusItem>{`共 ${list.length} 本`}</CodeStatusItem>
+              {selected ? (
+                <CodeStatusItem title={selected.title}>
+                  {`第 ${chapterIndex + 1}/${selected.chapterCount} 章`}
+                </CodeStatusItem>
+              ) : null}
+              {selected ? <CodeStatusItem>{formatPercent(percent)}</CodeStatusItem> : null}
+            </>
+          )
+        }
+        statusRight={
+          selected ? (
+            decoy ? (
+              <>
+                <CodeStatusItem className="max-lg:hidden">
+                  {decoyChromeLabel?.indent}
+                </CodeStatusItem>
+                <CodeStatusItem className="max-lg:hidden">UTF-8</CodeStatusItem>
+                <CodeStatusItem>{decoyChromeLabel?.language}</CodeStatusItem>
+                <CodeStatusItem
+                  onClick={() => hasPrev && changeChapter(chapterIndex - 1)}
+                  disabled={!hasPrev}
+                  title="上一页"
+                >
+                  ←
+                </CodeStatusItem>
+                <CodeStatusItem
+                  onClick={() => hasNext && changeChapter(chapterIndex + 1)}
+                  disabled={!hasNext}
+                  title="下一页"
+                >
+                  →
+                </CodeStatusItem>
+              </>
+            ) : (
+              <>
+                {/* 本章字数 / 全书字数：读的过程中最常想知道的两个数 */}
+                <CodeStatusItem
+                  className="max-lg:hidden"
+                  title={
+                    chapterRow?.charCount
+                      ? `本章 ${chapterRow.charCount} 字 · 全书 ${selected.totalChars} 字`
+                      : `全书 ${selected.totalChars} 字`
+                  }
+                >
+                  {chapterRow?.charCount ? `${formatChars(chapterRow.charCount)} / ` : ''}
+                  {formatChars(selected.totalChars)}
+                </CodeStatusItem>
+                {selected.charset ? (
+                  <CodeStatusItem className="max-lg:hidden">{selected.charset}</CodeStatusItem>
+                ) : null}
+                <CodeStatusItem title={`文件大小 ${formatBytes(selected.fileSize)}`}>
+                  {selected.format.toUpperCase()}
+                </CodeStatusItem>
+                {/* 上下章常驻在状态栏：预览也是「在读」，翻章不该只靠资源管理器 */}
+                <CodeStatusItem
+                  onClick={() => hasPrev && changeChapter(chapterIndex - 1)}
+                  disabled={!hasPrev}
+                  title="上一章"
+                >
+                  上一章
+                </CodeStatusItem>
+                <CodeStatusItem
+                  onClick={() => hasNext && changeChapter(chapterIndex + 1)}
+                  disabled={!hasNext}
+                  title="下一章"
+                >
+                  下一章
+                </CodeStatusItem>
+              </>
+            )
+          ) : null
+        }
+        statusRatio={selected ? percent : undefined}
+        onSettings={() => setSettingsOpen(true)}
+      >
+        {selected && selected.state === 'ready' ? (
+          <CodePreview
+            book={selected}
+            chapterIndex={chapterIndex}
+            decoySeedValue={chapterSeed}
+            onRatio={setPreviewRatio}
+          />
+        ) : (
+          <Watermark
+            title={
+              list.length === 0
+                ? decoy
+                  ? decoyEmptyState(decoyId, 'workspace').title
+                  : '把小说拖进来'
+                : selected
+                  ? folderName
+                  : decoy
+                    ? decoyEmptyState(decoyId, 'workspace').title
+                    : '我的书架'
+            }
+            hint={
+              list.length === 0
+                ? decoy
+                  ? '把文件拖进窗口即可打开。'
+                  : 'txt 和 epub 都行，文件不上传'
+                : selected?.state === 'importing'
+                  ? decoy
+                    ? '正在索引…'
+                    : '这本书还在导入'
+                  : selected
+                    ? decoy
+                      ? '这个文件暂时打不开。'
+                      : '这本书没能解析成功，用资源管理器里它那一行的 ⋯ 重新解析'
+                    : decoy
+                      ? decoyEmptyState(decoyId, 'workspace').hint
+                      : '点左侧资源管理器里的书名开始读；把文件拖进窗口也能导入。'
+            }
+          />
+        )}
+      </CodeShell>
+
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        accept=".txt,.epub,text/plain,application/epub+zip"
+        className="hidden"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? [])
+          addFiles(files)
+          event.target.value = ''
+        }}
+      />
+
+      <BookPanel
+        book={panelBook}
+        open={panelBook !== null}
+        onClose={() => setPanelBookId(null)}
+        onRead={(book) => openChapter(book, book.progress?.chapterIndex ?? 0)}
+        onDeleted={() => setPanelBookId(null)}
+      />
+
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={globalSettings}
+        onChange={updateSettings}
+      />
+
+      <Toast message={notice} onDismiss={dismissNotice} />
+
+      {dragging ? <DropHint /> : null}
+    </>
+  )
+}
+
+/** 拖拽悬停时的那张提示卡。两套外壳共用 */
+function DropHint() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-70 flex items-center justify-center p-6">
+      <div className="mn-fade absolute inset-0 bg-overlay/35 backdrop-blur-sm" />
+      <div className="mn-pop relative flex flex-col items-center gap-1.5 rounded-3xl border border-border bg-surface/95 px-9 py-7 shadow-[var(--mn-shadow-float)]">
+        <Logo size={54} className="mn-float mb-1" />
+        <div className="text-[15px] font-medium text-fg">松手就导入</div>
+        <div className="text-[12px] text-fg-faint">txt · epub</div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 编辑区里没有正文可显示时的那一屏。
+ * 编辑器形态下连标识都不摆：这个形态的约定是「只有文字」，一个图标就破了它。
+ */
+function Watermark({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="mn-code-watermark">
+      <p className="text-[15px] text-fg-muted">{title}</p>
+      <p className="text-[12px]">{hint}</p>
+    </div>
+  )
+}
 /** 书架还在读库时的占位。比一行「正在打开书架…」更像「马上就好」 */
 function SkeletonGrid() {
   return (

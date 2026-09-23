@@ -18,7 +18,8 @@ bun run build      # 生产构建（含 Service Worker）
 bun run preview    # 预览构建产物
 bun run typecheck  # tsc --noEmit
 bun run samples    # 生成验收用的样例文件到 samples/
-bun run verify     # 跑解析器验收（38 项 txt + 45 项 epub 断言）
+bun run verify     # 跑验收（38 项 txt + 45 项 epub + 640 份演示模式文件）
+bun run verify:decoy   # 只跑演示模式：括号配对、空块、重名方法、行数对齐等
 bun run icons      # 从 public/MioNovel.png 重新生成全套图标（favicon / PWA / apple-touch）
 bun run logo       # 从同一张原图派生界面用的小图（logo-64 / logo-192 / favicon.svg）
 ```
@@ -42,6 +43,44 @@ bun run logo       # 从同一张原图派生界面用的小图（logo-64 / logo
 窗口够宽时一屏并排两页（放不下就退回单页居中），`←` `→` 翻章，`t` 开目录，
 `Esc` 关面板，`f` 全屏。
 
+## 编辑器主题
+
+主题列表里的 **VS Code 暗 / VS Code 亮** 不只是换配色：选中之后整个应用变成编辑器
+——书架换成资源管理器（书是文件夹、章是文件），首页不再显示封面，正文按代码排版
+（行号、对话与标题的语法配色、右侧缩略图），下面一条状态栏。
+
+打开时是工作区首页，不会自动翻进某本小说：左边是整棵树，点书名或章节才开始读。
+点进章节会进阅读器，阅读器的左侧同样是**整个书架**（可以直接换到另一本），
+树底下有一行「回书架」。面包屑的第一节也是回首页的出口。读的是正文，
+图不渲染——封面、卷首插图、正文插图都会写成一行 `![插图](./OEBPS/Images/pic.png)`，
+说明这里原本有一张图、它的原始路径是什么。
+
+编辑器形态下能用的：活动栏切「资源管理器 / 搜索」、点已选中的图标收起侧栏、`t` 开关侧栏、
+标签页记录这次会话开过的章、点或拖缩略图跳位置、状态栏上的全书进度与上下章、
+本章字数 / 全书字数、`TXT` 编码这类信息都在状态栏右下角。上下章在状态栏常驻，
+不用翻到章末才找得到。右侧缩略图写的是**正文本身**（压到 3px 的字），
+不是一个占位的色块。
+
+选中这套主题时会顺带把阅读设置调成它自带的一套（等宽、不缩进、段间距 0），
+之后就完全按你自己的设置走。颜色是从 VS Code 的 Dark Modern / Light Modern 与
+Dark+ / Light+ 的 token 表里抄的，不是照着感觉调的——配套约束见 [docs/SPEC.md](docs/SPEC.md) 五 5.4。
+
+### 演示模式（Alt+Q）
+
+按 `Alt+Q`，或者从标题栏的 ☰ 菜单、阅读设置里的「演示模式」打开，整个窗口换成一份**看着像真的**
+源文件：书名变仓库名、章节变文件名、每一段正文变成文件里的一行，状态栏是 `Ln 171, Col 26` /
+`TypeScript React` / `Spaces: 2`，浏览器标签页的标题和图标也一起换。再按一次原样回来。
+
+八种语言可选（在阅读设置里）：Java · Spring Boot、C# · ASP.NET Core、Python · Django、
+C++ · CMake、React · TypeScript、Vue 3 单文件组件、Go、Rust。每种生成的都是一份**结构完整的文件**：
+文件头（package / using / import）、类型声明、若干方法或组件、结尾的收尾行；
+文件名和文件里的类名/组件名同源，所以 `CatalogService.java` 里的类就叫 `CatalogService`。
+语法高亮交给 highlight.js（按需加载，只在演示模式用），颜色由主题的 token 变量给出。
+
+开关会记住（存在 `mionovel:decoy`），下次打开还在。它不改任何数据，只改显示。
+
+右侧缩略图跟着一起换——它写的是屏幕上真实显示的那份内容，所以演示模式下也是代码。
+
 ## 目录结构
 
 ```
@@ -58,11 +97,14 @@ src/
   components/
     shelf/          书架卡片、书详情面板
     reader/         正文视图（滚动/翻页）、工具栏、目录、阅读设置
+    code/           编辑器形态的外壳：窗口/资源管理器/搜索/缩略图/正文预览
     ui/             手写基础件：Button / Slider / Switch / Panel / Dialog /
                     Select / Toast / Logo / icons
   hooks/            取书、取章、主题、快捷键、拖拽、翻页测量、淡出用的 presence
-  lib/              纯函数：进度换算、格式化、className 拼接
+  lib/              纯函数：进度换算、格式化、className 拼接、
+                    正文的代码标签（code.ts）
   styles/           app.css（Tailwind、主题 token、动效工具类）content.css（正文排版）
+                    code.css（编辑器形态）
 docs/SPEC.md        设计决定与理由 —— 动手改之前先看它
 scripts/            样例生成、验收脚本、标识派生
 public/             MioNovel.png（标识原图）与由它生成的图标
@@ -73,6 +115,25 @@ public/             MioNovel.png（标识原图）与由它生成的图标
 - **主题只能通过注册表加**。往 `themes/builtin.ts` 里加一条数据就行；不要在组件里写死颜色，
   也不要在 CSS 里为某个主题写选择器。所有颜色都是 `:root[data-theme=…]` 上的变量，
   组件只认 `bg-bg` / `text-fg-muted` 这类工具类。破了这条，换主题就会只换一半。
+- **界面形态也由主题声明，组件不许认主题 id**。`chrome: 'code'` 的主题走编辑器外壳，
+  组件读 `useChrome()`，样式只挂在 `.mn-code` 类上。要判断「这是不是编辑器形态」，
+  永远看这个标志，不要写 `themeId === 'vscode'`——那样再加一套编辑器主题就得改一遍组件。
+- **编辑器形态下的正文只贴标签、不写字**。`lib/code.ts` 给段落贴 `mn-tok-*` / `mn-code-line`，
+  颜色在 `styles/code.css` 里从 `--mn-code-*` 取。别往正文里插原文没有的记号（`//`、`def` 之类），
+  也别在 JS 里写死颜色。唯一的例外是图片：它写成一行 `![](./原图路径)`——图不渲染，
+  那行就是「这里有一张图」。分好的类名要能被 `content.css` 的排版规则继续管着
+  （一套排版管两种形态）。
+- **演示模式的名字必须同源**。`lib/decoy.ts` 里文件名和文件里的类名都从同一个 `Ctx`
+  （`makeCtx(preset, seed)`）推出来，而 `seed` 由 `decoySeed(bookId, chapterIndex)` 统一给出——
+  目录树、标签页、正文三处必须传同一个。各自哈希一遍的后果是 `ReportMapper.java` 里写着
+  `class CatalogService`，那是懂代码的人一眼就看得出的假。加语言时照这个约定加：文件名的推法、
+  文件头（`preamble` / `open` / `fields` 都是「组」，要么整段写进去、要么整段不写）、
+  块、收尾、单行填充，然后跑 `bun run verify:decoy`。
+- **演示模式生成的是纯文本，不是带颜色的 HTML**。上色统一交给 highlight.js
+  （`lib/highlight.ts`，按行 tokenize，颜色映射见 `styles/code.css` 的 `.hljs-*` 一段）。
+  别在模板里手写颜色——自己写一套 token 规则既不准也维护不动。
+- **代码的缩进靠 `white-space: pre-wrap`**（`.mn-content--code`）。HTML 默认把行首空白折掉，
+  少了那一条，生成得再对也会平铺到左边——一眼假。这条和上面那条是一对，改一个要看另一个。
 - **动效只用 `--mn-dur-*` 和 `mn-*` 那几个工具类**（见 `styles/app.css`），不要在组件里现编毫秒数或
   新写一套 keyframes。新加一种「出场感」之前先看现有的四条能不能复用；所有动画都要能被
   `prefers-reduced-motion` 压掉——那条 `@media` 块不能删。

@@ -5,7 +5,9 @@ import { createBrowserRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { ReaderPage } from './routes/ReaderPage'
 import { ShelfPage } from './routes/ShelfPage'
+import { useDecoyFavicon } from './hooks/useDocumentChrome'
 import { useGlobalTheme } from './hooks/useTheme'
+import { useDecoyHotkey } from './store/decoy'
 
 /**
  * 只有两个视图：书架和阅读器。
@@ -19,5 +21,9 @@ const router = createBrowserRouter([
 
 export function App() {
   useGlobalTheme()
+  // Alt+Q 演示模式。挂在最外层而不是某个页面里：书架和阅读器都得能按
+  useDecoyHotkey()
+  // 演示模式下标签页图标也换掉（小说图标配代码窗口太显眼）
+  useDecoyFavicon()
   return <RouterProvider router={router} />
 }

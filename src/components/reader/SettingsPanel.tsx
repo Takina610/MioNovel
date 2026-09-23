@@ -6,6 +6,9 @@ import {
   SETTING_RANGES,
   type ReaderSettings,
 } from '../../store/settings'
+import { themePreset } from '../../themes/apply'
+import { DECOY_PRESETS } from '../../lib/decoy'
+import { useDecoy } from '../../store/decoy'
 import { cx } from '../../lib/cx'
 import { Panel } from '../ui/Panel'
 import { Button } from '../ui/Button'
@@ -19,8 +22,9 @@ interface SettingsPanelProps {
   onClose: () => void
   settings: ReaderSettings
   onChange: (patch: Partial<ReaderSettings>) => void
-  perBookEnabled: boolean
-  onTogglePerBook: (enabled: boolean) => void
+  /** 只有阅读器里能给某本书开独立设置。书架上没有「当前这本书」，就不传 */
+  perBookEnabled?: boolean
+  onTogglePerBook?: (enabled: boolean) => void
 }
 
 export function SettingsPanel({
@@ -32,6 +36,10 @@ export function SettingsPanel({
   onTogglePerBook,
 }: SettingsPanelProps) {
   const [usage, setUsage] = useState<StorageUsage | null>(null)
+  const decoyEnabled = useDecoy((state) => state.enabled)
+  const decoyPresetId = useDecoy((state) => state.preset)
+  const setDecoyEnabled = useDecoy((state) => state.setEnabled)
+  const setDecoyPreset = useDecoy((state) => state.setPreset)
 
   useEffect(() => {
     if (!open) return
@@ -57,8 +65,42 @@ export function SettingsPanel({
           <SectionTitle>主题</SectionTitle>
           <ThemePicker
             activeId={settings.themeId}
-            onSelect={(themeId) => onChange({ themeId })}
+            // 主题可以带一套自带的排版参数（比如编辑器形态的等宽、不缩进）：
+            // 选中它的时候一起写进设置。这是**一次预设**，之后用户怎么改都算用户的
+            onSelect={(themeId) => onChange({ themeId, ...themePreset(themeId) })}
           />
+        </section>
+
+        <section className="space-y-3">
+          <SectionTitle>演示模式</SectionTitle>
+          <Switch
+            label="正文显示成代码"
+            description="书架、文件名、状态栏一起换成代码的样子"
+            checked={decoyEnabled}
+            onChange={setDecoyEnabled}
+          />
+          <div className="grid grid-cols-2 gap-1.5">
+            {DECOY_PRESETS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setDecoyPreset(item.id)}
+                aria-pressed={decoyPresetId === item.id}
+                className={cx(
+                  'rounded-lg border px-2.5 py-1.5 text-left text-[12.5px]',
+                  'transition-[border-color,background-color,color,transform,box-shadow] duration-[var(--mn-dur-2)] ease-[var(--mn-ease)] active:scale-[0.97]',
+                  decoyPresetId === item.id
+                    ? 'border-accent bg-accent-soft text-accent shadow-[0_0_0_3px_color-mix(in_srgb,var(--mn-accent)_12%,transparent)]'
+                    : 'border-border text-fg-muted hover:border-border-strong hover:bg-surface-2',
+                )}
+              >
+                {item.name}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11.5px] leading-relaxed text-fg-faint">
+            Alt+Q 也能开关。只在 VS Code 那两套主题下生效。
+          </p>
         </section>
 
         <section className="space-y-3">
@@ -197,14 +239,16 @@ export function SettingsPanel({
           </div>
         </section>
 
-        <section className="border-t border-border pt-5">
-          <Switch
-            label="这本书用独立设置"
-            description="上面的字号、主题只对当前这本书生效"
-            checked={perBookEnabled}
-            onChange={onTogglePerBook}
-          />
-        </section>
+        {onTogglePerBook ? (
+          <section className="border-t border-border pt-5">
+            <Switch
+              label="这本书用独立设置"
+              description="上面的字号、主题只对当前这本书生效"
+              checked={perBookEnabled ?? false}
+              onChange={onTogglePerBook}
+            />
+          </section>
+        ) : null}
 
         <section className="space-y-2 border-t border-border pt-5">
           <SectionTitle>自定义 CSS</SectionTitle>

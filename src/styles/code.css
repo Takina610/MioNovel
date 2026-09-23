@@ -1,0 +1,846 @@
+/* ==========================================================================
+   编辑器形态（.mn-code）
+   --------------------------------------------------------------------------
+   声明了 chrome: 'code' 的主题（themes/builtin.ts 里的两套 VS Code）走的皮肤：
+   书架变成资源管理器，正文按代码排版——行号、语法配色、缩略图、状态栏。
+
+   两条自我约束：
+
+   1. **规则只认 .mn-code 这个类，不认主题 id**。类由组件按注册表里的
+      chrome 挂上去（hooks/useTheme.ts），再加一套编辑器主题时不用动这里一行。
+   2. **颜色一律取变量**。这里只负责结构（高度、分隔、缩进、行号列、缩略图条），
+      颜色全部来自主题 token——所以同一个皮肤在暗色和亮色下都成立。
+
+   正文那一半的标签（哪一段是对话、哪一段是注释）由 lib/code.ts 贴到元素上，
+   这里只负责按标签上色。
+   ========================================================================== */
+
+.mn-code {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--mn-bg);
+  color: var(--mn-fg);
+  /* 行号列的宽度：数字格子 + 数字到正文的距离 */
+  --mn-line-no: 3.2ch;
+  --mn-line-gap: 1.6ch;
+}
+
+/* 编辑器里滚动条比阅读时窄一点、更靠边，和真编辑器的观感一致 */
+html[data-chrome='code'] ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+html[data-chrome='code'] ::-webkit-scrollbar-thumb {
+  border: 4px solid transparent;
+}
+
+/* ---- 标题栏 ---- */
+
+.mn-code__title {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 35px;
+  padding: 0 6px;
+  background: var(--mn-surface);
+  border-bottom: 1px solid var(--mn-border);
+  font-size: 12.5px;
+  /* 窗口标题不可选中：它是「窗口」的一部分，不是内容 */
+  user-select: none;
+}
+
+.mn-code__title-text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+  color: var(--mn-fg-muted);
+}
+
+/* 标题栏上的图标按钮（菜单、侧栏开关） */
+.mn-code__title-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 27px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-code__title-btn:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+/* ---- 活动栏 ---- */
+
+.mn-code__rail {
+  flex: 0 0 auto;
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 0 8px;
+  background: var(--mn-surface);
+  border-right: 1px solid var(--mn-border);
+}
+
+.mn-code__rail-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 44px;
+  color: var(--mn-fg-faint);
+  transition: color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-code__rail-btn:hover {
+  color: var(--mn-fg);
+}
+
+/* 选中的那个用前景色 + 左侧一条强调色：和 VS Code 的活动栏同一套语言 */
+.mn-code__rail-btn[aria-pressed='true'] {
+  color: var(--mn-fg);
+}
+
+.mn-code__rail-btn[aria-pressed='true']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--mn-accent);
+}
+
+/* ---- 侧栏 ---- */
+
+.mn-code__side {
+  flex: 0 0 248px;
+  width: 248px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--mn-surface);
+  border-right: 1px solid var(--mn-border);
+}
+
+.mn-code__side-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  height: 34px;
+  padding: 0 4px 0 16px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mn-fg-faint);
+  user-select: none;
+}
+
+.mn-code__side-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 12px;
+}
+
+/* 树的缩进用左内边距 + 左侧参考线画，和 VS Code 的缩进导轨一个意思 */
+.mn-code-tree {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mn-code-tree li {
+  margin: 0;
+}
+
+.mn-code-tree--nested {
+  margin-left: 12px;
+  padding-left: 4px;
+  border-left: 1px solid var(--mn-code-guide);
+}
+
+.mn-code-row-wrap {
+  display: flex;
+  align-items: center;
+  padding-right: 2px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-code-row-wrap:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-code-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0;
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--mn-fg-muted);
+  text-align: left;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-code-row:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-code-row[aria-current='true'] {
+  background: var(--mn-accent-soft);
+  color: var(--mn-fg);
+}
+
+.mn-code-row__twist {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  transition: transform var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-code-row__twist--open {
+  transform: rotate(90deg);
+}
+
+.mn-code-row__icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--mn-fg-faint);
+}
+
+.mn-code-row__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mn-code-row__meta {
+  flex: 0 0 auto;
+  padding-right: 4px;
+  font-size: 11px;
+  color: var(--mn-fg-faint);
+}
+
+/* 行尾的操作按钮：平时看不见，悬停或聚焦才出来（VS Code 的行内操作也是这个脾气）。
+   它出来的时候字数这类信息让位——一行里同时塞两样就都看不清了。 */
+.mn-code-row__action {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  opacity: 0;
+  transition: opacity var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-code-row-wrap:hover .mn-code-row__meta,
+.mn-code-row-wrap:has(.mn-code-row__action:focus-visible) .mn-code-row__meta {
+  display: none;
+}
+
+.mn-code-row-wrap:hover .mn-code-row__action,
+.mn-code-row__action:focus-visible {
+  opacity: 1;
+}
+
+.mn-code-row__action:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+/* 侧栏顶部那行的小按钮（导入 / 展开全部） */
+.mn-code-side-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 26px;
+  padding: 0 8px 0 16px;
+  font-size: 12.5px;
+  color: var(--mn-fg-muted);
+  text-align: left;
+}
+
+.mn-code-side-btn:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+/* 侧栏空态：一句话 + 一个出口 */
+.mn-code-hint {
+  padding: 10px 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--mn-fg-faint);
+}
+
+/* 侧栏顶部的输入框（搜索视图） */
+.mn-code-input {
+  width: 100%;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--mn-bg);
+  border: 1px solid var(--mn-border-strong);
+  color: var(--mn-fg);
+  font-size: 12.5px;
+}
+
+.mn-code-input:focus {
+  outline: 1px solid var(--mn-accent);
+  outline-offset: -1px;
+  border-color: var(--mn-accent);
+}
+
+/* ---- 主区：标签条、面包屑 ---- */
+
+.mn-code__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--mn-bg);
+}
+
+.mn-code__tabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  height: 35px;
+  background: var(--mn-surface-2);
+  border-bottom: 1px solid var(--mn-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  user-select: none;
+}
+
+.mn-code__tabs::-webkit-scrollbar {
+  height: 0;
+}
+
+.mn-code__tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 0 10px;
+  background: var(--mn-surface-2);
+  border-right: 1px solid var(--mn-border);
+  color: var(--mn-fg-faint);
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-code__tab:hover {
+  color: var(--mn-fg-muted);
+}
+
+/* 当前标签页的底色和编辑器一致，看着就是「它连着下面这块内容」 */
+.mn-code__tab[aria-selected='true'] {
+  background: var(--mn-bg);
+  color: var(--mn-fg);
+}
+
+.mn-code__crumbs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 12px;
+  background: var(--mn-bg);
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  user-select: none;
+}
+
+.mn-code__crumbs button:hover {
+  color: var(--mn-fg);
+}
+
+/* ---- 编辑区 ---- */
+
+.mn-code__pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* 活动栏 | 侧栏 | 编辑区 这一行 */
+.mn-code__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* 编辑区里正文占满剩下的宽度，缩略图钉在右边缘 */
+.mn-code__pane > .mn-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 正文区在代码形态下贴左上：编辑器不留居中的大留白 */
+.mn-code .mn-scroll {
+  padding: 10px 16px 64px 10px;
+}
+
+.mn-code .mn-scroll .mn-content {
+  margin: 0;
+}
+
+/* 空态水印：没有选中任何书时，编辑器那片空白给一句话 */
+.mn-code-watermark {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--mn-fg-faint);
+  font-size: 13px;
+  user-select: none;
+}
+
+.mn-code-watermark kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 4px;
+  background: var(--mn-surface-2);
+  color: var(--mn-fg-muted);
+  font-family: var(--mn-font-mono);
+  font-size: 11px;
+}
+
+/* ---- 缩略图 ---- */
+
+.mn-code__minimap {
+  position: relative;
+  flex: 0 0 74px;
+  width: 74px;
+  overflow: hidden;
+  background: var(--mn-bg);
+  border-left: 1px solid var(--mn-border);
+  cursor: pointer;
+}
+
+/* 缩略图里写的是真实内容：3px 的等宽字，长行按宽度折行，看起来就是正文压扁的样子。
+   字号和「一行放得下几个字」是一对常数（见 components/code/Minimap.tsx），
+   改一个要跟着改另一个，否则折行和正文对不上、视窗框的位置就没意义了。 */
+.mn-code__minimap-lines {
+  position: absolute;
+  inset: 8px 0;
+  overflow: hidden;
+}
+
+.mn-code__minimap-line {
+  position: absolute;
+  left: 6px;
+  right: 0;
+  overflow: hidden;
+  white-space: pre;
+  font-family: var(--mn-font-mono);
+  font-size: 3px;
+  line-height: 1.15;
+  letter-spacing: 0;
+  /* 颜色由组件按行的类别写在 style 上（对话是字符串色、标题是关键字色……） */
+}
+
+.mn-code__minimap-view {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--mn-fg) 12%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--mn-fg) 18%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--mn-fg) 18%, transparent);
+  pointer-events: none;
+}
+
+/* ---- 状态栏 ---- */
+
+.mn-code__status {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 24px;
+  padding: 0 8px;
+  background: var(--mn-surface);
+  border-top: 1px solid var(--mn-border);
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* 读到哪了：状态栏顶上一条 2px 的强调色，像编辑器里跑任务的进度条 */
+.mn-code__status-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 2px;
+  background: var(--mn-accent);
+  transition: width var(--mn-dur-2) var(--mn-ease);
+}
+
+/* 状态栏上的一项。display 交给调用方的工具类（flex / max-lg:hidden 这类要能互相盖住），
+   这里只管尺寸、间距和悬停反馈 */
+.mn-code__status-item {
+  gap: 5px;
+  height: 24px;
+  padding: 0 4px;
+  color: inherit;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-code__status-item--action:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-code__status-item:disabled {
+  opacity: 0.45;
+}
+
+.mn-code__status-range {
+  width: 108px;
+}
+
+/* ---- 标题栏/活动栏里的菜单 ---- */
+
+.mn-code-menu {
+  position: absolute;
+  top: 34px;
+  left: 6px;
+  z-index: 60;
+  min-width: 208px;
+  padding: 4px 0;
+  background: var(--mn-surface-2);
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 6px;
+  box-shadow: var(--mn-shadow-float);
+  font-size: 13px;
+  animation: mn-pop var(--mn-dur-2) var(--mn-ease) both;
+}
+
+.mn-code-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 5px 12px;
+  color: var(--mn-fg);
+  text-align: left;
+}
+
+.mn-code-menu button:hover {
+  background: var(--mn-accent);
+  color: #fff;
+}
+
+.mn-code-menu button:disabled {
+  color: var(--mn-fg-faint);
+}
+
+.mn-code-menu kbd {
+  color: var(--mn-fg-faint);
+  font-family: var(--mn-font-mono);
+  font-size: 11px;
+}
+
+.mn-code-menu button:hover kbd {
+  color: rgb(255 255 255 / 80%);
+}
+
+.mn-code-menu__rule {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--mn-border-strong);
+}
+
+/* ==========================================================================
+   正文的代码排版
+   ========================================================================== */
+
+/* 等宽、逐行、不缩进：这三件事加起来才是「这是一份代码文件」 */
+.mn-code .mn-content {
+  font-variant-ligatures: none;
+  tab-size: 2;
+}
+
+/* 行号。用绝对定位而不是 float：段落换行成几行时，行号只该出现在第一行 */
+.mn-code .mn-content .mn-code-line {
+  position: relative;
+  padding-left: calc(var(--mn-line-no) + var(--mn-line-gap));
+  counter-increment: mn-line;
+}
+
+.mn-code .mn-content .mn-code-line::before {
+  content: counter(mn-line);
+  position: absolute;
+  left: 0;
+  width: var(--mn-line-no);
+  /* 行号和正文同一套行高，才对齐得上 */
+  line-height: inherit;
+  text-align: right;
+  color: var(--mn-code-gutter-fg);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mn-code .mn-content {
+  counter-reset: mn-line;
+}
+
+/* 空行（TXT 里的段落间隔）在代码里就是空行：不显示东西，但占一行高。
+   不能留 content.css 里那个按段间距算的高度——段间距在代码形态下是 0。 */
+.mn-code .mn-content p.mn-blank {
+  height: 1lh;
+}
+
+/* 标题不放大也不居中：编辑器里所有文字一个字号，这是它最明显的特征 */
+.mn-code .mn-content h1,
+.mn-code .mn-content h2,
+.mn-code .mn-content h3,
+.mn-code .mn-content h4,
+.mn-code .mn-content h5,
+.mn-code .mn-content h6,
+.mn-code .mn-content h2.mn-chapter-title,
+.mn-code .mn-content p.mn-volume-title {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 500;
+  line-height: inherit;
+  text-align: left;
+}
+
+/* 段落间距归 0（由主题自带的排版参数给），每段就是紧挨着的一行 */
+.mn-code .mn-content p,
+.mn-code .mn-content blockquote,
+.mn-code .mn-content figure,
+.mn-code .mn-content ul,
+.mn-code .mn-content ol {
+  margin-top: 0;
+  margin-bottom: var(--mn-para-gap);
+}
+
+/**
+ * 编辑器里所有被当成「行」的文字都是一个字号。
+ *
+ * 行号列的宽度是按 ch 算的，而 ch 跟着元素自己的字号走——图注（0.88em）、
+ * 表格（0.95em）这些地方本来就小一号，它们的行号列会跟着窄一截，
+ * 整页的行号就对着不齐了。缩小是正文排版的手法，在没有字号这回事的编辑器里
+ * 它只有副作用。sup / sub / rt 是行内的注音和脚注标记，不影响行号列，不动它们。
+ */
+.mn-code .mn-content figcaption,
+.mn-code .mn-content table,
+.mn-code .mn-content th,
+.mn-code .mn-content td,
+.mn-code .mn-content pre {
+  font-size: 1em;
+}
+
+/* 引用块在代码里像一段被注释掉的代码：一条竖线 + 注释色，不要额外缩进 */
+.mn-code .mn-content blockquote {
+  padding: 0 0 0 calc(var(--mn-line-no) + var(--mn-line-gap));
+  border-left: 0;
+}
+
+.mn-code .mn-content hr {
+  margin: 0.4em 0;
+  border-top-style: dashed;
+}
+
+/* 图片：整页插图在编辑器里就是一段「内容」，左对齐、限宽 */
+.mn-code .mn-content p > img:only-child,
+.mn-code .mn-content div > img:only-child,
+.mn-code .mn-content h1 > img:only-child,
+.mn-code .mn-content h2 > img:only-child {
+  margin: 0.2em 0;
+}
+
+.mn-code .mn-content figcaption {
+  text-align: left;
+}
+
+/* 演示模式的高亮：highlight.js 输出的类名接到主题变量上。
+   颜色只有主题那一份（两套 VS Code 主题各有自己的 token 色），
+   这里只负责「哪个 hljs 类算哪一类 token」。
+   加语言不用动这一段：highlight.js 的类名是跨语言统一的。 */
+.mn-code .mn-content--code .hljs-keyword,
+.mn-code .mn-content--code .hljs-literal,
+.mn-code .mn-content--code .hljs-built_in,
+.mn-code .mn-content--code .hljs-symbol {
+  color: var(--mn-code-keyword);
+}
+
+.mn-code .mn-content--code .hljs-string,
+.mn-code .mn-content--code .hljs-regexp,
+.mn-code .mn-content--code .hljs-char,
+.mn-code .mn-content--code .hljs-doctag {
+  color: var(--mn-code-string);
+}
+
+.mn-code .mn-content--code .hljs-number {
+  color: var(--mn-code-number);
+}
+
+.mn-code .mn-content--code .hljs-comment,
+.mn-code .mn-content--code .hljs-quote {
+  color: var(--mn-code-comment);
+}
+
+/* 注解、装饰器、函数名：VS Code 里它们是同一个黄 */
+.mn-code .mn-content--code .hljs-title,
+.mn-code .mn-content--code .hljs-function .hljs-title,
+.mn-code .mn-content--code .hljs-title.function_,
+.mn-code .mn-content--code .hljs-meta {
+  color: var(--mn-code-fn);
+}
+
+/* 类型名：类、接口、结构体、标签 */
+.mn-code .mn-content--code .hljs-type,
+.mn-code .mn-content--code .hljs-title.class_,
+.mn-code .mn-content--code .hljs-class .hljs-title,
+.mn-code .mn-content--code .hljs-tag .hljs-name,
+.mn-code .mn-content--code .hljs-name {
+  color: var(--mn-code-type);
+}
+
+/* 变量、属性、参数、模板里的属性名 */
+.mn-code .mn-content--code .hljs-variable,
+.mn-code .mn-content--code .hljs-attr,
+.mn-code .mn-content--code .hljs-property,
+.mn-code .mn-content--code .hljs-params,
+.mn-code .mn-content--code .hljs-selector-tag,
+.mn-code .mn-content--code .hljs-template-variable {
+  color: var(--mn-code-prop);
+}
+
+/* 标点、标签括号保持正文色：全上色反而花 */
+.mn-code .mn-content--code .hljs-punctuation,
+.mn-code .mn-content--code .hljs-tag,
+.mn-code .mn-content--code .hljs-operator {
+  color: inherit;
+}
+
+/* 演示模式：正文是代码，**行首的缩进必须显示出来**。
+   HTML 默认把连续空白折成一个空格，代码会平铺到左边——一眼就是假的。
+   pre-wrap 保留空白、同时在超长行上仍然折行（编辑器的 word wrap）。 */
+.mn-code .mn-content--code .mn-code-line {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  /* 折行后的续行贴着行号列起，和编辑器里 word wrap 一样 */
+  tab-size: 4;
+}
+
+/* 语法配色。只按 lib/code.ts 贴的类上色，不猜内容 */
+.mn-code .mn-content .mn-tok-string {
+  color: var(--mn-code-string);
+}
+
+.mn-code .mn-content .mn-tok-comment {
+  color: var(--mn-code-comment);
+}
+
+.mn-code .mn-content .mn-tok-keyword {
+  color: var(--mn-code-keyword);
+}
+
+.mn-code .mn-content .mn-tok-number,
+.mn-code .mn-content .mn-tok-num {
+  color: var(--mn-code-number);
+}
+
+/* 图片占位：`![](./figure.png)`。编辑器形态下不渲染任何图，
+   这一行就是「这里原本有一张图」加上它的地址 */
+.mn-code .mn-content .mn-tok-image,
+.mn-code .mn-content .mn-media {
+  color: var(--mn-code-image);
+}
+
+.mn-code .mn-content .mn-media {
+  white-space: break-spaces;
+  overflow-wrap: anywhere;
+}
+
+.mn-code .mn-content ::selection {
+  background: var(--mn-reader-selection);
+}
+
+/* 章末的上下章按钮：在编辑器里做成行内操作的样子，不占一整行标题 */
+.mn-code .mn-content nav.mn-chapter-nav {
+  margin: 0.8em 0 0;
+  padding: 0 0 0 calc(var(--mn-line-no) + var(--mn-line-gap));
+  border-top: 1px solid var(--mn-border);
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.mn-code .mn-content nav.mn-chapter-nav button {
+  padding: 2px 8px;
+  border-radius: 3px;
+  border-color: var(--mn-border-strong);
+  font-size: 0.92em;
+}
+
+/* 翻页模式：一屏窗口的留白也收成编辑器的样子 */
+.mn-code .mn-frame--paged {
+  margin: 0;
+  padding: 10px 0 32px;
+}
+
+/* ---- 小屏 ----
+   48px 的活动栏留着（它是「这是个编辑器」最省地方的记号），
+   侧栏改成浮层，宽度按视口的 78% 走。 */
+@media (max-width: 767px) {
+  .mn-code__side {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 48px;
+    z-index: 40;
+    width: min(78vw, 300px);
+    flex-basis: auto;
+    border-right: 1px solid var(--mn-border-strong);
+    box-shadow: var(--mn-shadow-panel);
+  }
+
+  .mn-code__minimap {
+    display: none;
+  }
+}

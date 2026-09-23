@@ -4,6 +4,7 @@ import { App } from './App'
 import { cleanupStaleImports } from './db/books'
 import './styles/app.css'
 import './styles/content.css'
+import './styles/code.css'
 
 const container = document.getElementById('root')
 if (!container) throw new Error('index.html 里缺少 #root')

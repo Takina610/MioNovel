@@ -152,3 +152,63 @@ export function IconSpinner(props: IconProps) {
     </Svg>
   )
 }
+
+/** 标题栏的菜单（三条等长的横线：和 IconList 的「目录」故意区分开） */
+export function IconMenu(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 6.5h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17.5h16" />
+    </Svg>
+  )
+}
+
+/** 资源管理器：两张叠在一起的纸 */
+export function IconFiles(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M10 3h5.5L19 6.5V19a1.5 1.5 0 0 1-1.5 1.5H10A1.5 1.5 0 0 1 8.5 19V4.5A1.5 1.5 0 0 1 10 3Z" />
+      <path d="M15.5 3v3.5H19" />
+      <path d="M5.5 6.5A1.5 1.5 0 0 0 4 8v11.5A1.5 1.5 0 0 0 5.5 21H14" />
+    </Svg>
+  )
+}
+
+/** 一棵树里的文件 */
+export function IconFile(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M13.5 3H8a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 8 21h8a1.5 1.5 0 0 0 1.5-1.5V7L13.5 3Z" />
+      <path d="M13.5 3v4H17.5" />
+    </Svg>
+  )
+}
+
+/** 一棵树里的文件夹 */
+export function IconFolder(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h3.6a1 1 0 0 1 .8.4l1.1 1.35H19a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 17.5H5A1.5 1.5 0 0 1 3.5 16V6.5Z" />
+    </Svg>
+  )
+}
+
+/** 向右的尖角。展开时由调用方转 90° */
+export function IconChevronRight(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m9.5 6 6 6-6 6" />
+    </Svg>
+  )
+}
+
+/** 切换侧栏（标题栏右上角那个布局按钮） */
+export function IconSidebar(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.5 5.5h15a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1Z" />
+      <path d="M9.5 5.5v13" />
+    </Svg>
+  )
+}

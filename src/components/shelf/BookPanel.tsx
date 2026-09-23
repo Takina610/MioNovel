@@ -11,6 +11,9 @@ import { Select } from '../ui/Select'
 import { Switch } from '../ui/Switch'
 import { IconClose } from '../ui/icons'
 import { useCoverUrl } from '../../hooks/useCoverUrl'
+import { useChrome } from '../../hooks/useTheme'
+import { decoyFolderName } from '../../lib/decoy'
+import { useDecoy } from '../../store/decoy'
 import { useSettings } from '../../store/settings'
 
 interface BookPanelProps {
@@ -29,6 +32,9 @@ interface BookPanelProps {
  * 天然该在同一屏里——用户看到章节数不对，下一步就是改规则重新解析。
  */
 export function BookPanel({ book, open, onClose, onRead, onDeleted }: BookPanelProps) {
+  const chrome = useChrome()
+  const decoy = useDecoy((state) => state.enabled)
+  const decoyId = useDecoy((state) => state.preset)
   const [charset, setCharset] = useState('auto')
   const [rule, setRule] = useState('auto')
   const [customRegex, setCustomRegex] = useState('')
@@ -126,21 +132,27 @@ export function BookPanel({ book, open, onClose, onRead, onDeleted }: BookPanelP
       header={
         shown ? (
           <div className="flex items-start gap-3 border-b border-border p-4">
-            <div className="h-[68px] w-[51px] shrink-0 overflow-hidden rounded-lg border border-border bg-surface-2">
-              {coverUrl ? (
-                <img src={coverUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                // 没有封面（txt 基本都是）就用书架同一套确定性渐变，别留一个空盒子
-                <span
-                  className="grid h-full w-full place-items-center text-[19px] font-medium text-white/85 select-none"
-                  style={{ backgroundImage: `linear-gradient(150deg, ${coverFrom}, ${coverTo})` }}
-                >
-                  {bookInitial(shown.title)}
-                </span>
-              )}
-            </div>
+            {/* 编辑器形态下不摆封面：整个形态的约定就是「没有图，只有文字」，
+                这一个小缩略图破了它反而显眼 */}
+            {chrome === 'code' ? null : (
+              <div className="h-[68px] w-[51px] shrink-0 overflow-hidden rounded-lg border border-border bg-surface-2">
+                {coverUrl ? (
+                  <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  // 没有封面（txt 基本都是）就用书架同一套确定性渐变，别留一个空盒子
+                  <span
+                    className="grid h-full w-full place-items-center text-[19px] font-medium text-white/85 select-none"
+                    style={{ backgroundImage: `linear-gradient(150deg, ${coverFrom}, ${coverTo})` }}
+                  >
+                    {bookInitial(shown.title)}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
-              <h2 className="truncate text-[15px] font-semibold text-fg">{shown.title}</h2>
+              <h2 className="truncate text-[15px] font-semibold text-fg">
+                {chrome === 'code' && decoy ? decoyFolderName(decoyId, shown.id) : shown.title}
+              </h2>
               <p className="mt-1 text-[12px] leading-relaxed text-fg-faint">
                 {shown.author ? `${shown.author} · ` : ''}
                 {shown.format.toUpperCase()} · {formatBytes(shown.fileSize)}

@@ -1,6 +1,11 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { clamp01 } from '../../lib/progress'
+import { decorateChapterHtml, type CodeLine } from '../../lib/code'
 import type { ReaderSettings } from '../../store/settings'
+import type { ThemeChrome } from '../../themes/types'
+import { ensureHighlighter, highlighterReady } from '../../lib/highlight'
+import { useDecoy } from '../../store/decoy'
+import { Minimap } from '../code/Minimap'
 import { cx } from '../../lib/cx'
 
 interface ReaderViewProps {
@@ -9,7 +14,13 @@ interface ReaderViewProps {
   htmlKey: string
   /** 章节标识。变了就重建内容并恢复位置 */
   contentKey: string
+  /** 渲染时的图片地址 → 书里的原始路径。编辑器形态写占位引用要用它 */
+  resources: Map<string, string>
+  /** 这一章的标识（decoySeed）。目录树、标签页、正文三处要用同一个 */
+  decoySeedValue?: string
   settings: ReaderSettings
+  /** 主题声明的界面形态。code 时正文按代码排版并挂缩略图 */
+  chrome: ThemeChrome
   /** 进入本章要恢复到的章内比例（0-1） */
   entryRatio: number
   hasPrev: boolean
@@ -85,7 +96,10 @@ function ReaderViewImpl({
   html,
   htmlKey,
   contentKey,
+  resources,
+  decoySeedValue,
   settings,
+  chrome,
   entryRatio,
   hasPrev,
   hasNext,
@@ -112,6 +126,43 @@ function ReaderViewImpl({
   fragmentRef.current = fragment ?? ''
 
   const paged = settings.pageMode === 'paged'
+  const code = chrome === 'code'
+  // 缩略图上「现在读到哪」的位置。滚动报告本来就限流到 100ms，跟着它一起更新，
+  // 免得为了一个装饰性的框每秒重渲染十次仍不够快
+  const [mapRatio, setMapRatio] = useState(() => clamp01(entryRatio))
+  // 代码形态下正文要过一遍「这段像什么」（对话/标题/注释/图片），标签贴在元素上，
+  // 颜色仍由主题变量决定（见 lib/code.ts）。演示模式下每一行换成假代码
+  const decoyFlag = useDecoy((state) => state.enabled)
+  const decoyPresetId = useDecoy((state) => state.preset)
+  // highlight.js 是按需加载的（不读小说的人不用为它付首屏）。加载完重画一次，
+  // 这期间正文已经显示出来了，只是还没上色
+  const [painted, setPainted] = useState(highlighterReady)
+  useEffect(() => {
+    if (!decoyFlag) return
+    let alive = true
+    void ensureHighlighter().then(() => {
+      if (alive) setPainted(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [decoyFlag])
+  // 演示模式只属于代码形态：普通形态下它什么也不该改（之前把这一条漏了，
+  // 结果在普通形态里按过 Alt+Q 之后，章末的上下章按钮被一并吞掉）
+  const decoy = code && decoyFlag ? decoyPresetId : null
+  const decorated = useMemo(
+    () =>
+      code
+        ? decorateChapterHtml(html, {
+            resolve: (src) => resources.get(src),
+            decoy,
+            seed: decoySeedValue,
+          })
+        : { html, lines: [] as CodeLine[] },
+    // painted 进依赖：高亮器加载完之后重画一遍，代码才是有颜色的
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [code, html, resources, decoy, decoySeedValue, painted],
+  )
   // 换章时新 HTML 要等图片资源就位才到得了，期间 DOM 里还是上一章的内容。
   // 这时候量出来的页数、算出来的位置都是旧内容的——必须先确认拿到的是这一章，
   // 再开始恢复位置，否则会先闪一下上一章/本章末尾的位置再跳回来。
@@ -142,11 +193,17 @@ function ReaderViewImpl({
       if (reportTimer.current !== undefined) return
       reportTimer.current = window.setTimeout(() => {
         reportTimer.current = undefined
+        setMapRatio(clamp01(ratioRef.current))
         onRatio(ratioRef.current)
       }, 100)
     },
     [onRatio],
   )
+
+  // 换章时缩略图的视窗框跟着回到章首：上一章的位置对不上新的正文
+  useEffect(() => {
+    setMapRatio(clamp01(entryRatio))
+  }, [contentKey, entryRatio])
 
   useEffect(
     () => () => {
@@ -404,6 +461,7 @@ function ReaderViewImpl({
       // 就会跳回进本章时的位置。
       const ratio = clamp01((next + cols) / total)
       ratioRef.current = ratio
+      setMapRatio(ratio)
       onRatio(ratio)
     },
     [paged, onNext, onPrev, onRatio, setPageState],
@@ -416,6 +474,41 @@ function ReaderViewImpl({
     const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     viewport.scrollBy({ top: delta, behavior: smooth ? 'smooth' : 'auto' })
   }, [])
+
+  /**
+   * 跳到本章的某个比例。缩略图上点一下、拖一下走的就是这里。
+   *
+   * 两种模式各有一半：滚动模式是把 scrollTop 写过去（这里的恢复位置只管进章那一刻，
+   * 用户主动跳转不算「跟读者抢滚动条」）；翻页模式是按列数反解出页码，和 measure()
+   * 一样要减一——ratio 的约定是「已读列数 ÷ 总列数」。
+   */
+  const seekToRatio = useCallback(
+    (ratio: number) => {
+      const next = clamp01(ratio)
+      if (!paged) {
+        const viewport = viewportRef.current
+        if (!viewport) return
+        const max = viewport.scrollHeight - viewport.clientHeight
+        viewport.scrollTop = Math.max(0, max) * next
+        reportRatio(next)
+        return
+      }
+      const { cols, total } = layoutRef.current
+      if (total <= 1) return
+      const read = Math.round(next * total) - 1
+      const column = Math.min(total - 1, Math.max(0, read))
+      const page = Math.floor(column / cols) * cols
+      // 拖缩略图时不要每跳一次都播翻页动画：连续跳会让页面一直在飞
+      setAnimate(false)
+      setPageState(page)
+      window.requestAnimationFrame(() => setAnimate(true))
+      const applied = clamp01((page + cols) / total)
+      ratioRef.current = applied
+      setMapRatio(applied)
+      onRatio(applied)
+    },
+    [paged, onRatio, reportRatio, setPageState],
+  )
 
   // 翻页模式下滚轮/触控板也翻页。
   // 滚动容器在翻页模式里是 overflow: hidden，不接管的话滚轮一点反应都没有；
@@ -546,6 +639,7 @@ function ReaderViewImpl({
         setPageState(page)
         const ratio = clamp01((page + cols) / total)
         ratioRef.current = ratio
+        setMapRatio(ratio)
         onRatio(ratio)
         return
       }
@@ -668,7 +762,7 @@ function ReaderViewImpl({
     reportRatio(clamp01(viewport.scrollTop / max))
   }
 
-  return (
+  const view = (
     <div
       ref={viewportRef}
       tabIndex={0}
@@ -684,16 +778,33 @@ function ReaderViewImpl({
           ref={contentRef}
           // 内容是解析时净化过的：DOMPurify 过了一遍，脚本/样式/外链样式表都剥掉了，
           // 图片指向本地 ObjectURL。所以这里可以放心用 innerHTML。
-          dangerouslySetInnerHTML={{ __html: html + chapterNavHtml(hasPrev, hasNext) }}
+          // 代码形态下 decorated.html 是在它之上再过一遍标签（见 lib/code.ts），
+          // 不删不改原文。章末那对「上一章/下一章」在演示模式下不拼进去：
+          // 它的字面意思会露馅，而且状态栏上本来就有翻章按钮
+          dangerouslySetInnerHTML={{
+            __html: decorated.html + (decoy ? '' : chapterNavHtml(hasPrev, hasNext)),
+          }}
           style={paged ? { transform: `translateX(${-page * layout.step}px)` } : undefined}
           className={cx(
             'mn-content',
+            // 演示模式下正文是代码：这一条给 CSS 用来保留缩进（见 code.css）
+            decoy && 'mn-content--code',
             paged && animate && 'mn-turning',
             entering && 'mn-chapter-in',
           )}
         />
       </div>
     </div>
+  )
+
+  // 代码形态下缩略图是滚动容器的兄弟节点（编辑区里正文和缩略图并排），
+  // 所以这里返回一个 fragment；阅读器外壳把它放进 .mn-code__pane
+  if (!code) return view
+  return (
+    <>
+      {view}
+      <Minimap lines={decorated.lines} ratio={mapRatio} onSeek={seekToRatio} />
+    </>
   )
 }
 
