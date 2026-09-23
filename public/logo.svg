@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MioNovel">
-  <rect width="512" height="512" rx="116" fill="#22252A" />
-  <rect x="112" y="158" width="136" height="196" rx="12" fill="#F2EDE3" />
-  <rect x="264" y="158" width="136" height="196" rx="12" fill="#DCD3C2" />
-  <path d="M296 158h44v112l-22-17-22 17z" fill="#C2603C" />
-  <rect x="248" y="158" width="16" height="196" fill="#22252A" />
-</svg>

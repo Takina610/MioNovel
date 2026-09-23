@@ -19,7 +19,7 @@ import {
   ruleName,
   volumeToHtml,
 } from './chapters'
-import { detectEncoding, readSample } from './encoding'
+import { detectEncoding, looksReadableText, readSample } from './encoding'
 import { isSupportedLabel } from './charsets'
 
 /** 每次读一片。256KB 是个折中：解码 + 逐行判定的耗时可忽略，
@@ -94,14 +94,29 @@ async function* iterateLines(
 
 /** 用什么编码解这个文件。手动指定优先，其次自动检测 */
 async function resolveCharset(file: Blob, options: ParseOptions) {
+  const sample = await readSample(file)
   if (options.charset) {
-    return {
-      charset: isSupportedLabel(options.charset) ? options.charset : 'utf-8',
-      warning: undefined as string | undefined,
-    }
+    const charset = isSupportedLabel(options.charset) ? options.charset : 'utf-8'
+    ensureDecodesToText(sample, charset)
+    return { charset, warning: undefined as string | undefined }
   }
-  const guess = detectEncoding(await readSample(file))
+  const guess = detectEncoding(sample)
+  ensureDecodesToText(sample, guess.charset)
   return { charset: guess.charset, warning: guess.warning }
+}
+
+/**
+ * 收文件之前先确认它真的能当文本读。
+ *
+ * 二进制内容（损坏的 epub、pdf、图片）用 GB18030 也能解出东西来，只是全是乱码。
+ * 收进书架就是一本书名叫「broken」、翻开一屏怪字的书——用户既不知道发生了什么，
+ * 也不知道能做什么。宁可在导入这一步说清楚。后缀不可信，所以看的是内容。
+ */
+function ensureDecodesToText(sample: Uint8Array, charset: string): void {
+  if (looksReadableText(sample, charset)) return
+  throw new Error(
+    '这个文件读不出文字：内容不像文本，也不是有效的 EPUB。可能已经损坏，或者不是支持的格式。',
+  )
 }
 
 /**

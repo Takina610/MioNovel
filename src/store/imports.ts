@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import {
   DuplicateBookError,
+  getBook,
   importFile,
   newBookId,
   requestPersistentStorage,
@@ -69,10 +70,17 @@ export const useImports = create<ImportsState>()((set) => {
         showNotice(error.message)
         return
       }
-      patchTask(bookId, {
-        status: 'failed',
-        error: error instanceof Error ? error.message : '导入失败',
-      })
+      const message = error instanceof Error ? error.message : '导入失败'
+      // 记录还没落盘就失败的（内容根本不是文本、或者格式判定不出来）：
+      // 书架上不会有卡片，任务留在队列里等于无声失败，用户只看到「什么也没发生」。
+      // 这种就直接提示一句，并把任务清掉。
+      const landed = await getBook(bookId).catch(() => undefined)
+      if (!landed) {
+        set((state) => ({ tasks: state.tasks.filter((task) => task.bookId !== bookId) }))
+        showNotice(`导入失败：${message}`)
+        return
+      }
+      patchTask(bookId, { status: 'failed', error: message })
     }
   }
 

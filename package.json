@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "icons": "pwa-assets-generator",
+    "logo": "bun run scripts/make-logo.ts",
     "samples": "bun run scripts/make-samples.ts",
     "verify": "bun run scripts/verify-parsers.ts && bun run scripts/verify-epub.ts",
     "verify:txt": "bun run scripts/verify-parsers.ts",

@@ -27,6 +27,12 @@ export interface ReaderSettings {
   /** FONT_STACKS 的 id */
   fontFamily: string
   pageMode: 'scroll' | 'paged'
+  /**
+   * 双语对照书的显示方式（解析时按弱化样式标记了次要语言段落）。
+   * both = 对照显示；primary = 只看主语言；secondary = 只看次语言。
+   * 没有标记的书不受影响。
+   */
+  bilingual: 'both' | 'primary' | 'secondary'
   /** 自定义 CSS 逃生口：不用改代码就能微调主题 */
   userCss: string
 }
@@ -42,6 +48,7 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   align: 'left',
   fontFamily: 'sans',
   pageMode: 'scroll',
+  bilingual: 'both',
   userCss: '',
 }
 
@@ -88,8 +95,20 @@ export function fontStackOf(id: string): string {
   return FONT_STACKS.find((font) => font.id === id)?.stack ?? FONT_STACKS[0].stack
 }
 
+/** 双语模式 → 次要/主要段落的 display 与次要段的颜色。收进变量让 CSS 一处写逻辑。
+ *  只看原文时次要语言就是正文，用全亮前景色；其余情况弱化。 */
+const BILINGUAL_VARS: Record<
+  ReaderSettings['bilingual'],
+  { alt: string; primary: string; dimAlt: boolean }
+> = {
+  both: { alt: 'block', primary: 'block', dimAlt: true },
+  primary: { alt: 'none', primary: 'block', dimAlt: true },
+  secondary: { alt: 'block', primary: 'none', dimAlt: false },
+}
+
 /** 设置 → CSS 变量。变量名要和 styles/app.css 里 :root 那份默认值对得上 */
 export function settingsToVars(settings: ReaderSettings): Record<string, string> {
+  const bilingual = BILINGUAL_VARS[settings.bilingual] ?? BILINGUAL_VARS.both
   return {
     '--mn-font-size': `${settings.fontSize}px`,
     '--mn-line-height': `${settings.lineHeight}`,
@@ -99,6 +118,11 @@ export function settingsToVars(settings: ReaderSettings): Record<string, string>
     '--mn-content-width': `${settings.contentWidth}rem`,
     '--mn-reader-font': fontStackOf(settings.fontFamily),
     '--mn-align': settings.align,
+    '--mn-alt-display': bilingual.alt,
+    '--mn-primary-display': bilingual.primary,
+    '--mn-alt-color': bilingual.dimAlt
+      ? 'color-mix(in srgb, var(--mn-reader-fg) 62%, var(--mn-reader-bg))'
+      : 'var(--mn-reader-fg)',
   }
 }
 

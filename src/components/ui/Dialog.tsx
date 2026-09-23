@@ -42,8 +42,8 @@ export function Dialog({
         if (event.target === ref.current) onClose()
       }}
       className={cx(
-        'm-auto w-[min(94vw,520px)] rounded-2xl border border-border bg-surface p-5 text-fg',
-        'backdrop:bg-overlay open:flex open:flex-col',
+        'mn-dialog m-auto w-[min(94vw,520px)] rounded-2xl border border-border bg-surface p-5 text-fg',
+        'backdrop:bg-transparent open:flex open:flex-col',
         className,
       )}
     >

@@ -154,6 +154,18 @@ function looksLikeText(bytes: Uint8Array, label: string): boolean {
   }
 }
 
+/**
+ * 这些字节到底能不能当文本读。
+ *
+ * 判定不通过就别把它收进书架：随便一个二进制文件（损坏的 epub、pdf、图片）
+ * 都能被 GB18030 解出一屏乱码，收下来用户只会得到一本读不了的书，
+ * 还得自己猜是怎么回事。空文件放行——那是合法输入，后面会给一章「（空文件）」。
+ */
+export function looksReadableText(bytes: Uint8Array, label: string): boolean {
+  if (bytes.length === 0) return true
+  return looksLikeText(bytes, label)
+}
+
 function normalizeCharset(name: string): string | null {
   const mapped = LABEL_MAP[name] ?? LABEL_MAP[name.toUpperCase()]
   if (mapped === undefined) return null

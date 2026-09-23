@@ -1,5 +1,6 @@
 import { cx } from '../../lib/cx'
 import { Button } from '../ui/Button'
+import { IconBack, IconList, IconSliders } from '../ui/icons'
 
 interface ReaderTopBarProps {
   visible: boolean
@@ -26,23 +27,27 @@ export function ReaderTopBar({
   return (
     <header
       className={cx(
-        'absolute inset-x-0 top-0 z-30 border-b border-border bg-bg/92 backdrop-blur-md transition-transform duration-250 ease-[var(--mn-ease)]',
-        shown ? 'translate-y-0' : '-translate-y-full',
+        'absolute inset-x-0 top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-xl',
+        'transition-[transform,opacity] duration-[var(--mn-dur-3)] ease-[var(--mn-ease)]',
+        // 收起时除了滑出去，也淡一点：只滑不淡在浅色主题下会看得见一圈影子
+        shown ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0',
       )}
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
-      <div className="flex h-12 items-center gap-1 px-2">
-        <Button variant="ghost" onClick={onBack} aria-label="回书架" className="px-2">
-          ←
+      <div className="flex h-12 items-center gap-0.5 px-2">
+        <Button variant="ghost" className="px-2" onClick={onBack} aria-label="回书架">
+          <IconBack className="h-4.5 w-4.5" />
         </Button>
-        <div className="min-w-0 flex-1 text-center">
+        <div className="min-w-0 flex-1 px-1 text-center">
           <div className="truncate text-[13.5px] font-medium text-fg">{title}</div>
           <div className="truncate text-[11.5px] text-fg-faint">{chapterTitle}</div>
         </div>
-        <Button variant="ghost" onClick={onToc} aria-label="目录" className="px-2">
+        <Button variant="ghost" className="gap-1.5 px-2.5" onClick={onToc}>
+          <IconList className="h-4 w-4" />
           目录
         </Button>
-        <Button variant="ghost" onClick={onSettings} aria-label="设置" className="px-2">
+        <Button variant="ghost" className="gap-1.5 px-2.5" onClick={onSettings}>
+          <IconSliders className="h-4 w-4" />
           设置
         </Button>
       </div>

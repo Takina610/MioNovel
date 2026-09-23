@@ -75,7 +75,22 @@
   --mn-font-mono: 'Cascadia Mono', 'Cascadia Code', 'JetBrains Mono', 'Sarasa Mono SC', Consolas,
     'Courier New', monospace;
 
+  /* ---- 动效 ----
+     时长分三档，不要再在组件里现编 ms：
+       1 档是按下、悬停这种要跟着手指走的反馈；2 档是出现/消失；3 档是面板、换页这种
+       过程本身需要被看见的。三档之外还有动画工具类（文件末尾），列表逐个出现用它。
+     缓动用两条：--mn-ease 是「先快后慢」的主线，位移、展开、翻页都用它；
+     --mn-spring 带一点点回弹，只给开关、勾选这类小控件，用多了就腻。 */
+  --mn-dur-1: 130ms;
+  --mn-dur-2: 220ms;
+  --mn-dur-3: 320ms;
   --mn-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --mn-spring: cubic-bezier(0.34, 1.28, 0.64, 1);
+
+  /* 书架顶部的暖色渐变、面板阴影这类跟着主题走的「气氛」值 */
+  --mn-shadow-panel: 0 24px 60px -24px rgb(0 0 0 / 38%);
+  --mn-shadow-card: 0 18px 32px -20px rgb(0 0 0 / 45%);
+  --mn-shadow-float: 0 10px 30px -12px rgb(0 0 0 / 40%);
 }
 
 @layer base {
@@ -137,6 +152,38 @@
     font: inherit;
     color: inherit;
   }
+
+  /* 颜色类属性给一条全局过渡。
+     换主题、悬停换底色、选中项高亮——这些都不该是一下子跳过去的。
+     只列颜色相关属性，宽高和位移留给组件自己的 transition 工具类，
+     所以这条规则和它们不打架（工具类在 utilities 层，优先级更高）。
+     代价是纯色切换多花 130ms，观感上就是「柔和」，值得。 */
+  *,
+  *::before,
+  *::after {
+    transition-property: color, background-color, border-color, outline-color, fill, stroke,
+      box-shadow;
+    transition-duration: var(--mn-dur-1);
+    transition-timing-function: var(--mn-ease);
+  }
+}
+
+/* 系统里关了动效就照办：所有动画和过渡压到一帧，浮层、翻页、逐个出现都变成瞬间到位。
+   不是「关掉样式」——最终状态必须和开启动效时完全一样。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
 
 /* 滑动条。原生 range 在各浏览器上的默认样子差太多，自己画一遍反而最短 */
@@ -147,10 +194,16 @@
   cursor: pointer;
 }
 
+/* 已滑过的那一段用渐变画：不用额外一层 DOM，也不会和原生 thumb 的位置打架。
+   --mn-fill（0%–100%）由组件按当前值写进去，见 ui/Slider.tsx 和 ReaderBottomBar。 */
 .mn-range::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
-  background: var(--mn-border-strong);
+  background: linear-gradient(
+    to right,
+    var(--mn-accent) var(--mn-fill, 0%),
+    var(--mn-border-strong) var(--mn-fill, 0%)
+  );
 }
 
 .mn-range::-webkit-slider-thumb {
@@ -162,6 +215,18 @@
   background: var(--mn-accent);
   border: 2px solid var(--mn-surface);
   box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
+  transition:
+    transform var(--mn-dur-1) var(--mn-ease),
+    box-shadow var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-range:hover::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+
+.mn-range:active::-webkit-slider-thumb {
+  transform: scale(1.22);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 28%);
 }
 
 .mn-range::-moz-range-track {
@@ -170,12 +235,28 @@
   background: var(--mn-border-strong);
 }
 
+/* Firefox 自带「已滑过」那一段，不用渐变 */
+.mn-range::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--mn-accent);
+}
+
 .mn-range::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 999px;
   background: var(--mn-accent);
   border: 2px solid var(--mn-surface);
+  transition: transform var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-range:hover::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+.mn-range:active::-moz-range-thumb {
+  transform: scale(1.22);
 }
 
 .mn-range:focus-visible {
@@ -184,14 +265,281 @@
   border-radius: 999px;
 }
 
+/* ==========================================================================
+   动效工具类
+   --------------------------------------------------------------------------
+   出现、消失、逐个出现、骨架屏这几件事各只有一个实现，组件里不再各写一套
+   keyframes。要新加一种「出场感」先想想能不能复用这里的四条。
+
+   全部写成普通 CSS 而不是 Tailwind 的 animate-*：这些类的值里要引
+   var(--mn-ease) 这类运行时变量，交给自己写少一层编译期解析的心智负担。
+   ========================================================================== */
+
+/* 出现：淡入 + 上浮。卡片、列表、提示都用它 */
+.mn-rise {
+  animation: mn-rise var(--mn-dur-3) var(--mn-ease) both;
+}
+
+@keyframes mn-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 出现：淡入 + 轻微放大。浮层（下拉、提示卡）用它 */
+.mn-pop {
+  animation: mn-pop var(--mn-dur-2) var(--mn-ease) both;
+}
+
+@keyframes mn-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.mn-pop-out {
+  animation: mn-pop-out 140ms var(--mn-ease) both;
+}
+
+@keyframes mn-pop-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/* 纯淡入 / 淡出 */
+.mn-fade {
+  animation: mn-fade var(--mn-dur-2) var(--mn-ease) both;
+}
+
+@keyframes mn-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.mn-fade-out {
+  animation: mn-fade-out 160ms var(--mn-ease) both;
+}
+
+@keyframes mn-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* 逐个出现：元素上写 style={{ '--mn-i': index }}，延迟按 22ms 递增。
+   和 .mn-rise 一起用。延迟超过十来项的名单会显得拖沓，所以调用方要封顶。 */
+.mn-stagger {
+  animation-delay: calc(var(--mn-i, 0) * 22ms);
+}
+
+/* 骨架屏：一条高光从左扫到右 */
+.mn-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--mn-fg) 9%, transparent);
+}
+
+.mn-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--mn-fg) 8%, transparent),
+    transparent
+  );
+  animation: mn-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes mn-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* 呼吸：拖拽提示、等待中的状态。幅度很小，是背景音不是主角 */
+.mn-breathe {
+  animation: mn-breathe 1.9s ease-in-out infinite;
+}
+
+@keyframes mn-breathe {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 浮：logo 这类静态图形的轻微上下浮动 */
+.mn-float {
+  animation: mn-float 5.5s ease-in-out infinite;
+}
+
+@keyframes mn-float {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+/* 转：加载指示 */
+.mn-spin {
+  animation: mn-spin 900ms linear infinite;
+}
+
+@keyframes mn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 悬停抬起。用在卡片这类「可点的整块」上，配合基础过渡里的 box-shadow */
+.mn-lift {
+  transition:
+    transform var(--mn-dur-2) var(--mn-ease),
+    box-shadow var(--mn-dur-2) var(--mn-ease);
+}
+
+.mn-lift:hover {
+  transform: translateY(-4px);
+}
+
+/* 按下时的回缩。所有可点的整块都用它，手感一致 */
+.mn-press:active {
+  transform: scale(0.975);
+}
+
+/* ==========================================================================
+   原生 <dialog> 的进出场
+   --------------------------------------------------------------------------
+   <dialog> 的 display 是浏览器在 showModal()/close() 里直接改的，普通过渡追不上。
+   靠 allow-discrete 把 display / overlay 也纳入过渡，再用 @starting-style 给
+   「打开前那一帧」一个起始状态，就能拿到带淡入淡出的弹窗。
+   不支持这两条规则的浏览器直接显示/消失——和没有动效时一样，不会坏。
+   ========================================================================== */
+.mn-dialog {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition:
+    opacity var(--mn-dur-2) var(--mn-ease),
+    transform var(--mn-dur-2) var(--mn-ease),
+    display var(--mn-dur-2) allow-discrete,
+    overlay var(--mn-dur-2) allow-discrete;
+}
+
+.mn-dialog[open] {
+  opacity: 1;
+  transform: none;
+}
+
+@starting-style {
+  .mn-dialog[open] {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+
+.mn-dialog::backdrop {
+  background: var(--mn-overlay);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  transition:
+    opacity var(--mn-dur-2) var(--mn-ease),
+    display var(--mn-dur-2) allow-discrete,
+    overlay var(--mn-dur-2) allow-discrete;
+}
+
+.mn-dialog[open]::backdrop {
+  opacity: 1;
+}
+
+@starting-style {
+  .mn-dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   路由切换（书架 ↔ 阅读器）
+   --------------------------------------------------------------------------
+   走 View Transitions API：App.tsx 用 react-router/dom 的 RouterProvider，
+   navigate(to, { viewTransition: true }) 时浏览器把旧页面拍一张、新页面拍一张，
+   中间那段由下面的规则定义。不支持的浏览器直接瞬间切换——没有垫片，也不值得垫。
+   所以这两个 keyframes 只做「淡 + 一点点缩放」，让换页像镜头推了一下。
+   ========================================================================== */
+::view-transition-old(root) {
+  animation: mn-vt-out var(--mn-dur-2) var(--mn-ease) both;
+}
+
+::view-transition-new(root) {
+  animation: mn-vt-in var(--mn-dur-3) var(--mn-ease) both;
+}
+
+@keyframes mn-vt-out {
+  to {
+    opacity: 0;
+    transform: scale(0.994);
+  }
+}
+
+@keyframes mn-vt-in {
+  from {
+    opacity: 0;
+    transform: scale(1.006);
+  }
+}
+
 /* 书架这些「外壳」界面：处于拖拽导入状态时给整页一个提示边框 */
 .mn-drop-active::after {
   content: '';
   position: fixed;
   inset: 8px;
   border: 2px dashed var(--mn-accent);
-  border-radius: 14px;
+  border-radius: 16px;
   background: color-mix(in srgb, var(--mn-accent) 6%, transparent);
   pointer-events: none;
   z-index: 70;
+  animation: mn-drop-hint var(--mn-dur-3) var(--mn-ease) both, mn-breathe 1.9s ease-in-out 320ms infinite;
 }
+
+@keyframes mn-drop-hint {
+  from {
+    opacity: 0;
+    transform: scale(1.01);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+

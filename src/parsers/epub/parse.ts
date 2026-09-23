@@ -199,7 +199,9 @@ function planChapters(
     chapters.push({
       start,
       end,
-      label: entry?.label ?? null,
+      // 目录从 spine[0] 之后才开始时，最前面那截封面/插图/版权页没有目录项。
+      // 给它一个像样的名字，而不是落到「第 1 节」
+      label: entry?.label ?? (start === 0 ? '卷首' : null),
       depth: clampDepth(entry?.depth ?? 0),
     })
   }

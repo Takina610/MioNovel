@@ -216,6 +216,21 @@ section('无章节标记（降级为按字数分段）')
   )
 }
 
+section('二进制内容不该被当成小说收下')
+{
+  // 随机字节按 GB18030 也解得出「东西」，但那是一屏乱码。
+  // 真正该发生的是导入失败 + 一句能读懂的中文原因，而不是书架上一本读不了的书。
+  const junk = new Uint8Array(4096)
+  for (let i = 0; i < junk.length; i++) junk[i] = (i * 37) % 251
+  const junkFile = Object.assign(new Blob([junk]), { name: 'broken.epub' }) as unknown as File
+  const probeError = await txtParser.probe(junkFile, {}).catch((error: unknown) => error)
+  check(
+    'probe 直接拒绝二进制文件，并给出中文原因',
+    probeError instanceof Error && /[一-鿿]/.test(probeError.message),
+    probeError instanceof Error ? probeError.message : String(probeError),
+  )
+}
+
 section('强制规则（用户显式选择不该被静默改写）')
 {
   const { head } = await run('chapterless.txt', { rule: 'cn' })

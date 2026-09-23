@@ -60,12 +60,17 @@ console.log('元数据')
 
 console.log('\n章节归并（spine 里的凑数文档要并进上一章，不能自成章节）')
 {
-  check('章节数为 3', head.chapterCount === 3, String(head.chapterCount))
-  check('首章标题来自目录', chapters[0]?.title === '第一章 少年与灯', chapters[0]?.title)
-  check('次章标题来自目录', chapters[1]?.title === '第二章 落雪', chapters[1]?.title)
+  check('章节数为 4（卷首 + 三章）', head.chapterCount === 4, String(head.chapterCount))
+  check(
+    '目录之前的前置文档单独成「卷首」章',
+    chapters[0]?.title === '卷首',
+    chapters[0]?.title,
+  )
+  check('首章标题来自目录', chapters[1]?.title === '第一章 少年与灯', chapters[1]?.title)
+  check('次章标题来自目录', chapters[2]?.title === '第二章 落雪', chapters[2]?.title)
   check(
     '不在目录里的 spine 文档并进了第一章',
-    chapters[0]?.html.includes('它不该变成独立的一章') === true,
+    chapters[1]?.html.includes('它不该变成独立的一章') === true,
   )
   check(
     '它没有变成单独的一章',
@@ -78,12 +83,12 @@ console.log('\n章节归并（spine 里的凑数文档要并进上一章，不�
   )
   check(
     '卷节点指向第一章',
-    head.groups[0]?.chapterIndex === 0,
+    head.groups[0]?.chapterIndex === 1,
     String(head.groups[0]?.chapterIndex),
   )
   check(
-    '嵌套目录里的章缩进一级',
-    chapters.every((chapter) => chapter.depth === 1),
+    '目录章缩进一级，卷首章不缩进',
+    chapters.slice(1).every((chapter) => chapter.depth === 1) && chapters[0]?.depth === 0,
     chapters.map((chapter) => chapter.depth).join(','),
   )
 }
@@ -92,7 +97,7 @@ console.log('\n图片与样式')
 {
   check(
     '图片 src 重写成内部协议',
-    chapters[0]?.html.includes('src="mnres://OEBPS/Images/pic.png"') === true,
+    chapters[1]?.html.includes('src="mnres://OEBPS/Images/pic.png"') === true,
   )
   check(
     '抽出了插图资源',
@@ -102,22 +107,48 @@ console.log('\n图片与样式')
   // 下面这几条验的是 scrubDocument()——我们自己的那一层净化。
   // 它的意义在于不依赖 DOMPurify：DOMPurify 在 happy-dom 下是空转的
   // （连 <script> 都不删），所以能在这里通过说明了第一层是有效的。
-  check('书自带的 <style> 被删掉', chapters[0]?.html.includes('<style') === false)
-  check('书自带的 class 被删掉', chapters[0]?.html.includes('class="chapter-title"') === false)
+  check('书自带的 <style> 被删掉', chapters[1]?.html.includes('<style') === false)
+  check('书自带的 class 被删掉', chapters[1]?.html.includes('class="chapter-title"') === false)
   check(
     '危险的个别内联样式被剥离，只留语义样式',
-    chapters[0]?.html.includes('font-size: 4em') === false &&
-      chapters[0]?.html.includes('line-height: 5') === false &&
-      chapters[0]?.html.includes('text-align: center') === true,
-    chapters[0]?.html.match(/style="[^"]*"/g)?.join(' | '),
+    chapters[1]?.html.includes('font-size: 4em') === false &&
+      chapters[1]?.html.includes('line-height: 5') === false &&
+      chapters[1]?.html.includes('text-align: center') === true,
+    chapters[1]?.html.match(/style="[^"]*"/g)?.join(' | '),
   )
   check(
     '带 url() 的内联样式被拒绝',
-    chapters[0]?.html.includes('url(') === false,
+    chapters[1]?.html.includes('url(') === false,
   )
-  check('保留 ruby 注音', chapters[0]?.html.includes('<ruby>') === true)
-  check('保留 figcaption', chapters[0]?.html.includes('<figcaption>') === true)
-  check('保留表格', chapters[1]?.html.includes('<table>') === true)
+  check('保留 ruby 注音', chapters[1]?.html.includes('<ruby>') === true)
+  check('保留 figcaption', chapters[1]?.html.includes('<figcaption>') === true)
+  check('保留表格', chapters[2]?.html.includes('<table>') === true)
+}
+
+console.log('\nSVG 封面页与双语标记（真实日系双语 EPUB 的两个典型特征）')
+{
+  check(
+    'SVG 包的封面图转换成 <img> 并走资源重写',
+    chapters[0]?.html.includes('<img src="mnres://OEBPS/Images/cover.png"') === true,
+    chapters[0]?.html.match(/<img[^>]*>/g)?.join(' | '),
+  )
+  check('svg 壳被拆掉', chapters[0]?.html.includes('<svg') === false)
+  check(
+    '封面图资源被抽出来',
+    resources.some((item) => item.path === 'OEBPS/Images/cover.png' && item.blob.size > 0),
+    JSON.stringify(resources.map((item) => item.path)),
+  )
+  check(
+    '双语书里弱化样式（opacity）的段落被标记为次要语言',
+    chapters[2]?.html.includes('<p data-mn-lang="alt">') === true,
+    chapters[2]?.html.match(/<p[^>]*>/g)?.join(' | '),
+  )
+  check('标记的同时 opacity 样式本身被剥掉', chapters[2]?.html.includes('opacity') === false)
+  check(
+    '普通段落不打语言标记',
+    (chapters[2]?.html.match(/data-mn-lang/g) ?? []).length === 1,
+    chapters[2]?.html.match(/data-mn-lang/g)?.join(','),
+  )
 }
 
 console.log('\n恶意内容（第一层净化必须挡住，不能指望第三方库）')
@@ -157,14 +188,35 @@ console.log('\n链接重写')
 {
   check(
     '跨章链接指到正确的章号',
-    chapters[1]?.html.includes('#mnref-2:fn1') === true,
-    chapters[1]?.html.match(/href="[^"]*"/g)?.join(' | '),
+    chapters[2]?.html.includes('#mnref-3:mn-fn1') === true,
+    chapters[2]?.html.match(/href="[^"]*"/g)?.join(' | '),
+  )
+  check('同章锚点指向带前缀的 id', chapters[2]?.html.includes('href="#mn-note1"') === true)
+
+  // 锚点 id 必须带前缀：DOMPurify 默认会删掉与 document / form 属性同名的 id
+  // （target、name、title、length…），而它在 happy-dom 下是空转的，只有这条约定
+  // 被钉住，真实浏览器里的脚注跳转才靠得住。
+  check(
+    '脚注目标的 id 存在且带前缀',
+    chapters[3]?.html.includes('id="mn-fn1"') === true,
+    chapters[3]?.html.match(/id="[^"]*"/g)?.join(' | '),
   )
   check(
-    '同章锚点保持原样',
-    chapters[1]?.html.includes('href="#note1"') === true,
+    '同章锚点目标也存在（样例里「回到本章锚点」那一行有落点）',
+    chapters[2]?.html.includes('id="mn-note1"') === true,
+    chapters[2]?.html.match(/id="[^"]*"/g)?.join(' | '),
   )
-  check('脚注目标 id 保留', chapters[2]?.html.includes('id="fn1"') === true)
+
+  // 端到端：正文里每个内部链接的锚点都得真的存在，不然点脚注只会切章、不滚位置
+  const dangling: string[] = []
+  for (const chapter of chapters) {
+    for (const match of chapter.html.matchAll(/href="#(mnref-(\d+):)?([^"]+)"/g)) {
+      const targetIndex = match[2] === undefined ? -1 : Number(match[2])
+      const html = targetIndex < 0 ? chapter.html : (chapters[targetIndex]?.html ?? '')
+      if (!html.includes(`id="${match[3]}"`)) dangling.push(`${chapter.title ?? '?'} → #${match[3]}`)
+    }
+  }
+  check('正文里的锚点链接都有落点', dangling.length === 0, dangling.join(', '))
 }
 
 console.log('\n进度数据')
@@ -177,8 +229,10 @@ console.log('\n进度数据')
     `offsets=${head.charOffsets.join(',')} total=${head.totalChars}`,
   )
   check(
-    '每章字数大于 0',
-    chapters.every((chapter) => chapter.charCount > 0),
+    '正文章字数大于 0（卷首章只有图，允许为 0）',
+    chapters.every(
+      (chapter, index) => chapter.charCount > 0 || (index === 0 && chapter.title === '卷首'),
+    ),
     chapters.map((chapter) => chapter.charCount).join(','),
   )
 }

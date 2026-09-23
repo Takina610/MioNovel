@@ -13,5 +13,6 @@ samples/
 # 编辑器 / 工具的运行状态，不属于项目源码
 .zcode/
 
-# 注意：public/ 里的图标虽然是 `bun run icons` 从 logo.svg 生成的，
-# 但它们要进仓库——这样 clone 下来不用先装 pwa-assets-generator 就能构建。
+# 注意：public/ 里的图标（favicon / apple-touch / maskable / pwa-*）是 `bun run icons`
+# 从 MioNovel.png 生成的，logo-64 / logo-192 / favicon.svg 是 `bun run logo` 派生的，
+# 但它们都要进仓库——这样 clone 下来不用先装 pwa-assets-generator 就能构建。

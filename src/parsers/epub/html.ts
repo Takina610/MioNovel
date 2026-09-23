@@ -70,6 +70,44 @@ const FORBID_TAGS = new Set([
 /** srcset 里是一堆未解析的相对路径，留着会打出一串失败的请求 */
 const FORBID_ATTR = new Set(['srcset', 'sizes', 'background', 'longdesc', 'usemap', 'ismap'])
 
+/**
+ * 双语对照书（中日对照最常见）用 opacity 弱化次要语言的段落，比如 0.4。
+ * 解析时把这个样式换成语义标记 data-mn-lang="alt"，阅读器据此做
+ * 「对照 / 只看主语言 / 只看次语言」三种显示。低于阈值的透明度才算弱化，
+ * 免得把 0.95 这类装饰性透明度误伤。
+ */
+const ALT_LANG_OPACITY = 0.7
+
+/**
+ * 锚点 id 统一加前缀。两个原因：
+ *
+ * 一、DOMPurify 默认开着 SANITIZE_DOM：凡是与 document / form 上的属性重名的
+ * id、name 会被整个删掉——target、action、method、name、title、length 这些「普通单词」
+ * 全在名单里。删掉的是脚注/注解的落点，症状是点脚注只切章、不滚到位置。
+ * 这个行为只在真实 DOM 下发生（happy-dom 里 DOMPurify 是空转的），所以验收脚本看不见。
+ *
+ * 二、正文最终是注入我们自己文档的一段 HTML。加前缀顺带隔开了书的 id 与宿主页面的
+ * 命名访问，双重保险。
+ *
+ * 链接侧用同一个前缀重写（同章 #x、跨章 #mnref-n:x），两边永远对得上。
+ */
+const ANCHOR_PREFIX = 'mn-'
+
+/** 允许标记为次要语言的块级标签。行内的 opacity 多半是装饰，不碰 */
+const ALT_LANG_BLOCKS = new Set([
+  'p',
+  'div',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'blockquote',
+  'li',
+  'figcaption',
+])
+
 export interface ChapterHtmlContext {
   /** 本章文件在 zip 里的路径，用于解析相对引用 */
   chapterPath: string
@@ -90,7 +128,14 @@ export interface ChapterHtmlResult {
 export function transformChapterHtml(raw: string, ctx: ChapterHtmlContext): ChapterHtmlResult {
   const doc = parseXml(raw, 'application/xhtml+xml') ?? parseXml(raw, 'text/html')
   const body = doc ? (doc.body ?? doc.documentElement) : null
-  if (body) scrubDocument(body)
+  if (body) {
+    scrubDocument(body)
+    // 赶在 DOMPurify 之前转：这样属性白名单怎么变都不影响我们拿到 xlink:href，
+    // 净化器看到的已经是普通的 <img>
+    convertSvgImages(body)
+    // 同样要赶在 DOMPurify 之前：id 得先改名，否则重名的会被它按 DOM clobbering 删掉
+    prefixAnchors(body)
+  }
 
   const cleaned = DOMPurify.sanitize(body ? body.innerHTML : raw, {
     RETURN_DOM: true,
@@ -105,8 +150,11 @@ export function transformChapterHtml(raw: string, ctx: ChapterHtmlContext): Chap
     const style = el.getAttribute('style')
     if (style !== null) {
       const filtered = filterStyle(style)
-      if (filtered) el.setAttribute('style', filtered)
+      if (filtered.css) el.setAttribute('style', filtered.css)
       else el.removeAttribute('style')
+      if (filtered.altLang && ALT_LANG_BLOCKS.has(localName(el))) {
+        el.setAttribute('data-mn-lang', 'alt')
+      }
     }
 
     const name = localName(el)
@@ -118,6 +166,50 @@ export function transformChapterHtml(raw: string, ctx: ChapterHtmlContext): Chap
   }
 
   return { html: cleaned.innerHTML, resources: [...resources], heading: firstHeading(cleaned) }
+}
+
+/**
+ * 「用 <svg> 包 <image> 撑满整页」是封面页和卷首插图页最爱的写法。
+ * SVG 的 <image> 认 xlink:href / href 不认 src，我们的资源重写够不着它，
+ * 而且没有 CSS 尺寸约束的 SVG 在多列翻页里会把版面撑爆。
+ * 统一转换成 <img>（src 先放原始值，交给 rewriteResource 走同一条重写路径），
+ * 顺带把空壳 svg（纯装饰图形）删掉——它的样式资源我们已经不解析了。
+ */
+function convertSvgImages(root: HTMLElement): void {
+  for (const svg of Array.from(root.querySelectorAll('svg'))) {
+    const images = Array.from(svg.querySelectorAll('image'))
+    const hoisted = images
+      .map((image) => {
+        const href =
+          image.getAttribute('src') || image.getAttribute('xlink:href') || image.getAttribute('href')
+        if (!href) return null
+        const img = root.ownerDocument.createElement('img')
+        img.setAttribute('src', href)
+        return img
+      })
+      .filter((img): img is HTMLImageElement => img !== null)
+    if (hoisted.length > 0) svg.replaceWith(...hoisted)
+    else svg.remove()
+  }
+}
+
+/**
+ * 把书里的锚点 id 改成带前缀的，并把老式 <a name="x"> 锚点转成 id。
+ * name 形式是 EPUB 2 时代的写法，浏览器里 <a name> 也能当锚点用，
+ * 但它在 DOMPurify 那边更容易被当成 clobbering 删掉。
+ */
+function prefixAnchors(root: Element): void {
+  for (const el of Array.from(root.querySelectorAll('[id], a[name]'))) {
+    const id = el.getAttribute('id')
+    if (id) {
+      el.setAttribute('id', `${ANCHOR_PREFIX}${id}`)
+      continue
+    }
+    const name = el.getAttribute('name')
+    if (!name) continue
+    el.setAttribute('id', `${ANCHOR_PREFIX}${name}`)
+    el.removeAttribute('name')
+  }
 }
 
 /**
@@ -153,20 +245,31 @@ function firstHeading(root: Element): string {
   return ''
 }
 
-function filterStyle(value: string): string {
+function filterStyle(value: string): { css: string; altLang: boolean } {
   const kept: string[] = []
+  let altLang = false
   for (const declaration of value.split(';')) {
     const index = declaration.indexOf(':')
     if (index < 0) continue
     const prop = declaration.slice(0, index).trim().toLowerCase()
-    if (!ALLOWED_STYLE_PROPS.has(prop)) continue
+    if (!prop) continue
     const propValue = declaration.slice(index + 1).trim()
     if (!propValue) continue
+
+    // opacity 不进白名单（它是版式），但弱化透明度是有语义的：双语对照书
+    // 靠它区分主/次语言，抽出来给阅读器做显示开关
+    if (prop === 'opacity') {
+      const parsed = Number.parseFloat(propValue)
+      if (Number.isFinite(parsed) && parsed >= 0.05 && parsed <= ALT_LANG_OPACITY) altLang = true
+      continue
+    }
+
+    if (!ALLOWED_STYLE_PROPS.has(prop)) continue
     // url() 会把外部资源拉进来；尖括号是注入尝试
     if (/url\s*\(/i.test(propValue) || /[<>]/.test(propValue)) continue
     kept.push(`${prop}: ${propValue}`)
   }
-  return kept.join('; ')
+  return { css: kept.join('; '), altLang }
 }
 
 function rewriteResource(el: Element, ctx: ChapterHtmlContext, out: Set<string>): void {
@@ -199,7 +302,7 @@ function rewriteLink(el: Element, ctx: ChapterHtmlContext): void {
 
   // 同章锚点：注解、脚注最常见的形式，直接留 #fragment
   if (!path || path === ctx.chapterPath) {
-    if (fragment) el.setAttribute('href', `#${fragment}`)
+    if (fragment) el.setAttribute('href', `#${ANCHOR_PREFIX}${fragment}`)
     else el.removeAttribute('href')
     return
   }
@@ -210,5 +313,5 @@ function rewriteLink(el: Element, ctx: ChapterHtmlContext): void {
     el.removeAttribute('href')
     return
   }
-  el.setAttribute('href', `#mnref-${target}${fragment ? `:${fragment}` : ''}`)
+  el.setAttribute('href', `#mnref-${target}${fragment ? `:${ANCHOR_PREFIX}${fragment}` : ''}`)
 }

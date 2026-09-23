@@ -18,8 +18,9 @@ bun run build      # 生产构建（含 Service Worker）
 bun run preview    # 预览构建产物
 bun run typecheck  # tsc --noEmit
 bun run samples    # 生成验收用的样例文件到 samples/
-bun run verify     # 跑解析器验收（txt + epub）
-bun run icons      # 从 public/logo.svg 重新生成全套图标
+bun run verify     # 跑解析器验收（38 项 txt + 45 项 epub 断言）
+bun run icons      # 从 public/MioNovel.png 重新生成全套图标（favicon / PWA / apple-touch）
+bun run logo       # 从同一张原图派生界面用的小图（logo-64 / logo-192 / favicon.svg）
 ```
 
 ## 用法
@@ -29,13 +30,17 @@ bun run icons      # 从 public/logo.svg 重新生成全套图标
 - **txt** — 自动识别 UTF-8 / UTF-16 / GB18030（含 GBK、GB2312）/ Big5 / Shift_JIS 等编码；
   分章按中文小说、英文小说、纯数字标题逐级尝试，都不像就按约 3000 字分段。
 - **epub** — 读 OPF 元数据、目录（nav.xhtml 和 toc.ncx 都认）、封面；正文里的图片抽出来一起存，
-  书自带的样式会被剥掉，排版统一跟主题走。
+  书自带的样式会被剥掉，排版统一跟主题走。SVG 包 `image` 的整页封面会转成普通 `<img>`；
+  中日对照这类双语书（次要语言段落用弱化样式排版）会被自动识别，
+  阅读设置里可以切换「对照 / 只看译文 / 只看原文」。
 
 导入之后觉得分章或者编码不对，点书卡片右上角的「⋯」→ 解析设置，改完原地重新解析，
-**不需要重新导入**（原始文件一直留着）。
+**不需要重新导入**（原始文件一直留着）。epub 没有可调项，但解析器更新之后（脚注、封面、
+双语标记这类改进）也能在同一个地方重跑一遍，不用删了重导。
 
-阅读器里：点正文中间显示/隐藏工具栏，翻页模式下点左右两侧翻页，`←` `→` 翻章，
-`t` 开目录，`Esc` 关面板，`f` 全屏。
+阅读器里：点正文中间显示/隐藏工具栏，翻页模式下点左右两侧翻页、滚轮和触控板也翻页，
+窗口够宽时一屏并排两页（放不下就退回单页居中），`←` `→` 翻章，`t` 开目录，
+`Esc` 关面板，`f` 全屏。
 
 ## 目录结构
 
@@ -50,12 +55,17 @@ src/
   db/               Dexie schema 与所有数据访问
   themes/           主题注册表、内置主题、样式表生成
   store/            zustand：阅读设置（持久化）、导入队列（内存）
-  components/       shelf/（书架）reader/（阅读器）ui/（五个手写基础组件）
-  hooks/            取书、取章、主题、快捷键、拖拽、翻页测量
+  components/
+    shelf/          书架卡片、书详情面板
+    reader/         正文视图（滚动/翻页）、工具栏、目录、阅读设置
+    ui/             手写基础件：Button / Slider / Switch / Panel / Dialog /
+                    Select / Toast / Logo / icons
+  hooks/            取书、取章、主题、快捷键、拖拽、翻页测量、淡出用的 presence
   lib/              纯函数：进度换算、格式化、className 拼接
-  styles/           app.css（Tailwind 与主题 token）content.css（正文排版）
+  styles/           app.css（Tailwind、主题 token、动效工具类）content.css（正文排版）
 docs/SPEC.md        设计决定与理由 —— 动手改之前先看它
-scripts/            样例生成与验收脚本
+scripts/            样例生成、验收脚本、标识派生
+public/             MioNovel.png（标识原图）与由它生成的图标
 ```
 
 ## 几个不能随便改的地方
@@ -63,6 +73,11 @@ scripts/            样例生成与验收脚本
 - **主题只能通过注册表加**。往 `themes/builtin.ts` 里加一条数据就行；不要在组件里写死颜色，
   也不要在 CSS 里为某个主题写选择器。所有颜色都是 `:root[data-theme=…]` 上的变量，
   组件只认 `bg-bg` / `text-fg-muted` 这类工具类。破了这条，换主题就会只换一半。
+- **动效只用 `--mn-dur-*` 和 `mn-*` 那几个工具类**（见 `styles/app.css`），不要在组件里现编毫秒数或
+  新写一套 keyframes。新加一种「出场感」之前先看现有的四条能不能复用；所有动画都要能被
+  `prefers-reduced-motion` 压掉——那条 `@media` 块不能删。
+- **翻页模式下别给 `.mn-content` 加位移/缩放动画**。`transform` 是翻页的地盘（translateX 表示当前页），
+  两条动画抢同一个属性会让翻页一顿一顿的——所以换章的淡入在翻页模式只动 `opacity`。
 - **`parsers/epub/html.ts` 里的 `scrubDocument()` 不能删**，也别把安全性完全交给 DOMPurify。
   实测 DOMPurify 在某些 DOM 实现下（比如 happy-dom）会静默什么都不做——连 `<script>` 都不删。
   我们用 `innerHTML` 注入正文，所以危险标签和 `on*` 属性必须由自己那层删掉。
@@ -76,8 +91,18 @@ scripts/            样例生成与验收脚本
   koodo-reader 就是那样，加一个可主题化的界面就要改两个仓库。我们用净化 + 作用域 CSS 拿到隔离。
 - **`ReaderView.tsx` 里翻页模式的测量不能去掉失败保护**。容器宽度还没就位时量出来的页宽会把正文挤成一条窄柱，
   页数暴涨，而且因为没有尺寸变化，`ResizeObserver` 之后不会来纠正——必须重试到量成功为止。
+- **翻页模式的 `.mn-frame--paged` 一屏裁剪窗口不能拆**。桌面宽窗口下正文栏宽远小于视口，
+  没有它 translateX 之后上一页和下一页会同时露在两侧；宽度和中缝必须是整数，多列布局的可见列数是
+  `floor((容器宽 + 中缝) ÷ (列宽 + 中缝))`，差一个像素就少算一列。整页插图也依赖 `--mn-page-height`
+  限高 + 翻页模式下去掉垂直边距，否则图会被挤去下一列，当前页变成空白页。
+- **滚动模式进章时的位置恢复，只在版面变了的时候重写 `scrollTop`，读者一动手就停**。
+  重写同一个位置没有别的作用，只会把读者刚滚走的位置拽回来——症状是「章首往下滚突然回弹、
+  章末往上滚被拽回章末」。
 - **`bun run verify` 必须过**。它覆盖的是最容易悄悄坏掉的部分：编码识别、分章、目录归并、
-  图片路径重写、净化。没有 CI，这个脚本就是回归防线。
+  图片路径重写、净化、锚点落点。没有 CI，这个脚本就是回归防线。
+- **锚点 id 必须带 `mn-` 前缀**（解析时统一加，链接侧同前缀重写）。不加的话真实浏览器里
+  DOMPurify 会按 DOM clobbering 把 `id="target"`、`id="name"` 这类删掉，脚注就跳不到位置了；
+  happy-dom 下它是空转的，验收脚本看不出来，所以这条只能靠约定守住。
 
 ## 还没做的
 

@@ -97,9 +97,12 @@
   vertical-align: middle;
 }
 
-/* 独占一段的图居中，且不要额外的首行缩进 */
+/* 独占一段的图居中，且不要额外的首行缩进。
+   卷首插图页常用 <h1><img/></h1> 包整页图，也一并居中、收掉标题的大外边距 */
 .mn-content p:has(> img:only-child),
-.mn-content div:has(> img:only-child) {
+.mn-content div:has(> img:only-child),
+.mn-content h1:has(> img:only-child),
+.mn-content h2:has(> img:only-child) {
   text-indent: 0;
 }
 
@@ -107,6 +110,31 @@
 .mn-content div > img:only-child {
   display: block;
   margin: 1.2em auto;
+}
+
+.mn-content h1 > img:only-child,
+.mn-content h2 > img:only-child {
+  display: block;
+  margin: 0 auto;
+}
+
+.mn-content h1:has(> img:only-child),
+.mn-content h2:has(> img:only-child) {
+  margin: 0.6em 0;
+}
+
+/* ---- 双语对照 ----
+   解析时把书里弱化样式的段落（双语书的次要语言）标成 data-mn-lang="alt"。
+   对照模式下它降调显示；只看主/次语言靠 --mn-alt-display / --mn-primary-display
+   两个变量切换 display（变量由 store/settings.ts 写在阅读器容器上）。
+   只看原文时 --mn-alt-color 会把次要语言提回全亮前景色。 */
+.mn-content [data-mn-lang] {
+  display: var(--mn-alt-display, block);
+  color: var(--mn-alt-color, color-mix(in srgb, var(--mn-reader-fg) 62%, var(--mn-reader-bg)));
+}
+
+.mn-content p:not([data-mn-lang]) {
+  display: var(--mn-primary-display, block);
 }
 
 .mn-content figure {
@@ -238,16 +266,60 @@
   color: var(--mn-reader-fg);
   font-size: 0.92em;
   cursor: pointer;
-  transition: background-color 150ms var(--mn-ease);
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    transform var(--mn-dur-1) var(--mn-ease);
 }
 
 .mn-content nav.mn-chapter-nav button:hover {
   background: color-mix(in srgb, var(--mn-reader-fg) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+.mn-content nav.mn-chapter-nav button:active {
+  transform: scale(0.97);
+}
+
+.mn-content nav.mn-chapter-nav button:focus-visible {
+  outline: 2px solid var(--mn-reader-link);
+  outline-offset: 2px;
 }
 
 .mn-content .mn-chapter-nav__end {
   font-size: 0.88em;
   color: var(--mn-reader-fg-muted);
+}
+
+/* ---- 换章：新的一章淡入 ----
+   翻页模式下只动 opacity——transform 是翻页的地盘（见 ReaderView 里的注释）。 */
+.mn-content.mn-chapter-in {
+  animation: mn-chapter-in var(--mn-dur-3) var(--mn-ease) both;
+}
+
+@keyframes mn-chapter-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 滚动模式下正文没有别的 transform 要抢，可以多给一点上浮：
+   向上错 8px 再落回原位，方向正好是「往下读」的方向 */
+.mn-scroll:not(.mn-paged) .mn-content.mn-chapter-in {
+  animation-name: mn-chapter-in-rise;
+}
+
+@keyframes mn-chapter-in-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ==========================================================================
@@ -270,12 +342,42 @@
   margin: 0 auto;
 }
 
-/* 翻页模式：CSS 多列。
-   列宽 = 一页的宽度（由 usePagedMode 量出来写进 --mn-page-width），column-gap 为 0，
-   于是「一列 = 一页」，总页数 = scrollWidth / 列宽。
-   column-fill: auto 是关键：内容按顺序填满一列再排下一列；缺了它浏览器会把内容
-   平均分配到所有列里，翻页顺序就乱了。
-   左右内边距留给 .mn-scroll，这样每一页两侧都有留白，而不是只有第一页有。 */
+/* 翻页模式的多列规则和单页窗口见文件末尾的「翻页模式」区块 */
+
+/* 工具栏淡出时把状态栏区域的底部留白也收掉，不然正文最后一行会贴在边上 */
+.mn-immersive .mn-scroll {
+  padding-bottom: clamp(18px, 3.5vw, 40px);
+}
+
+/* ==========================================================================
+   翻页模式
+   ========================================================================== */
+
+/* 翻页时容器不再留边距：留白全部移到一屏窗口（.mn-frame--paged）上。
+   如果留白留在 .mn-scroll 上，窗口裁剪不到的地方会露出相邻页的一条边。 */
+.mn-scroll.mn-paged {
+  padding: 0;
+}
+
+/**
+ * 一屏窗口：宽度恰好等于「一屏要显示的列数 × 列宽 + 中缝」，翻页时把多列内容
+ * 裁到只剩当前这一屏。桌面宽窗口下正文栏宽远小于容器宽，没有这个窗口的话
+ * translateX 之后上一页和下一页会同时出现在两侧，整个版面看起来就是碎的。
+ * 宽度由 ReaderView 算好写进 --mn-frame-width（整数 px，见那边的注释）；
+ * 测量之前先退回「单页居中」，免得首帧是一屏被拉坏的正文。
+ * 垂直 padding 在窗口上：页高（列高）= 窗口内容高，图片限高用的
+ * --mn-page-height 就是照它量的。
+ */
+.mn-frame--paged {
+  width: var(--mn-frame-width, min(100%, var(--mn-content-width, 42rem)));
+  height: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  padding: clamp(18px, 3.5vw, 40px) 0;
+  /* 中缝：默认值只用于测量之前那一帧，之后由 ReaderView 写成整数 px */
+  --mn-col-gap: 40px;
+}
+
 .mn-paged {
   overflow: hidden !important;
 }
@@ -284,18 +386,43 @@
   height: 100%;
   /* 覆盖滚动模式下的 max-width：列宽自己就是宽度上限，再叠一层会把列算窄 */
   max-width: none;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   column-width: var(--mn-page-width, 100vw);
-  column-gap: 0;
+  /* 中缝：一屏并排两页时它把两页分开，不然两列的字会在屏幕中间连成一片。
+     宽度由 ReaderView 写成整数 px——可见列数是按「(容器宽 + 中缝) ÷ (列宽 + 中缝)」
+     取整算出来的，中缝带小数就会把列数算错 */
+  column-gap: var(--mn-col-gap, 0);
   column-fill: auto;
   will-change: transform;
 }
 
-.mn-paged .mn-content.mn-turning {
-  transition: transform 220ms var(--mn-ease);
+/* 整页插图没法在列里被切断，只能缩进一页：不限高的话它会纵向溢出，
+   把后续所有页的版面顶乱（svg 封面页、卷首全页图都吃过这个亏） */
+.mn-paged .mn-content img,
+.mn-paged .mn-content svg {
+  max-height: var(--mn-page-height, 100%);
+  object-fit: contain;
 }
 
-/* 工具栏淡出时把状态栏区域的底部留白也收掉，不然正文最后一行会贴在边上 */
-.mn-immersive .mn-scroll {
-  padding-bottom: clamp(18px, 3.5vw, 40px);
+/* 独占一段的图在翻页模式下去掉垂直外边距：图被 max-height 缩到恰好一页高时，
+   1.2em 的上下边距正好把它挤过页高，整图被推去下一列，当前页就成了空白页。
+   卷首插图页常写成 <div><h1><img/></h1></div>，外层容器的边距一并收掉 */
+.mn-paged .mn-content p > img:only-child,
+.mn-paged .mn-content div > img:only-child,
+.mn-paged .mn-content h1 > img:only-child,
+.mn-paged .mn-content h2 > img:only-child {
+  margin: 0 auto;
+}
+
+.mn-paged .mn-content p:has(> img:only-child),
+.mn-paged .mn-content div:has(> img:only-child),
+.mn-paged .mn-content h1:has(> img:only-child),
+.mn-paged .mn-content h2:has(> img:only-child) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.mn-paged .mn-content.mn-turning {
+  transition: transform 220ms var(--mn-ease);
 }

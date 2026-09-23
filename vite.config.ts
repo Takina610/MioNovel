@@ -9,7 +9,16 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo.svg', 'apple-touch-icon-180x180.png'],
+      // 页面用 URL 直接引、不经打包器的静态资源，要点名才会进预缓存。
+      // MioNovel.png 刻意不在名单里，下面还有一条 globIgnores 把它挡在预缓存外：
+      // 187KB 的原图只服务图标生成（bun run icons），运行时用的是派生小图。
+      includeAssets: [
+        'favicon.svg',
+        'favicon.ico',
+        'apple-touch-icon-180x180.png',
+        'logo-64.png',
+        'logo-192.png',
+      ],
       manifest: {
         name: 'MioNovel',
         short_name: 'MioNovel',
@@ -37,6 +46,8 @@ export default defineConfig({
         // 只预缓存 app 外壳。书在 IndexedDB 里，不该也不必要进缓存清单——
         // 这也是离线能读的原因：SW 负责让页面起得来，数据本来就在本地。
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // 标识原图不进预缓存：它只在重新生成图标时用得到，运行时用的是 logo-64/192
+        globIgnores: ['**/MioNovel.png'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
       },

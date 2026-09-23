@@ -12,6 +12,7 @@ import { Button } from '../ui/Button'
 import { Slider } from '../ui/Slider'
 import { Switch } from '../ui/Switch'
 import { ThemePicker } from './ThemePicker'
+import { IconCheck, IconClose } from '../ui/icons'
 
 interface SettingsPanelProps {
   open: boolean
@@ -45,8 +46,8 @@ export function SettingsPanel({
       header={
         <div className="flex items-center justify-between gap-2 border-b border-border p-4">
           <h2 className="text-[14px] font-semibold text-fg">阅读设置</h2>
-          <Button size="sm" variant="ghost" onClick={onClose} aria-label="关闭">
-            ✕
+          <Button size="sm" variant="ghost" className="px-2" onClick={onClose} aria-label="关闭">
+            <IconClose className="h-4 w-4" />
           </Button>
         </div>
       }
@@ -58,10 +59,6 @@ export function SettingsPanel({
             activeId={settings.themeId}
             onSelect={(themeId) => onChange({ themeId })}
           />
-          <p className="text-[11.5px] leading-relaxed text-fg-faint">
-            主题是一组颜色变量，书架、工具栏和正文同时跟着变。
-            想再细调（换背景图、改强调色）用最下面的自定义 CSS。
-          </p>
         </section>
 
         <section className="space-y-3">
@@ -70,16 +67,43 @@ export function SettingsPanel({
             <ModeButton
               active={settings.pageMode === 'scroll'}
               label="上下滚动"
-              hint="连贯阅读"
+              hint="一直往下滚"
               onClick={() => onChange({ pageMode: 'scroll' })}
             />
             <ModeButton
               active={settings.pageMode === 'paged'}
               label="左右翻页"
-              hint="按屏分页"
+              hint="一屏一屏翻"
               onClick={() => onChange({ pageMode: 'paged' })}
             />
           </div>
+        </section>
+
+        <section className="space-y-3">
+          <SectionTitle>双语显示</SectionTitle>
+          <div className="grid grid-cols-3 gap-2">
+            <ModeButton
+              active={settings.bilingual === 'both'}
+              label="对照"
+              hint="两种都显示"
+              onClick={() => onChange({ bilingual: 'both' })}
+            />
+            <ModeButton
+              active={settings.bilingual === 'primary'}
+              label="只看译文"
+              hint="隐藏原文段"
+              onClick={() => onChange({ bilingual: 'primary' })}
+            />
+            <ModeButton
+              active={settings.bilingual === 'secondary'}
+              label="只看原文"
+              hint="隐藏译文段"
+              onClick={() => onChange({ bilingual: 'secondary' })}
+            />
+          </div>
+          <p className="text-[11.5px] leading-relaxed text-fg-faint">
+            只对双语书有效，普通小说选哪个都一样。
+          </p>
         </section>
 
         <section className="space-y-4">
@@ -137,10 +161,11 @@ export function SettingsPanel({
                   onClick={() => onChange({ fontFamily: font.id })}
                   style={{ fontFamily: font.stack }}
                   className={cx(
-                    'rounded-md border py-1.5 text-[12.5px] transition-colors',
+                    'rounded-lg border py-1.5 text-[12.5px]',
+                    'transition-[border-color,background-color,color,transform,box-shadow] duration-[var(--mn-dur-2)] ease-[var(--mn-ease)] active:scale-[0.97]',
                     settings.fontFamily === font.id
-                      ? 'border-accent bg-accent-soft text-accent'
-                      : 'border-border text-fg-muted hover:bg-surface-2',
+                      ? 'border-accent bg-accent-soft text-accent shadow-[0_0_0_3px_color-mix(in_srgb,var(--mn-accent)_12%,transparent)]'
+                      : 'border-border text-fg-muted hover:border-border-strong hover:bg-surface-2',
                   )}
                 >
                   {font.name}
@@ -158,10 +183,11 @@ export function SettingsPanel({
                   type="button"
                   onClick={() => onChange({ align })}
                   className={cx(
-                    'rounded-md border px-3 py-1 text-[12.5px] transition-colors',
+                    'rounded-lg border px-3 py-1 text-[12.5px]',
+                    'transition-[border-color,background-color,color,transform,box-shadow] duration-[var(--mn-dur-2)] ease-[var(--mn-ease)] active:scale-[0.97]',
                     settings.align === align
-                      ? 'border-accent bg-accent-soft text-accent'
-                      : 'border-border text-fg-muted hover:bg-surface-2',
+                      ? 'border-accent bg-accent-soft text-accent shadow-[0_0_0_3px_color-mix(in_srgb,var(--mn-accent)_12%,transparent)]'
+                      : 'border-border text-fg-muted hover:border-border-strong hover:bg-surface-2',
                   )}
                 >
                   {align === 'left' ? '左对齐' : '两端对齐'}
@@ -188,11 +214,10 @@ export function SettingsPanel({
             rows={4}
             spellCheck={false}
             placeholder={'.mn-content { background-image: … }'}
-            className="w-full rounded-md border border-border bg-bg p-2 font-mono text-[12px] leading-relaxed"
+            className="w-full rounded-lg border border-border bg-bg p-2 font-mono text-[12px] leading-relaxed transition-[border-color,box-shadow] duration-200 ease-[var(--mn-ease)] focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--mn-accent)_12%,transparent)] focus:outline-none"
           />
           <p className="text-[11.5px] leading-relaxed text-fg-faint">
-            直接作用在阅读界面上，改完立即生效。改坏了清空即可。
-            正文元素都在 <code>.mn-content</code> 里。
+            改完立即生效，改坏了清空即可。正文元素都在 <code>.mn-content</code> 里。
           </p>
         </section>
 
@@ -230,12 +255,20 @@ function ModeButton({
     <button
       type="button"
       onClick={onClick}
+      // 视觉上「选中的是哪个」靠边框色，读屏软件读不到，补一个 aria-pressed
+      aria-pressed={active}
       className={cx(
-        'rounded-lg border px-3 py-2 text-left transition-colors',
-        active ? 'border-accent bg-accent-soft' : 'border-border hover:bg-surface-2',
+        'rounded-xl border px-3 py-2 text-left',
+        'transition-[border-color,background-color,transform,box-shadow] duration-[var(--mn-dur-2)] ease-[var(--mn-ease)] active:scale-[0.98]',
+        active
+          ? 'border-accent bg-accent-soft shadow-[0_0_0_3px_color-mix(in_srgb,var(--mn-accent)_14%,transparent)]'
+          : 'border-border hover:border-border-strong hover:bg-surface-2',
       )}
     >
-      <span className={cx('block text-[13px]', active ? 'text-accent' : 'text-fg')}>{label}</span>
+      <span className="flex items-center gap-1.5">
+        <span className={cx('block text-[13px]', active ? 'text-accent' : 'text-fg')}>{label}</span>
+        {active ? <IconCheck className="mn-pop h-3.5 w-3.5 text-accent" /> : null}
+      </span>
       <span className="mt-0.5 block text-[11px] text-fg-faint">{hint}</span>
     </button>
   )

@@ -188,6 +188,14 @@ const XHTML_HEAD = `<?xml version="1.0" encoding="utf-8"?>
 
 function makeEpub(): Uint8Array {
   const chapters = {
+    // 封面页：真实日系 EPUB 最爱的「SVG 包 image」写法（xlink:href 指图）。
+    // 它在 spine 最前且不在目录里，应该并进第一章而不是自成一章
+    'OEBPS/Text/cover.xhtml': `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>封面</title></head><body>
+<div><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 600 800" width="100%" height="100%"><image xlink:href="../Images/cover.png" width="600" height="800"/></svg></div>
+</body></html>`,
     'OEBPS/Text/ch1.xhtml': `${XHTML_HEAD}
       <style>p { color: red; font-family: "Comic Sans MS"; }</style>
       <h1 class="chapter-title" style="color: red; text-align: center; font-size: 4em; margin: 3em">第一章 少年与灯</h1>
@@ -204,7 +212,9 @@ function makeEpub(): Uint8Array {
     'OEBPS/Text/ch2.xhtml': `${XHTML_HEAD}
       <h2>第二章 落雪</h2>
       <p>雪落下来，屋顶上就没有声音了。这里有脚注<sup><a href="ch3.xhtml#fn1">1</a></sup>。</p>
+      <p style="opacity:0.4;">　雪が降って、屋根の上に音がなくなった。ここに脚注がある<sup><a href="ch3.xhtml#fn1">1</a></sup>。</p>
       <p><a href="#note1">回到本章锚点</a></p>
+      <p id="note1">本章锚点在这里，同章链接应该落到这一行。</p>
       <table><tr><th>年</th><th>事</th></tr><tr><td>元熙三年</td><td>落雪</td></tr></table>
       </body></html>`,
     'OEBPS/Text/ch3.xhtml': `${XHTML_HEAD}
@@ -245,12 +255,14 @@ function makeEpub(): Uint8Array {
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="cover-image" href="Images/cover.png" media-type="image/png" properties="cover-image"/>
     <item id="pic" href="Images/pic.png" media-type="image/png"/>
+    <item id="coverpage" href="Text/cover.xhtml" media-type="application/xhtml+xml"/>
     <item id="ch1" href="Text/ch1.xhtml" media-type="application/xhtml+xml"/>
     <item id="ch1b" href="Text/ch1b.xhtml" media-type="application/xhtml+xml"/>
     <item id="ch2" href="Text/ch2.xhtml" media-type="application/xhtml+xml"/>
     <item id="ch3" href="Text/ch3.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
   <spine>
+    <itemref idref="coverpage"/>
     <itemref idref="ch1"/>
     <itemref idref="ch1b"/>
     <itemref idref="ch2"/>

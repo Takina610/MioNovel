@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ReaderBottomBar } from '../components/reader/ReaderBottomBar'
 import { ReaderTopBar } from '../components/reader/ReaderTopBar'
@@ -6,6 +6,7 @@ import { ReaderView } from '../components/reader/ReaderView'
 import { SettingsPanel } from '../components/reader/SettingsPanel'
 import { TocPanel } from '../components/reader/TocPanel'
 import { Button } from '../components/ui/Button'
+import { Logo } from '../components/ui/Logo'
 import { saveProgress } from '../db/books'
 import { useBook } from '../hooks/useBooks'
 import { useChapter, warmNeighbours } from '../hooks/useChapter'
@@ -13,6 +14,7 @@ import { useChapterHtml } from '../hooks/useChapterHtml'
 import { useHotkeys } from '../hooks/useHotkeys'
 import { useScopedTheme, useUserCss } from '../hooks/useTheme'
 import { bookPercent, clamp01, locateByPercent } from '../lib/progress'
+import { cx } from '../lib/cx'
 import { resolveSettings, settingsToVars, useSettings } from '../store/settings'
 
 /** 工具栏自动隐藏的等待时间 */
@@ -37,7 +39,10 @@ export function ReaderPage() {
   const [tocOpen, setTocOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const containerRef = useRef<HTMLDivElement>(null)
+  // 阅读器容器用 state 记而不是 useRef：首次渲染时书还没读出来，容器根本没挂载，
+  // 用 ref 的话那一轮写变量的机会就白费了，而且 settings 不变也不会再来第二次——
+  // 症状是刷新之后字号、栏宽、双语模式全部退回 CSS 默认值。
+  const [readerRoot, setReaderRoot] = useState<HTMLDivElement | null>(null)
 
   const perBookStyle = bookId ? perBook[bookId] : undefined
   const perBookEnabled = perBookStyle?.enabled ?? false
@@ -50,15 +55,27 @@ export function ReaderPage() {
   useScopedTheme(settings.themeId, globalSettings.themeId)
   useUserCss(settings.userCss)
 
-  // 设置写进阅读器容器的 CSS 变量。改字号只是写一个属性，
-  // 正文 DOM 不动——这也是为什么变量挂在容器上而不是逐元素内联样式
-  useEffect(() => {
-    const element = containerRef.current
-    if (!element) return
-    for (const [name, value] of Object.entries(settingsToVars(settings))) {
-      element.style.setProperty(name, value)
+  // 进度归我们自己管（章序号 + 章内比例，存在 IndexedDB 里）。
+  // 浏览器的滚动位置恢复会拿它记下的偏移量再盖一次，而它记的可能是切模式、
+  // 换章之前的陈旧值——两边打架时输的总是读者。让出这条规则：正文位置只由
+  // ReaderView 恢复。离开阅读器时还原，免得不必要地影响别的页面。
+  useLayoutEffect(() => {
+    const previous = history.scrollRestoration
+    history.scrollRestoration = 'manual'
+    return () => {
+      history.scrollRestoration = previous
     }
-  }, [settings])
+  }, [])
+
+  // 设置写进阅读器容器的 CSS 变量。改字号只是写一个属性，
+  // 正文 DOM 不动——这也是为什么变量挂在容器上而不是逐元素内联样式。
+  // 用 layout effect：否则首帧会先按 CSS 默认值排一遍，再跳到用户的字号
+  useLayoutEffect(() => {
+    if (!readerRoot) return
+    for (const [name, value] of Object.entries(settingsToVars(settings))) {
+      readerRoot.style.setProperty(name, value)
+    }
+  }, [readerRoot, settings])
 
   // 首次进入：接着上次读到的地方
   useEffect(() => {
@@ -71,7 +88,7 @@ export function ReaderPage() {
   }, [book, chapterIndex])
 
   const chapter = useChapter(bookId, chapterIndex)
-  const html = useChapterHtml(bookId, chapter)
+  const { html, key: htmlKey } = useChapterHtml(bookId, chapter)
 
   // 邻章读进页缓存，让「下一章」快一点
   useEffect(() => {
@@ -116,6 +133,10 @@ export function ReaderPage() {
   )
 
   const handleFragmentHandled = useCallback(() => setPendingFragment(''), [])
+
+  // 滚动时 ratio 每 100ms 变一次，这里再跟着换一次函数身份，ReaderView 的 memo
+  // 就白包了——整棵正文树会跟着进度报告重渲染。所以回调一律做稳定。
+  const handleTap = useCallback(() => setChromeVisible((visible) => !visible), [])
 
   // ---- 进度持久化 ----
   const progressRef = useRef({ chapterIndex: 0, ratio: 0 })
@@ -203,36 +224,41 @@ export function ReaderPage() {
     [bookId, perBookEnabled, updateForBook, updateGlobal],
   )
 
+  // 回书架。和从书架进书一样走一次换页过渡（见 styles/app.css 的 View Transitions）
+  const backToShelf = useCallback(() => {
+    void navigate('/', { viewTransition: true })
+  }, [navigate])
+
   if (book === undefined) {
     return (
-      <div className="flex h-dvh items-center justify-center text-[13px] text-fg-faint">
-        正在打开…
-      </div>
+      <Screen>
+        <p className="text-[13px] text-fg-faint">正在打开…</p>
+      </Screen>
     )
   }
 
   if (book === null) {
     return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-3 text-fg">
-        <p className="text-[14px]">这本书找不到了</p>
-        <Button variant="outline" onClick={() => void navigate('/')}>
+      <Screen>
+        <p className="text-[14px] text-fg">这本书找不到了</p>
+        <Button variant="outline" onClick={() => backToShelf()}>
           回书架
         </Button>
-      </div>
+      </Screen>
     )
   }
 
   if (book.state !== 'ready') {
     return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-3 px-6 text-center text-fg">
-        <p className="text-[14px]">
+      <Screen>
+        <p className="text-[14px] text-fg">
           {book.state === 'importing' ? '这本书还在导入，等一会儿再打开' : '这本书没能解析成功'}
         </p>
         {book.error ? <p className="max-w-sm text-[12.5px] text-fg-muted">{book.error}</p> : null}
-        <Button variant="outline" onClick={() => void navigate('/')}>
+        <Button variant="outline" onClick={() => backToShelf()}>
           回书架处理
         </Button>
-      </div>
+      </Screen>
     )
   }
 
@@ -241,9 +267,20 @@ export function ReaderPage() {
 
   return (
     <div
-      ref={containerRef}
+      ref={setReaderRoot}
       className="relative h-dvh overflow-hidden bg-reader-bg text-reader-fg"
     >
+      {/* 顶部那条发丝进度：工具栏收起来之后，它是唯一还看得见的「读到哪了」 */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-40 h-[3px]">
+        <div
+          className={cx(
+            'h-full rounded-r-full bg-accent transition-[width,opacity] duration-[var(--mn-dur-3)] ease-[var(--mn-ease)]',
+            chromeVisible || tocOpen || settingsOpen ? 'opacity-95' : 'opacity-45',
+          )}
+          style={{ width: `${percent * 100}%` }}
+        />
+      </div>
+
       {chapterIndex === null ? (
         <div className="flex h-full items-center justify-center text-[13px] text-reader-fg-muted">
           正在打开…
@@ -251,6 +288,7 @@ export function ReaderPage() {
       ) : (
         <ReaderView
           html={html}
+          htmlKey={htmlKey}
           contentKey={`${bookId}:${chapterIndex}`}
           settings={settings}
           entryRatio={entryRatio}
@@ -262,7 +300,7 @@ export function ReaderPage() {
           onJump={handleJump}
           fragment={pendingFragment}
           onFragmentHandled={handleFragmentHandled}
-          onTap={() => setChromeVisible((visible) => !visible)}
+          onTap={handleTap}
         />
       )}
 
@@ -271,7 +309,7 @@ export function ReaderPage() {
         pinned={tocOpen || settingsOpen}
         title={book.title}
         chapterTitle={chapter?.title ?? ''}
-        onBack={() => void navigate('/')}
+        onBack={backToShelf}
         onToc={() => setTocOpen(true)}
         onSettings={() => setSettingsOpen(true)}
       />
@@ -308,6 +346,16 @@ export function ReaderPage() {
           if (bookId) setPerBookEnabled(bookId, enabled)
         }}
       />
+    </div>
+  )
+}
+
+/** 打开中 / 出错时的整屏状态：一张标识 + 一句话 + 一个出口 */
+function Screen({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-dvh flex-col items-center justify-center gap-5 px-6 text-center">
+      <Logo size={56} className="mn-float" />
+      <div className="flex flex-col items-center gap-3">{children}</div>
     </div>
   )
 }

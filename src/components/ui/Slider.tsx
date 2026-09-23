@@ -10,6 +10,8 @@ interface SliderProps {
 }
 
 export function Slider({ label, value, min, max, step, onChange, format }: SliderProps) {
+  const percent = max === min ? 0 : ((value - min) / (max - min)) * 100
+
   return (
     <label className="block select-none">
       <span className="flex items-baseline justify-between">
@@ -25,6 +27,9 @@ export function Slider({ label, value, min, max, step, onChange, format }: Slide
         max={max}
         step={step}
         value={value}
+        // 已滑过的那一段由 --mn-fill 画（见 styles/app.css 的 .mn-range），
+        // 和原生 thumb 共用同一个位置，不会打架
+        style={{ '--mn-fill': `${percent}%` } as React.CSSProperties}
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </label>
