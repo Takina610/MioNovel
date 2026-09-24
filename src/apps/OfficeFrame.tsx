@@ -7,18 +7,10 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { formatDateTime, formatPercent } from "../lib/format";
 import { cx } from "../lib/cx";
-import {
-  IconCheck,
-  IconChevron,
-  IconClose,
-  IconSearch,
-  IconSliders,
-} from "../components/ui/icons";
+import { IconCheck, IconChevron, IconSliders } from "../components/ui/icons";
 import {
   IconComment,
-  IconDoc,
   IconFullscreen,
   IconLauncher,
   IconShare,
@@ -735,139 +727,6 @@ export function AppMenu({
   );
 }
 
-/**
- * 开始屏幕：Office 打开时的那一屏。
- *
- * 左「新建」，右「最近」——三件套的开始屏幕本来就是这个结构，
- * 所以共用一个组件，品牌色跟着主题走。「最近」列的都是真数据
- * （书名、加入/阅读时间、文件大小、字数），不是摆出来的样子。
- *
- * 单击就是打开：真 Office 里是「先选中再双击」，但我们这副界面里
- * 没有别的选中态，一个只选中不打开的列表看着更像坏了（见决定记录 27）。
- */
-export function OfficeStart({
-  blankLabel,
-  blankHint,
-  BlankIcon,
-  books,
-  onOpen,
-  onMenu,
-  onImport,
-  dropping,
-  dim = 0,
-}: {
-  blankLabel: string;
-  blankHint: string;
-  BlankIcon: ReactNode;
-  books: Array<{
-    id: string;
-    title: string;
-    author: string;
-    meta: string;
-    size: string;
-    when: string;
-  }>;
-  onOpen: (id: string) => void;
-  onMenu: (id: string) => void;
-  onImport: () => void;
-  dropping?: boolean;
-  /** 摸鱼模式的压暗程度：开始屏幕上的「最近」那一块也算内容区 */
-  dim?: number;
-}) {
-  const [query, setQuery] = useState("");
-  const needle = query.trim().toLowerCase();
-  const visible = needle
-    ? books.filter(
-        (book) =>
-          book.title.toLowerCase().includes(needle) ||
-          book.author.toLowerCase().includes(needle),
-      )
-    : books;
-
-  return (
-    <div
-      className={cx("mn-start", dropping && "mn-drop-active")}
-      style={{ ["--mn-dim" as string]: String(dim) }}
-    >
-      <div className="mn-start__side">
-        <div className="mn-start__side-head">新建</div>
-        <button type="button" className="mn-start__blank" onClick={onImport}>
-          <span className="mn-start__blank-icon">{BlankIcon}</span>
-          <span className="mn-start__blank-label">{blankLabel}</span>
-          <span className="mn-start__blank-hint">{blankHint}</span>
-        </button>
-      </div>
-
-      <div className="mn-start__main mn-veil">
-        <div className="mn-start__head">
-          <span className="mn-start__head-label">最近</span>
-          <label className="mn-start__search">
-            <IconSearch className="h-3.5 w-3.5" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索"
-              aria-label="搜索文件"
-            />
-            {query ? (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                aria-label="清空搜索"
-              >
-                <IconClose className="h-3 w-3" />
-              </button>
-            ) : null}
-          </label>
-        </div>
-        <div className="mn-start__list" role="list">
-          <div
-            className="mn-start__row mn-start__row--head"
-            role="presentation"
-          >
-            <span className="mn-start__name">名称</span>
-            <span className="mn-start__when">修改时间</span>
-            <span className="mn-start__meta">类型</span>
-            <span className="mn-start__size">大小</span>
-            <span className="mn-start__more" />
-          </div>
-          {visible.map((book) => (
-            <div key={book.id} className="mn-start__row" role="listitem">
-              <button
-                type="button"
-                className="mn-start__open"
-                onClick={() => onOpen(book.id)}
-              >
-                <span className="mn-start__name">
-                  <IconDoc className="mn-start__file-icon" />
-                  <span className="truncate">{book.title}</span>
-                </span>
-                <span className="mn-start__when">{book.when}</span>
-                <span className="mn-start__meta">{book.meta}</span>
-                <span className="mn-start__size">{book.size}</span>
-              </button>
-              <button
-                type="button"
-                className="mn-start__more"
-                title="更多操作"
-                aria-label={`${book.title} 的更多操作`}
-                onClick={() => onMenu(book.id)}
-              >
-                ⋯
-              </button>
-            </div>
-          ))}
-          {visible.length === 0 ? (
-            <p className="mn-start__empty">
-              {books.length === 0 ? "还没有文件" : `没有匹配「${query}」的文件`}
-            </p>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /** 名次行（Word 的导航窗格、PPT 的节列表共用）：一行标题 + 可选的字数 */
 export function NavRow({
   label,
@@ -949,12 +808,6 @@ export function StatusButton({
     </button>
   );
 }
-
-/** 字数 / 时间这几样在状态栏和列表里反复出现，统一出口免得各处格式不一 */
-export const officeText = {
-  progress: formatPercent,
-  when: formatDateTime,
-};
 
 /** 全屏按钮：Office 三套的视图页签里都有，做一份共用的配置 */
 export function fullscreenButton(): RibbonButton {

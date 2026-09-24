@@ -155,6 +155,47 @@ export interface SheetTokens {
 }
 
 /**
+ * 演示文稿形态（PowerPoint）多出来的几个值。
+ *
+ * 都是「工作区」这一层的东西，别的 token 表达不了：
+ *
+ *   chrome      标题栏、页签行、开始屏幕左栏共用的底色。和 Excel 是同一层淡蓝灰
+ *               （Office 365 的三件套本来就连成一片，2026-09-24 从 PPT 截图上量到
+ *               的也是 #E4EAEE）
+ *   canvas      幻灯片外面那片工作区，**和左侧缩略图栏是同一个色**
+ *               （#E5EBEF）。PPT 的两屏里它和 chrome 只差一档，所以不是 bg
+ *   line        栏与栏之间那条 1px 的线（缩略图栏右边、备注带上面）
+ *   edge        幻灯片那一圈细边。放映时它是白板，编辑时靠这条线把它和画布分开
+ *   placeholder 版式占位框的虚线（标题框、内容框）
+ *   select      选中那张缩略图的橙框。**它不是品牌橙**：PowerPoint 画选中框用的是
+ *               从 2007 年留到今天的 #B7472A，而标题栏、按钮上的品牌橙是 #C43E1C
+ *               ——同一张截图里两个橙同时出现（和 Excel 那两个绿同一个道理）
+ *   field       字体框、字号框、搜索框的底
+ *   control     下拉框与按钮的描边
+ *
+ * 其余全部复用主 token（幻灯片底 = readerBg、幻灯片上的字 = readerFg、
+ * 状态栏 = surface2——PPT 365 的状态栏和开始屏幕的内容区是同一个 #F5F5F5）。
+ */
+export interface SlideTokens {
+  /** 标题栏 / 页签行 / 开始屏幕左栏的底色 */
+  chrome: string
+  /** 工作区与缩略图栏的底色 */
+  canvas: string
+  /** 栏与栏之间那条 1px 线 */
+  line: string
+  /** 幻灯片的边线 */
+  edge: string
+  /** 版式占位框的虚线 */
+  placeholder: string
+  /** 选中缩略图的框（PowerPoint 的选中橙） */
+  select: string
+  /** 字体框、字号框、搜索框的底 */
+  field: string
+  /** 下拉框与按钮的描边 */
+  control: string
+}
+
+/**
  * 主题 token。应用外壳（书架、工具栏、弹窗）和正文共用同一组变量：
  * 换主题是整个 app 一起变，不让正文和 UI 各说各话。
  *
@@ -209,6 +250,8 @@ export interface ReaderTheme {
   page?: PageTokens
   /** chrome: 'sheet' 的网格、行列标题与选中框 */
   sheet?: SheetTokens
+  /** chrome: 'slide' 的工作区、缩略图栏与版式占位框 */
+  slide?: SlideTokens
   /**
    * 这套主题自带的排版参数。**只在用户主动选中它时**写进阅读设置，
    * 之后用户怎么改都归用户——它是一次预设，不是一层覆盖。

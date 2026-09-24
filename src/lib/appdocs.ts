@@ -480,3 +480,142 @@ export function greetingText(now: number = Date.now()): string {
   if (hour < 18) return '下午好'
   return '晚上好'
 }
+
+/* ==========================================================================
+   PowerPoint 形态的页签、模板与开始屏幕
+   --------------------------------------------------------------------------
+   2026-09-24 按 PPT 的两张截图（1920×1034 的编辑窗口、1920×1032 的开始屏幕）
+   一比一复刻外壳时从组件里搬出来的数据。和 Word / Excel 那份同一个道理：
+   页签的顺序、哪几页是真的、模板那一排有几张、开始屏幕上的行怎么筛——
+   对着屏幕扫一眼看不出对错（少一页、某一页悄悄变成能点的、某一栏空着却说有内容），
+   所以 verify:apps 逐条断言。
+
+   注意「文件」页签不在这张表里：它由 OfficeFrame 单独画，点了就是回开始屏幕。
+   ========================================================================== */
+
+/** PPT 的页签。顺序照截图：开始之后是 OfficePLUS，往后依次是它自己的那几页，
+ *  最后两页是 PDF工具箱与帮助（和 Word / Excel 是同一套 OfficePLUS 装机结构） */
+export const PPT_TABS: ReadonlyArray<WordTab> = [
+  { id: 'home', label: '开始' },
+  { id: 'officeplus', label: 'OfficePLUS', disabled: true },
+  { id: 'insert', label: '插入', disabled: true },
+  { id: 'draw', label: '绘图', disabled: true },
+  { id: 'design', label: '设计', disabled: true },
+  { id: 'trans', label: '切换', disabled: true },
+  { id: 'anim', label: '动画', disabled: true },
+  { id: 'show', label: '幻灯片放映', disabled: true },
+  { id: 'record', label: '记录', disabled: true },
+  { id: 'review', label: '审阅', disabled: true },
+  { id: 'view', label: '视图' },
+  { id: 'pdf', label: 'PDF工具箱', disabled: true },
+  { id: 'help', label: '帮助', disabled: true },
+]
+
+export type PptHomeTab = WordHomeTab
+
+export interface PptHomeTabSpec {
+  id: PptHomeTab
+  label: string
+  /** 这一栏空着时的说法。和 Word / Excel 那边一样：没有内容就老实说 */
+  empty: string
+}
+
+export const PPT_HOME_TABS: ReadonlyArray<PptHomeTabSpec> = [
+  { id: 'recent', label: '最近', empty: '还没有演示文稿' },
+  { id: 'starred', label: '收藏夹', empty: '还没有收藏的演示文稿' },
+  { id: 'shared', label: '与我共享', empty: '本地文件没有共享这回事' },
+]
+
+/**
+ * PPT 开始屏幕上那份列表（最近 / 收藏夹 / 与我共享 + 搜索词）。
+ * 和 Word / Excel 的开始屏幕共用 `recentRows`：匹配字段与排序规则是一份。
+ */
+export function pptHomeRows(
+  books: BookRecord[],
+  options: { tab: PptHomeTab; query?: string },
+): BookRecord[] {
+  if (options.tab !== 'recent') return []
+  return recentRows(books, options.query)
+}
+
+/**
+ * 开始屏幕上那一排模板卡片。
+ *
+ * 前八张就是 PowerPoint 内置模板的前八个（名字从截图上一张张抄下来的），
+ * 顺序也是截图里的顺序。**只有第一张是真的**：真 Office 里点它就是新建一份
+ * 空白演示文稿，我们这儿对应「导入一份本地 txt / epub」——和 Excel 开始屏幕上
+ * 那颗绿按钮是同一件事。其余七张是这个外壳里没有的东西（PowerPoint 的在线
+ * 模板库），一律灰着，title 里说明白。
+ *
+ * `art` 里那几个色号是**模板封面自己的颜色**（红 #D24726、墨绿、纯黑……），
+ * 不从主题注册表来：它们是 PowerPoint 那几套模板的封面插图，和飞书首页那三张
+ * 卡片同一个例外（AGENTS.md 第一节：产品记号可以写死，且必须在注释里说明）。
+ * 封面上的字写的就是模板名——真实的名字，不是编的。
+ */
+export interface PptTemplate {
+  id: string
+  label: string
+  /** 这一张点得动：空白演示文稿 = 导入一本本地书 */
+  blank?: boolean
+  /** 封面上那幅画怎么画（见 apps/PptHome.tsx 的 TemplateArt） */
+  art: {
+    /** 底色（可以是一段渐变，交给 CSS 的 background） */
+    bg: string
+    /** 封面上的字色 */
+    fg: string
+    /** 封面上的那行字 */
+    title: string
+    /** 装饰：城市天际线 / 花枝 / 色带 */
+    ornament?: 'skyline' | 'blossom' | 'bands'
+  }
+}
+
+export const PPT_TEMPLATES: ReadonlyArray<PptTemplate> = [
+  {
+    id: 'blank',
+    label: '空白演示文稿',
+    blank: true,
+    // 空白那一张的封面就是一张白纸（它里面什么都不画）
+    art: { bg: '#FFFFFF', fg: '#8F8F8F', title: '' },
+  },
+  {
+    id: 'welcome',
+    label: '欢迎使用 PowerPoint',
+    art: { bg: '#D24726', fg: '#F7DDD5', title: '欢迎使用 PowerPoint' },
+  },
+  {
+    id: 'madison',
+    label: '麦迪逊',
+    art: { bg: 'linear-gradient(90deg,#1F2D29 0 68%,#8FBF6E 68% 100%)', fg: '#FFFFFF', title: '麦迪逊' },
+  },
+  {
+    id: 'atlas',
+    label: '地图集',
+    art: { bg: '#FFFFFF', fg: '#FFFFFF', title: '地图集', ornament: 'bands' },
+  },
+  {
+    id: 'garden',
+    label: '花园锦簇',
+    art: { bg: '#1F2025', fg: '#EBD9C4', title: '花园锦簇', ornament: 'blossom' },
+  },
+  {
+    id: 'city',
+    label: '城市单色',
+    art: { bg: '#FFFFFF', fg: '#3A3A3A', title: '城市单色', ornament: 'skyline' },
+  },
+  {
+    id: 'asia',
+    label: '亚洲设计演示文稿',
+    art: { bg: '#000000', fg: '#FFFFFF', title: '标题', ornament: 'bands' },
+  },
+  {
+    id: 'plain',
+    label: '朴实灵感',
+    art: { bg: '#141414', fg: '#F2F2F2', title: '朴实灵感', ornament: 'blossom' },
+  },
+]
+
+/** 状态栏左边第一格：「幻灯片 第 3 张，共 12 张」（截图里就是这么写的） */
+export function slideStatusText(active: number, total: number): string {
+  return `幻灯片 第 ${active} 张，共 ${total} 张`
+}

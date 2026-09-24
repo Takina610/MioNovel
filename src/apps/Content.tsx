@@ -231,30 +231,42 @@ export interface SlideCardProps {
   thumb?: boolean
 }
 
-/** 一张幻灯片。缩略图栏和大图共用它——所以缩略图里看到的字和正文里是同一份 */
+/**
+ * 一张幻灯片。缩略图栏和大图共用它——所以缩略图里看到的字和正文里是同一份。
+ *
+ * 标题与内容是两层 `.mn-slide__title-box` / `.mn-slide__content-box` 包着的，
+ * 平时它们是 `display: contents`（不生成盒子，排版和以前一模一样），
+ * **只有编辑视图（`[data-view='normal']`）才变成两个虚线占位框**——就是截图里
+ * 「单击此处添加标题 / 单击此处添加副标题」那两个框。我们不写那句提示语
+ * （界面上只写具体事实，见 AGENTS.md 第一节），框里放的是这一张真的字。
+ */
 export function SlideCard({ slide, thumb }: SlideCardProps) {
   return (
     <div className={cx('mn-slide', slide.cover && 'mn-slide--cover')} data-thumb={thumb ? 'true' : undefined}>
       <div className="mn-slide__frame">
-        <h1 className="mn-slide__title">
-          {slide.titleHtml ? (
-            <span dangerouslySetInnerHTML={{ __html: slide.titleHtml }} />
-          ) : (
-            slide.title
-          )}
-        </h1>
-        {slide.cover && slide.body.length > 0 ? (
-          <p className="mn-slide__subtitle">{slide.body[0].text}</p>
-        ) : null}
-        <div className="mn-slide__body">
-          {slide.body.slice(slide.cover ? 1 : 0).map((part, index) => (
-            <div
-              key={index}
-              className="mn-slide__part"
-              data-kind={part.kind}
-              dangerouslySetInnerHTML={{ __html: part.html }}
-            />
-          ))}
+        <div className="mn-slide__title-box">
+          <h1 className="mn-slide__title">
+            {slide.titleHtml ? (
+              <span dangerouslySetInnerHTML={{ __html: slide.titleHtml }} />
+            ) : (
+              slide.title
+            )}
+          </h1>
+        </div>
+        <div className="mn-slide__content-box">
+          {slide.cover && slide.body.length > 0 ? (
+            <p className="mn-slide__subtitle">{slide.body[0].text}</p>
+          ) : null}
+          <div className="mn-slide__body">
+            {slide.body.slice(slide.cover ? 1 : 0).map((part, index) => (
+              <div
+                key={index}
+                className="mn-slide__part"
+                data-kind={part.kind}
+                dangerouslySetInnerHTML={{ __html: part.html }}
+              />
+            ))}
+          </div>
         </div>
       </div>
       {thumb ? null : <span className="mn-slide__number">第 {slide.index} 张</span>}

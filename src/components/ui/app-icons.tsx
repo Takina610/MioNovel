@@ -2065,3 +2065,209 @@ export function IconImageToText(props: IconProps) {
     </svg>
   )
 }
+
+/* ==========================================================================
+   PowerPoint 形态（2026-09-24，决定记录 36）
+   --------------------------------------------------------------------------
+   规格同上（24 格、1.75 描边、圆头、currentColor）。这一批里三类东西要分开：
+
+   1. **PowerPoint 的商标**（IconPptMark）：三个色是从截图上取的（#EB4824 那一块、
+      #FF921F 的橙、#AD0A20 的深红），写死——跟着主题变色就不像它了。
+   2. **加载项的招牌**（单页 / 字体 / 形状库、排列、快速样式那几个）：和 Excel 那批
+      一样照截图取色（橙红 #DD4809 / 橙 #F36A2F / 黄 #F2A100），它们是 OfficePLUS
+      的记号，不是界面的一部分。
+   3. 其余一律 currentColor：灰着的格子里它们自己就淡下去。
+
+   开始屏幕上那七张模板的封面是**插图**（见 PptHome 的 TemplateArt），不是图标，
+   所以画在那边，和飞书首页那三张卡片同一路数。
+   ========================================================================== */
+
+/** PowerPoint 的商标：橙红的一团 + 深红方块里的白 P */
+export function IconPptMark(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M20.4 8.6c1.6 4.6-.6 9.6-4.8 11.6-4.2 2-9.2.4-11.2-3.6S4 7.4 8.2 5.4c4.2-2 9.6-1.2 12.2 3.2z" fill="#EB4824" />
+      <path d="M8.2 5.4c-4.2 2-5.8 6.6-4.2 10.6l8.6-4.2z" fill="#FF921F" />
+      <rect x="3.4" y="8.6" width="9.6" height="9.6" rx="1.2" fill="#AD0A20" />
+      <path d="M6.2 16V10.6h2.6a1.9 1.9 0 0 1 0 3.8H6.6" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/**
+ * 开始屏幕右上角那一幅装饰画。
+ *
+ * 真 PowerPoint 那里是一段线稿（写着 ? 的圆圈、连线的节点、一个人形、放大的 P
+ * 商标、一个鼠标指针），只画不接事件。这里照那个意思画**几何**：颜色跟
+ * currentColor 走，所以暗色主题下自己就暗下去（和 Excel 那片水印同一处理）。
+ */
+export function IconPptWatermark(props: IconProps) {
+  return (
+    <svg viewBox="0 0 560 52" fill="none" stroke="currentColor" focusable="false" {...props}>
+      <path d="M8 40h64l22-20h52" strokeWidth="2" opacity="0.5" />
+      <circle cx="14" cy="40" r="3.4" strokeWidth="2" opacity="0.6" />
+      <path d="M146 20h58" strokeWidth="2" opacity="0.45" />
+      <circle cx="150" cy="20" r="3.4" strokeWidth="2" opacity="0.6" />
+      <circle cx="214" cy="20" r="6" strokeWidth="2" opacity="0.5" />
+      <path d="M232 20h44l18 18h40" strokeWidth="2" opacity="0.45" />
+      <circle cx="338" cy="38" r="3.4" strokeWidth="2" opacity="0.6" />
+      <circle cx="470" cy="26" r="52" strokeWidth="14" opacity="0.35" />
+      <path d="M455 46V6h18a14 14 0 0 1 0 28h-14" strokeWidth="9" opacity="0.5" />
+      <path d="M394 12c0-5.2 4-8.4 8.6-8.4 4.4 0 8 3 8 7.8 0 6.6-8.6 7.4-8.6 14" strokeWidth="5" opacity="0.55" />
+      <circle cx="402" cy="37" r="3.4" fill="currentColor" stroke="none" opacity="0.55" />
+      <path d="m300 6 16 22-9 1 5 8-4.4 2-5-8-6.2 6z" strokeWidth="3" opacity="0.5" />
+    </svg>
+  )
+}
+
+/** 演示文稿文件：一页纸 + 左下角一个写着 P 的方块（和 IconExcelFile 同一路数） */
+export function IconPptFile(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6.4 3.4h8.2l4 4v10.2a2 2 0 0 1-2 2H6.4a2 2 0 0 1-2-2V5.4a2 2 0 0 1 2-2z" />
+      <path d="M14.2 3.6v4h4" />
+      <rect x="2.6" y="13.4" width="10" height="7" rx="1.4" style={{ fill: 'var(--mn-accent)' }} stroke="none" />
+      <path d="M5.4 18.6v-3.4h1.7a1.2 1.2 0 0 1 0 2.4H5.7" stroke="#fff" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  )
+}
+
+/* ---- 幻灯片组 ---- */
+
+/** 新建幻灯片：一张幻灯片，左上角一个绿加号（PowerPoint 里就是它） */
+export function IconNewSlide(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="6.6" y="5.4" width="14" height="13.2" rx="1.4" />
+      <path d="M10.4 10.4h6.4M10.4 13.6h4.4" opacity="0.6" />
+      <path d="M3 6.2v-3h3M1 9.4h3" stroke="#2CA36A" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M4.6 1.6v6M1.6 4.6h6" stroke="#2CA36A" strokeWidth="1.8" strokeLinecap="round" />
+    </Svg>
+  )
+}
+
+/** 重置：一张幻灯片旁边一圈回头的箭头 */
+export function IconReset(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="5.4" width="11" height="13.2" rx="1.4" />
+      <path d="M6.6 9.6h4.6M6.6 12.8h3" opacity="0.55" />
+      <path d="M19.4 9.4a4.6 4.6 0 1 1-1.6-3.4" />
+      <path d="M20.2 3.6v3.6h-3.6" />
+    </Svg>
+  )
+}
+
+/* ---- 字体组里那两个只有字形的（字符间距 / 文本效果） ---- */
+
+/** 字符间距：ab + 一个双向箭头（PowerPoint 的「字符间距」就是这个记号） */
+export function IconCharSpacing(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.4 17V8.6h2.2a1.9 1.9 0 0 1 0 3.8H3.8" />
+      <path d="M9 8.6h3.2a1.8 1.8 0 0 1 0 3.6H9.8a1.8 1.8 0 0 0 0 3.6H9" />
+      <path d="M14.6 20.4h7.2M17.4 18.8l-1.8 1.6 1.8 1.6M18.9 18.8l1.8 1.6-1.8 1.6" strokeWidth="1.4" />
+    </Svg>
+  )
+}
+
+/** 文本效果：AV + 一个双向箭头 */
+export function IconTextEffects(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.4 14.4 7.2 6l3.8 8.4M4.8 11.6h4.8" />
+      <path d="m13.6 6 2.6 8.4L18.8 6" />
+      <path d="M14.6 20.4h7.2M17.4 18.8l-1.8 1.6 1.8 1.6M18.9 18.8l1.8 1.6-1.8 1.6" strokeWidth="1.4" />
+    </Svg>
+  )
+}
+
+/* ---- 绘图组（形状库与四个形状命令） ---- */
+
+/** 排列：两块白方块压着一块黄方块（OfficePLUS 的排列就是这个记号） */
+export function IconArrange(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <rect x="8.6" y="8.6" width="9" height="9" rx="1" fill="#F2A100" stroke="none" />
+      <rect x="3.4" y="3.4" width="8.4" height="8.4" rx="1" fill="#fff" stroke="#B0B0B0" strokeWidth="1.4" />
+      <rect x="13" y="13" width="7.6" height="7.6" rx="1" fill="#fff" stroke="#B0B0B0" strokeWidth="1.4" />
+    </svg>
+  )
+}
+
+/** 快速样式：一页纸 + 一支笔 */
+export function IconQuickStyles(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M17.4 4H6.6a1.6 1.6 0 0 0-1.6 1.6v12.8A1.6 1.6 0 0 0 6.6 20h12.8a1.6 1.6 0 0 0 1.6-1.6V7.6z" fill="none" stroke="#B0B0B0" strokeWidth="1.7" />
+      <path d="m13.2 15.8 4.6-4.6a1.7 1.7 0 0 0-2.4-2.4l-4.6 4.6-.6 3z" fill="#8F8F8F" stroke="none" />
+    </svg>
+  )
+}
+
+/** 形状填充：一个油漆桶 + 底下一条色带 */
+export function IconShapeFill(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9.6 4.6 5.8 8.4a1.5 1.5 0 0 0 0 2.1l4.8 4.8a1.5 1.5 0 0 0 2.1 0l3.8-3.8z" />
+      <path d="M18.8 12.4c0 1.1-.9 2-2 2s-2-.9-2-2 2-3.2 2-3.2 2 2.1 2 3.2z" fill="currentColor" stroke="none" />
+      <path d="M4.6 20h14.8" strokeWidth="2.6" />
+    </Svg>
+  )
+}
+
+/** 形状轮廓：一支笔 + 底下一条线 */
+export function IconShapeOutline(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m14.6 4.4 3.2 3.2-8.4 8.4-4 1 1-4z" />
+      <path d="M4.6 20h14.8" strokeWidth="2.6" />
+    </Svg>
+  )
+}
+
+/** 形状效果：一块斜着放的方子（立体感） */
+export function IconShapeEffects(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 4.2 20 8.4v7.2L12 19.8 4 15.6V8.4z" />
+      <path d="m4 8.4 8 4.2 8-4.2M12 12.6v7.2" opacity="0.6" />
+    </Svg>
+  )
+}
+
+/* ---- 状态栏那四个视图（PowerPoint 的那一排） ---- */
+
+/** 普通视图：左边一列缩略图 + 右边那一张大的 */
+export function IconPptNormal(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.6" width="17.2" height="14.8" rx="1.4" />
+      <path d="M8.4 4.6v14.8" />
+      <rect x="5" y="7" width="1.8" height="2.6" rx="0.4" fill="currentColor" stroke="none" opacity="0.7" />
+      <rect x="5" y="11.4" width="1.8" height="2.6" rx="0.4" fill="currentColor" stroke="none" opacity="0.35" />
+      <rect x="10.4" y="7.4" width="8" height="9" rx="0.6" />
+    </Svg>
+  )
+}
+
+/** 单页（OfficePLUS 的「单页」）：一页纸 + 几行字 */
+export function IconSinglePage(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <rect x="3.6" y="4.4" width="16.8" height="15.2" rx="1.4" fill="none" stroke="#DD4809" strokeWidth="1.9" />
+      <path d="M7.4 9h9.2M7.4 12.2h9.2M7.4 15.4h5.4" fill="none" stroke="#F36A2F" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** 字体（OfficePLUS 的字库）：一个橙色的 A 搭一个「字」（Word / Excel / PPT 的字库格子共用它） */
+export function IconFontTile(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M2.6 19.4 8.4 4.6l5.8 14.8" fill="none" stroke="#F36A2F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 14.4h6.8" fill="none" stroke="#F36A2F" strokeWidth="2" strokeLinecap="round" />
+      <path d="M14.4 8.4h7M17.9 8.4v9.8M15.6 12.8h4.6" fill="none" stroke="#DD4809" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}

@@ -1,14 +1,346 @@
 /* ==========================================================================
-   PowerPoint 形态（.mn-ppt）
+   PowerPoint 形态（.mn-ppt / .mn-phome）
    --------------------------------------------------------------------------
-   幻灯片浏览视图：灰底上一张张贴着排（不是编辑视图那种一次一张——
-   那个在浏览器里要自己造分页，还要和进度条打架，见决定记录 27）。
-   左侧是节（= 章）+ 当前节的缩略图，下方是备注栏。
+   2026-09-24 按两张截图一比一重做了一遍（编辑窗口 1920×1034、开始屏幕 1920×1032），
+   下面这些数都是从图上量的：
 
-   缩略图和大图是**同一份内容**：SlideCard 组件渲染出来的东西，
-   缩略图只是整体缩放到 0.164 倍（900px → 148px）。所以缩略图里写的字
-   和正文里是同一份，不是另画一套占位图。
+     标题栏         编辑窗口里 44、开始屏幕 47（同一个框，两个数）
+     页签行         34（当前那一页底下 2px 品牌橙的短线，线宽就是那两个字那么宽）
+     功能面板       102 = 上边距 10 + 两行 26 的格子（行间 4）+ 组名那一行
+                    九组的宽度（量出来的）：144 / 139 / 192 / 312 / 333 /
+                    384 / 96 / 57 / 66，加起来 1730，1920 下正好放得下
+     缩略图栏       290 宽（右边一条 1px 线），缩略图 236×133（16:9），
+                    幻灯号在左边那一格里（x=12）
+     画布           灰底（--mn-ppt-canvas），幻灯片按 16:9 塞进工作区：
+                    1920 窗口里量到的是 1320×743，四周留 18-21
+     幻灯片边线     1px --mn-ppt-edge + 一圈很淡的投影
+     版式占位框     左右各留 12.35%，标题框 16%…52.2%、内容框 52.3%…76.7%，
+                    虚线 1px --mn-ppt-placeholder
+     备注带         收起 47 高（文字在左上角，x=14），摊开 168 高
+     状态栏         24 高（--mn-surface-2，量出来是 #F5F5F5），
+                    右边一串：备注 + 四个视图按钮（挤在一格里）+ 缩放
+     开始屏幕       左栏 139、内容左起 52（x=192）、问候 22px、模板卡 180×152、
+                    缩略图 140×78、卡片间距 24.5、搜索文件 463×32、页签 15px、
+                    两条「更多…→」链接右对齐到内容右边
+
+   **颜色全部取 --mn-ppt-* 那九个 token**（见 themes/builtin.ts 的 slide 那一层）：
+   chrome / canvas / line / edge / placeholder / select / field / control，
+   加上主 token（幻灯片底 = readerBg、状态栏与开始屏幕内容区 = surface2）。
    ========================================================================== */
+
+/* ---- 标题栏与页签行 ---- */
+
+html[data-chrome='slide'] {
+  --mn-office-title: 44px;
+  --mn-office-tab: 34px;
+  /* 缩略图栏的宽度、缩略图尺寸与缩放比：后两个是配对的（236 ÷ 1320 = 0.1788），
+     改一个要跟着改另一个 */
+  --mn-ppt-rail: 290px;
+  --mn-ppt-design: 1320px;
+  --mn-ppt-thumb: 236px;
+  --mn-ppt-thumb-scale: 0.1788;
+}
+
+html[data-chrome='slide'] .mn-office__title,
+html[data-chrome='slide'] .mn-ribbon {
+  background: var(--mn-ppt-chrome);
+}
+
+html[data-chrome='slide'] .mn-ribbon__panel {
+  background: var(--mn-surface);
+  border-top: 1px solid var(--mn-border);
+}
+
+/* 开始屏幕的标题栏矮一档：PPT 的「开始」那一屏本来就是另一个高度（量到 47） */
+html[data-chrome='slide'] .mn-office--start .mn-office__title {
+  height: 47px;
+}
+
+/* 缩略图栏：和画布同一个底色（PowerPoint 这两块本来就是一片），右边一条 1px 线 */
+html[data-chrome='slide'] .mn-office__side {
+  flex: 0 0 var(--mn-ppt-rail);
+  width: var(--mn-ppt-rail);
+  background: var(--mn-ppt-canvas);
+  border-right: 1px solid var(--mn-ppt-line);
+}
+
+/* 状态栏：PPT 的状态栏和开始屏幕的内容区是同一个 #F5F5F5（= surface2） */
+html[data-chrome='slide'] .mn-office__status {
+  background: var(--mn-surface-2);
+}
+
+/* 标题栏上那个搜索框（量的：329×32、底 #FAFAFA、描边用 line 那一档） */
+.mn-psearch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: min(330px, 24vw);
+  height: 32px;
+  padding: 0 6px 0 10px;
+  background: var(--mn-ppt-field);
+  border: 1px solid var(--mn-ppt-line);
+  border-radius: 4px;
+  transition: border-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-psearch:focus-within {
+  border-color: var(--mn-accent);
+}
+
+.mn-psearch__icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-psearch input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  outline: none;
+}
+
+.mn-psearch__count {
+  flex: 0 0 auto;
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mn-psearch__btn {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-psearch__btn:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-psearch__btn:disabled {
+  opacity: 0.4;
+}
+
+/* 标题栏左边那一串里，撤销那个按钮右下角挂着一个小三角（截图里就是这样） */
+.mn-office__title-caret {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  display: grid;
+  place-items: center;
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* 页签行右端的批注是**只有图标的一格**（截图里那个白方块），共享是实心橙 */
+.mn-office__tabbtn--icon {
+  padding: 0 6px;
+}
+
+/* ---- 功能区：PPT 的格子 ---- */
+
+/* 小格子：图标 18、字 11.5、高 22（和 Excel 那一档一样紧） */
+html[data-chrome='slide'] .mn-rb--small {
+  min-width: 0;
+  height: 22px;
+  padding: 0 2px;
+  gap: 1px;
+  font-size: 11.5px;
+}
+
+html[data-chrome='slide'] .mn-rb--small .mn-rb__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+html[data-chrome='slide'] .mn-rb--icon {
+  min-width: 22px;
+  height: 22px;
+}
+
+html[data-chrome='slide'] .mn-rb--icon .mn-rb__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+html[data-chrome='slide'] .mn-rb--text {
+  height: 22px;
+  min-width: 20px;
+  font-size: 13px;
+}
+
+html[data-chrome='slide'] .mn-rb__glyph {
+  font-size: 13px;
+}
+
+/* 竖着码的一摞：三格 22 紧紧挨着（剪贴板右边那三格、幻灯片那三格） */
+html[data-chrome='slide'] .mn-rb--column {
+  gap: 0;
+}
+
+/* 大格子（粘贴 / 新建幻灯片 / OfficePLUS 那四张 / 加载项 / PDF转换）：图标 30、字 11.5 */
+html[data-chrome='slide'] .mn-rb--big {
+  width: 52px;
+  height: 62px;
+  gap: 1px;
+  padding: 1px 2px 0;
+}
+
+html[data-chrome='slide'] .mn-rb--big .mn-rb__icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+html[data-chrome='slide'] .mn-rb--big .mn-rb__label {
+  font-size: 11.5px;
+  line-height: 1.15;
+}
+
+/* 图标在上、字在下的一格（排列 / 快速样式 / 视图页签那一排） */
+html[data-chrome='slide'] .mn-rb--stack,
+html[data-chrome='slide'] .mn-rb__static {
+  height: 58px;
+  min-width: 44px;
+}
+
+html[data-chrome='slide'] .mn-rb--stack .mn-rb__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+html[data-chrome='slide'] .mn-ribbon__panel {
+  padding-top: 10px;
+}
+
+html[data-chrome='slide'] .mn-ribbon__row {
+  gap: 2px;
+}
+
+/* 字号 / 行距 / 段间距这几个框：底 #FAFAFA、描边用控件那一档（量的 2px 圆角） */
+.mn-ppt__cbo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  height: 23px;
+  padding: 0 2px 0 7px;
+  background: var(--mn-ppt-field);
+  border: 1px solid var(--mn-ppt-control);
+  border-radius: 2px;
+  color: var(--mn-fg);
+  font-size: 12px;
+}
+
+.mn-ppt__cbo--font {
+  width: 162px;
+}
+
+.mn-ppt__cbo--size {
+  width: 46px;
+}
+
+.mn-ppt__cbo--zoom {
+  width: 62px;
+}
+
+.mn-ppt__cbo-value {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mn-ppt__cbo-caret {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  color: var(--mn-fg-muted);
+}
+
+/* 整格交给调用方的那种，里面是一格「图标 + 字 + 小三角」（行距、段间距、节） */
+.mn-ppt__rbitem {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 22px;
+  padding: 0 2px;
+  color: var(--mn-fg);
+  font-size: 11.5px;
+}
+
+.mn-ppt__rbitem svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mn-rb__caret-icon {
+  width: 9px;
+  height: 9px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-ppt__rbitem-text {
+  padding: 0 1px;
+  font-size: 13px;
+}
+
+/* 形状库那一格：一个 176×78 的方块，里面三行形状 + 右边一条滚动条。
+   整格是灰的（外面那个 button 是 disabled），形状只是这一格的画 */
+.mn-ppt__gallery {
+  display: flex;
+  align-items: stretch;
+  height: 78px;
+  padding: 1px;
+  border: 1px solid var(--mn-ppt-control);
+  border-radius: 2px;
+  background: var(--mn-surface);
+  color: var(--mn-fg-muted);
+}
+
+.mn-ppt__gallery-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: space-between;
+  width: 152px;
+  padding: 2px;
+}
+
+.mn-ppt__gallery-cell {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 24px;
+}
+
+.mn-ppt__gallery-cell svg {
+  width: 21px;
+  height: 21px;
+}
+
+.mn-ppt__gallery-strip {
+  display: grid;
+  place-items: end center;
+  width: 20px;
+  padding-bottom: 2px;
+  border-left: 1px solid var(--mn-ppt-line);
+}
+
+.mn-ppt__gallery:disabled {
+  opacity: 0.75;
+}
+
+/* ---- 正文：画布与一「页」 ---- */
 
 .mn-ppt__body {
   position: relative;
@@ -22,55 +354,102 @@
   min-width: 0;
 }
 
-/* 演示文稿的画布：PowerPoint 的灰底就长这样（这是它最认得出来的一个特征） */
+/* 工作区：灰底，不留边距（留白由每一「页」自己给） */
 .mn-ppt__body .mn-scroll {
-  background: var(--mn-bg);
+  background: var(--mn-ppt-canvas);
+  padding: 0;
+  scrollbar-width: thin;
+}
+
+/* 幻灯片是「一张张纸」，不是一栏正文：阅读器的栏宽与居中在这一屏让位
+   （和 Word / Excel 同一条：max-width: none + 自己那套宽度） */
+.mn-ppt__body .mn-content {
+  max-width: none;
+  margin: 0;
   padding: 0;
 }
 
-.mn-slidestack {
+.mn-ppt__stage {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 34px;
-  padding: 30px 16px 72px;
 }
 
-.mn-slidestack__item {
-  width: min(100%, var(--mn-ppt-slide));
-  scroll-margin-top: 18px;
+/* 一「页」= 一屏：--mn-ppt-page 由 PptApp 量出来（滚动容器有多高，一张就多高），
+   所以往上滚一格就是下一张 */
+.mn-ppt__page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--mn-ppt-page, auto);
 }
+
+/* ---- 幻灯片浏览：一屏好几张 ---- */
+
+.mn-ppt__body[data-view='sorter'] .mn-ppt__stage {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 22px;
+  padding: 22px;
+}
+
+.mn-ppt__body[data-view='sorter'] .mn-ppt__page {
+  width: auto;
+  min-height: 0;
+}
+
+/* ---- 一张幻灯片 ----
+   图片**不放真图**：和其余办公外壳一样写一行 `![](./路径)`（规矩在 lib/blocks.ts 的
+   mediaModeFor 一处定义，见决定记录 38）。这一行说的是「这里原本有一张图」加上它的
+   地址，所以按引用行的样子排：等宽、链接色、不带项目符号的短横。 */
 
 /* ---- 一张幻灯片 ---- */
 
 .mn-slide {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  width: var(--mn-ppt-slide, var(--mn-ppt-design));
+  max-width: 100%;
 }
 
 .mn-slide__frame {
+  position: relative;
   aspect-ratio: 16 / 9;
   display: flex;
   flex-direction: column;
   gap: 0.7em;
-  padding: clamp(22px, 3.4vw, 46px) clamp(26px, 4.4vw, 62px);
+  padding: clamp(18px, 3vw, 42px) clamp(22px, 4vw, 58px);
   overflow: hidden;
   background: var(--mn-reader-bg);
   color: var(--mn-reader-fg);
   font-family: var(--mn-font-sans);
-  font-size: var(--mn-font-size);
+  /* 字号跟着缩放比走：大图上用户设的字号是多少、版心就有多宽（换行位置一致），
+     整体再乘上「塞进工作区」的那个比例——和 PowerPoint 的缩放是同一件事 */
+  font-size: calc(var(--mn-font-size) * var(--mn-ppt-scale, 1));
   line-height: var(--mn-line-height);
-  box-shadow:
-    0 2px 6px rgb(0 0 0 / 22%),
-    0 12px 30px rgb(0 0 0 / 14%);
+  border: 1px solid var(--mn-ppt-edge);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+/* 标题与内容那两层平时不生成盒子（display: contents），排版和以前一模一样 */
+.mn-slide__title-box,
+.mn-slide__content-box {
+  display: contents;
+}
+
+/* 标题最多四行（编辑视图里的标题框放得下三行多）。多余的部分裁掉，**不在文本里截断**
+   ——那是往正文里加原文没有的字（见 docs/SPEC.md 五 5.4）。真太长的段落不会走到
+   这儿来：lib/slide.ts 的 TITLE_MAX_CHARS 不让它当标题 */
+.mn-slide__title {
+  -webkit-line-clamp: 4;
 }
 
 .mn-slide__title {
   margin: 0;
-  font-size: 1.5em;
-  font-weight: 600;
-  line-height: 1.25;
+  font-size: 3.2em;
+  font-weight: 400;
+  line-height: 1.2;
   /* 标题最多两行：多余的部分裁掉。**不在文本里截断**——那是往正文里加原文
      没有的字（这一条从编辑器形态起就是硬的，见 docs/SPEC.md 五 5.4） */
   display: -webkit-box;
@@ -85,14 +464,14 @@
 }
 
 .mn-slide--cover .mn-slide__title {
-  font-size: 2.1em;
+  font-size: 3.2em;
   -webkit-line-clamp: 3;
 }
 
 .mn-slide__subtitle {
   margin: 0;
   color: var(--mn-reader-fg-muted);
-  font-size: 1em;
+  font-size: 1.55em;
 }
 
 .mn-slide__body {
@@ -100,7 +479,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45em;
+  /* 段间距：段落页签上那一格真的改它（默认 0.45em，和以前一样） */
+  gap: var(--mn-para-gap, 0.45em);
   overflow: hidden;
 }
 
@@ -138,16 +518,13 @@
   display: none;
 }
 
-.mn-slide__part[data-kind='image'] img {
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-  margin: 0 auto;
-  object-fit: contain;
-}
-
-.mn-slide__part img {
-  vertical-align: middle;
+/* 引用行：等宽 + 链接色（和表格那一屏的图片格同一种排法），行太长就折 */
+.mn-slide__part[data-kind='image'] .mn-media {
+  color: var(--mn-reader-link);
+  font-family: var(--mn-font-mono);
+  font-size: 0.92em;
+  white-space: break-spaces;
+  overflow-wrap: anywhere;
 }
 
 /* 幻灯片里不该出现段落级的缩进和间距（那些是阅读排版的活） */
@@ -156,10 +533,16 @@
   text-indent: 0;
 }
 
+/* 浏览视图里那几张底下写着「第 N 张」；编辑视图里不写（幻灯号在左边那一栏里） */
 .mn-slide__number {
-  color: var(--mn-fg-faint);
+  display: none;
+  margin-top: 6px;
+  color: var(--mn-fg-muted);
   font-size: 11.5px;
-  text-align: right;
+}
+
+.mn-ppt__body[data-view='sorter'] .mn-slide__number {
+  display: block;
 }
 
 /* 双语书的次要语言段：和别的形态共用同一组变量 */
@@ -168,144 +551,856 @@
   color: var(--mn-alt-color, var(--mn-reader-fg-muted));
 }
 
-/* ---- 左侧：节与缩略图 ---- */
+/* ---- 编辑视图：版式的两个虚线占位框（截图里那两个框） ----
+   框里放的是这一张真的字（标题 = 章名或章内小标题，正文框里是段落）。
+   我们**不写**「单击此处添加标题」那句提示——界面上只写具体事实
+   （AGENTS.md 第一节），而且这两块本来就有真内容。
 
-.mn-ppt__sections {
-  padding-bottom: 12px;
-}
+   尺寸用 em 而不是 %：版心固定 16:9、字号 = 用户字号 × 缩放比，所以
+   1em = 18/743 的版心高，两个方向的百分比就统一了（% padding 是按**宽度**算的，
+   写在竖方向会差 1.78 倍——AGENTS.md 第一节那条坑）。量的数（版心 1320×743）：
+     上留白 119px = 6.61em、左右各 163px = 9.06em、下留白 28px = 1.56em
+     标题框 16%…52.2% → 高 269px = 14.94em；内容框 52.3%…76.7% → 高 181px = 10.06em
+   两个框在**弹性列**里上下挨着：标题长了往下推内容框（能长到版心底部），
+   不会互相压住，也不会把字裁掉——裁掉在阅读器里就是正文少了一段。 */
 
-.mn-ppt__section {
-  border-bottom: 1px solid var(--mn-border);
-}
-
-.mn-ppt__section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  width: 100%;
-  height: 30px;
-  padding: 0 10px 0 12px;
-  background: var(--mn-surface-2);
-  color: var(--mn-fg);
-  font-size: 12px;
-  text-align: left;
-}
-
-.mn-ppt__section-head:hover {
-  background: color-mix(in srgb, var(--mn-fg) 10%, transparent);
-}
-
-.mn-ppt__section.is-open .mn-ppt__section-head {
-  color: var(--mn-accent);
-  font-weight: 600;
-}
-
-.mn-ppt__section-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mn-ppt__section-count {
-  flex: 0 0 auto;
-  color: var(--mn-fg-faint);
-  font-size: 10.5px;
-  font-weight: 400;
-}
-
-.mn-ppt__thumbs {
+.mn-ppt__body[data-view='normal'] .mn-slide__frame {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 0;
+  gap: 0;
+  padding: 6.61em 9.06em 1.56em;
+}
+
+.mn-ppt__body[data-view='normal'] .mn-slide__title-box,
+.mn-ppt__body[data-view='normal'] .mn-slide__content-box {
+  display: flex;
+  border: 1px dashed var(--mn-ppt-placeholder);
+}
+
+.mn-ppt__body[data-view='normal'] .mn-slide__title-box {
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 14.94em;
+  padding: 0 0.6em;
+  text-align: center;
+}
+
+.mn-ppt__body[data-view='normal'] .mn-slide__content-box {
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-height: 10.06em;
+  padding: 0.5em 0.9em;
+  overflow: hidden;
+}
+
+.mn-ppt__body[data-view='normal'] .mn-slide__title {
+  width: 100%;
+  font-size: 3.2em;
+  text-align: center;
+}
+
+/* 标题页的两个框和内容页在同一个位置上（截图里那张就是标题幻灯片：16% 与 52.3%）——
+   基底那条 .mn-slide--cover 的「整块居中」在编辑视图里要让位 */
+.mn-ppt__body[data-view='normal'] .mn-slide--cover .mn-slide__frame {
+  justify-content: flex-start;
+  gap: 0;
+}
+
+/* 标题页的第二块里是副标题，居中；内容页里是正文，左边带短横 */
+.mn-ppt__body[data-view='normal'] .mn-slide--cover .mn-slide__content-box {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.mn-ppt__body[data-view='normal'] .mn-slide--cover .mn-slide__body {
+  flex: 0 0 auto;
+}
+
+/* ---- 左边那一栏：这一章的缩略图 ---- */
+
+.mn-ppt__rail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 0 24px;
 }
 
 .mn-ppt__thumb {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px 4px 12px;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+  padding: 0 20px 0 0;
+  text-align: left;
+}
+
+/* 幻灯号在左边那一格里（量的：x=12，字 12px 灰） */
+.mn-ppt__thumb-num {
+  flex: 0 0 33px;
+  padding-top: 1px;
   color: var(--mn-fg-muted);
-  font-size: 11.5px;
+  font-size: 12px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
-.mn-ppt__thumb:hover {
-  background: var(--mn-surface-2);
-}
-
-.mn-ppt__thumb.is-active {
-  background: var(--mn-accent-soft);
-  color: var(--mn-accent);
-}
-
+/* 缩略图不是另画一套：把整张幻灯片整体缩到 0.1788 倍（1320 → 236），字都还是真的 */
 .mn-ppt__thumb-canvas {
   position: relative;
   flex: 0 0 auto;
   width: var(--mn-ppt-thumb);
   height: calc(var(--mn-ppt-thumb) * 9 / 16);
   overflow: hidden;
-  border: 1px solid var(--mn-border-strong);
   background: var(--mn-reader-bg);
+  border: 3px solid transparent;
+  border-radius: 6px;
 }
 
-/* 缩略图不是另画一套：把整张幻灯片缩到 0.164 倍，字都还是真的 */
 .mn-ppt__thumb-scale {
   position: absolute;
   top: 0;
   left: 0;
-  width: var(--mn-ppt-slide);
-  transform: scale(var(--mn-ppt-scale));
+  width: var(--mn-ppt-design);
+  --mn-ppt-scale: 1;
+  transform: scale(var(--mn-ppt-thumb-scale));
   transform-origin: top left;
   pointer-events: none;
 }
 
-.mn-ppt__thumb-number {
-  flex: 0 0 auto;
-  font-variant-numeric: tabular-nums;
+/* 当前那一张：PowerPoint 的选中橙（#B7472A = --mn-ppt-select），**不是品牌橙** */
+.mn-ppt__thumb.is-active .mn-ppt__thumb-canvas {
+  border-color: var(--mn-ppt-select);
 }
 
-/* ---- 备注栏 ---- */
+.mn-ppt__thumb.is-active .mn-ppt__thumb-num {
+  color: var(--mn-ppt-select);
+}
 
-.mn-notes {
+.mn-ppt__thumb:hover:not(.is-active) .mn-ppt__thumb-canvas {
+  border-color: var(--mn-border-strong);
+}
+
+/* ---- 备注带（画布下面那一条） ---- */
+
+.mn-ppt__notes {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  height: 132px;
-  background: var(--mn-surface);
-  border-top: 1px solid var(--mn-border);
+  background: var(--mn-ppt-canvas);
+  border-top: 1px solid var(--mn-ppt-line);
 }
 
-.mn-notes__label {
-  flex: 0 0 auto;
-  padding: 4px 12px;
+.mn-ppt__notes-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
   color: var(--mn-fg-muted);
-  font-size: 11.5px;
-  user-select: none;
-}
-
-.mn-notes__body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0 12px 12px;
-  color: var(--mn-reader-fg);
   font-size: 12.5px;
-  line-height: 1.6;
+  text-align: left;
 }
 
-.mn-notes__body p {
-  margin: 0 0 4px;
+.mn-ppt__notes-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.mn-notes__empty {
+.mn-ppt__notes-fold {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
   color: var(--mn-fg-faint);
 }
 
+.mn-ppt__notes-fold.is-open {
+  transform: rotate(180deg);
+}
+
+.mn-ppt__notes-body {
+  height: 122px;
+  overflow-y: auto;
+  padding: 0 14px 12px;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.mn-ppt__notes-body p {
+  margin: 0 0 4px;
+}
+
+.mn-ppt__notes-empty {
+  color: var(--mn-fg-faint);
+}
+
+/* ---- 状态栏右边那一串 ---- */
+
+.mn-ppt__views {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--mn-fg) 7%, transparent);
+}
+
+/* ---- 阅读视图（整窗只剩幻灯片） ---- */
+
+.mn-ppt__exit {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 4px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border-strong);
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-ppt__exit:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-ppt__nav {
+  position: absolute;
+  top: 50%;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 56px;
+  margin-top: -28px;
+  border-radius: 4px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border);
+  color: var(--mn-fg-muted);
+  opacity: 0.7;
+  transition:
+    opacity var(--mn-dur-1) var(--mn-ease),
+    background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-ppt__nav:hover:not(:disabled) {
+  opacity: 1;
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-ppt__nav:disabled {
+  opacity: 0.25;
+}
+
+.mn-ppt__nav--prev {
+  left: 14px;
+}
+
+.mn-ppt__nav--next {
+  right: 14px;
+}
+
+/* ==========================================================================
+   PowerPoint 开始屏幕（这一套的书架，.mn-phome）
+   --------------------------------------------------------------------------
+   2026-09-24 按桌面版 PowerPoint 的「开始」屏幕截图一比一复刻。量的数：
+
+     左栏 139（一格 125 高：图标在上、13px 字在下；当前那格左边 2px 品牌橙的竖条，
+            上下各缩 16）；底下一段是「账户 / 选项」两行字，上面一条 1px 线
+     内容左起 192（= 左栏右边再留 52）、右边留到 1790、问候 22px 半粗
+     「新建」18px，它左边那个小三角在 x=170
+     模板卡 180×152（间距 24.5）：卡里是一张 140×78 的封面 + 12px 的名字，
+     选中的那张（空白演示文稿）描一圈 --mn-fg
+     横线在卡片下面 12px，从内容左边一直拉到右边
+     搜索文件 463×32、页签 15px（当前那个底下一条 2px 品牌橙短线）
+     空状态文字 13px、右下角「更多演示文稿 →」13.5px
+
+   颜色：左栏 = canvas、内容区 = surface2、卡片 = surface、链接与竖条 = accent。
+   ========================================================================== */
+
+.mn-phome {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: var(--mn-surface-2);
+}
+
+/* ---- 左边那条导航栏 ---- */
+
+.mn-phome__rail {
+  flex: 0 0 139px;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0 6px;
+  background: var(--mn-ppt-canvas);
+}
+
+.mn-phome__rail-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  height: 125px;
+  padding-top: 32px;
+  color: var(--mn-fg);
+  font-size: 13px;
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-phome__rail-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-fg) 6%, transparent);
+}
+
+/* 当前那一格：字与图标用强调色，左边一条 2px 的竖条（上下各缩 16） */
+.mn-phome__rail-item.is-active {
+  color: var(--mn-accent);
+}
+
+.mn-phome__rail-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 16px;
+  bottom: 16px;
+  width: 2px;
+  background: var(--mn-accent);
+}
+
+.mn-phome__rail-item:disabled {
+  color: var(--mn-fg-muted);
+  cursor: default;
+}
+
+/* 底下一段（账户 / 选项）只有字，没有图标 */
+.mn-phome__rail-item--text {
+  height: 48px;
+  padding-top: 0;
+  justify-content: center;
+  border-top: 1px solid var(--mn-ppt-line);
+  color: var(--mn-fg-muted);
+}
+
+.mn-phome__rail-item--text:first-of-type {
+  margin-top: 6px;
+}
+
+.mn-phome__rail-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.mn-phome__rail-gap {
+  flex: 1;
+}
+
+/* ---- 右边：问候 + 模板 + 最近 ---- */
+
+.mn-phome__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 4px 130px 28px 52px;
+}
+
+/* 这一列是弹性容器（overflow-y: auto）：**子项一律不许被压扁**。
+   少了这一条，内容比一屏高时浏览器会先把有固定高度的几项（搜索框 32、按钮……）
+   压到内容高，看着像样式没生效（实测搜索框被压成 21.5）。 */
+.mn-phome__main > * {
+  flex: 0 0 auto;
+}
+
+.mn-phome__greeting {
+  color: var(--mn-fg);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.mn-phome__templates {
+  margin-top: 24px;
+}
+
+.mn-phome__templates-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -22px;
+}
+
+/* 那个小三角：真 PPT 里点它就是收起 / 展开模板那一排 */
+.mn-phome__fold {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  color: var(--mn-fg);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-phome__fold:hover {
+  background: color-mix(in srgb, var(--mn-fg) 8%, transparent);
+}
+
+.mn-phome__fold.is-closed .mn-phome__fold-icon {
+  transform: rotate(-90deg);
+}
+
+.mn-phome__fold-icon {
+  width: 12px;
+  height: 12px;
+  transition: transform var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-phome__templates-label {
+  color: var(--mn-fg);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* 卡片那一排：卡片 180×152、间距 24.5 */
+.mn-phome__cards {
+  display: flex;
+  align-items: flex-start;
+  gap: 24.5px;
+  margin: 18px 0 0 -4px;
+}
+
+.mn-phome__card {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 180px;
+  height: 152px;
+  padding: 0;
+  border: 1px solid var(--mn-border);
+  border-radius: 2px;
+  background: var(--mn-surface);
+  text-align: center;
+  transition:
+    border-color var(--mn-dur-1) var(--mn-ease),
+    background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+/* 空白演示文稿那一张：截图里它描着一圈深色的边（当前选中那一张） */
+.mn-phome__card.is-blank {
+  border-color: var(--mn-fg);
+  background: var(--mn-surface-2);
+}
+
+.mn-phome__card:hover:not(:disabled) {
+  border-color: var(--mn-accent);
+}
+
+.mn-phome__card:disabled {
+  cursor: default;
+  border-color: var(--mn-border);
+}
+
+.mn-phome__card-label {
+  padding: 0 6px;
+  color: var(--mn-fg);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.mn-phome__card:disabled .mn-phome__card-label {
+  color: var(--mn-fg-muted);
+}
+
+/* 卡片上那幅画（模板封面）：140×78，也就是 16:9 的一张小图 */
+.mn-phome__art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 140px;
+  height: 78px;
+  margin-top: 22px;
+  overflow: hidden;
+  font-size: 11px;
+}
+
+.mn-phome__art-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.75;
+}
+
+.mn-phome__art-title {
+  position: relative;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.mn-phome__art-band {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 82%;
+  height: 34px;
+  background: #d24726;
+}
+
+.mn-phome__art-band-title {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 「更多主题 →」：横线下面自己一行，右对齐（截图里它在卡片那一排的右下角） */
+.mn-phome__themes {
+  display: flex;
+  justify-content: flex-end;
+  margin: 2px 0 -4px;
+}
+
+/* 内容区里那两条「更多 … →」 */
+.mn-phome__link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px;
+  border-radius: 3px;
+  color: var(--mn-accent);
+  font-size: 13.5px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-phome__link:hover:not(:disabled) {
+  background: var(--mn-accent-soft);
+}
+
+.mn-phome__link:disabled {
+  color: var(--mn-accent);
+  opacity: 0.9;
+  cursor: default;
+}
+
+.mn-phome__link-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* 卡片下面那条横线（从内容左边拉到右边） */
+.mn-phome__rule {
+  height: 1px;
+  margin: 12px 0 0;
+  background: var(--mn-border-strong);
+}
+
+.mn-phome__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 463px;
+  max-width: 100%;
+  height: 32px;
+  margin-top: 16px;
+  padding: 0 12px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-ppt-control);
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-phome__search:focus-within {
+  border-color: var(--mn-accent);
+}
+
+.mn-phome__search-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+.mn-phome__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 13px;
+  outline: none;
+}
+
+/* ---- 页签与列表 ---- */
+
+.mn-phome__tabs {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  margin-top: 24px;
+}
+
+.mn-phome__tab {
+  position: relative;
+  padding: 0 0 8px;
+  color: var(--mn-fg);
+  font-size: 15px;
+  transition: color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-phome__tab:hover:not(.is-active) {
+  color: var(--mn-accent);
+}
+
+.mn-phome__tab.is-active {
+  font-weight: 600;
+}
+
+.mn-phome__tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--mn-accent);
+}
+
+.mn-phome__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.mn-phome__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  border-bottom: 1px solid var(--mn-border);
+  font-size: 13px;
+}
+
+.mn-phome__row:hover {
+  background: var(--mn-surface);
+}
+
+.mn-phome__open {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  color: var(--mn-fg);
+  text-align: left;
+}
+
+.mn-phome__name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-left: 2px;
+}
+
+.mn-phome__file-icon {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: var(--mn-accent);
+}
+
+.mn-phome__file {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.mn-phome__file-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mn-phome__file-path {
+  overflow: hidden;
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mn-phome__when,
+.mn-phome__kind,
+.mn-phome__size {
+  flex: 0 0 auto;
+  color: var(--mn-fg-muted);
+}
+
+.mn-phome__when {
+  width: 168px;
+}
+
+.mn-phome__kind {
+  width: 152px;
+}
+
+.mn-phome__size {
+  width: 88px;
+}
+
+.mn-phome__act {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 26px;
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-phome__row:hover .mn-phome__act,
+.mn-phome__act:focus-visible {
+  opacity: 1;
+}
+
+.mn-phome__act:hover {
+  background: color-mix(in srgb, var(--mn-fg) 10%, transparent);
+  color: var(--mn-fg);
+}
+
+.mn-phome__empty {
+  padding: 14px 2px;
+  color: var(--mn-fg-muted);
+  font-size: 13px;
+}
+
+.mn-phome__more {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 0 0;
+}
+
+/* 标题栏右上角那一段线稿：只画不接事件，颜色跟 currentColor 走 */
+.mn-phome__watermark {
+  width: 560px;
+  height: 47px;
+  opacity: 0.55;
+}
+
+/* ---- 窄屏：模板卡横向滚动、列表收列、左栏收窄 ---- */
+
+@media (max-width: 1400px) {
+  .mn-phome__main {
+    padding-right: 40px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .mn-phome__when,
+  .mn-phome__kind {
+    display: none;
+  }
+
+  .mn-phome__cards {
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+
+}
+
+@media (max-width: 900px) {
+  .mn-phome__main {
+    padding: 4px 20px 24px 24px;
+  }
+
+  .mn-phome__search {
+    width: 100%;
+  }
+
+  .mn-phome__rail {
+    flex: 0 0 96px;
+  }
+
+  .mn-phome__rail-item {
+    height: 100px;
+    padding-top: 22px;
+  }
+}
+
 @media (max-width: 767px) {
-  .mn-notes {
-    height: 96px;
+  .mn-phome__size,
+  .mn-phome__search {
+    display: none;
+  }
+
+  .mn-phome__watermark {
+    display: none;
+  }
+
+  .mn-phome__rail {
+    flex: 0 0 72px;
+  }
+
+  .mn-phome__rail-item {
+    height: 88px;
+    padding-top: 16px;
+    font-size: 12px;
+  }
+
+  .mn-phome__rail-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .mn-phome__card {
+    width: 148px;
+    height: 132px;
+  }
+
+  .mn-phome__art {
+    width: 112px;
+    height: 63px;
+  }
+}
+
+/* ---- 窄屏：缩略图栏当浮层（office.css 那条媒体查询兜底），画布的留白收窄 ---- */
+
+@media (max-width: 767px) {
+  html[data-chrome='slide'] .mn-office__side {
+    flex: 0 0 auto;
+    width: min(78vw, 262px);
+  }
+
+  html[data-chrome='slide'] {
+    --mn-ppt-rail: min(78vw, 262px);
+    --mn-ppt-thumb: 200px;
+    --mn-ppt-thumb-scale: 0.1515;
+  }
+
+  .mn-ppt__notes-bar {
+    height: 40px;
   }
 }

@@ -1,4 +1,4 @@
-import type { ChatTokens, CodeTokens, PageTokens, SheetTokens, ThemeTokens } from './types'
+import type { ChatTokens, CodeTokens, PageTokens, SheetTokens, SlideTokens, ThemeTokens } from './types'
 
 /**
  * token 名 → CSS 自定义属性名。
@@ -81,3 +81,17 @@ export const SHEET_TOKEN_VARS = {
   field: '--mn-sheet-field',
   control: '--mn-sheet-control',
 } as const satisfies Record<keyof SheetTokens, string>
+
+/**
+ * 演示文稿形态多出来的那几个变量。同一套道理：只有 chrome: 'slide' 的主题要写它们。
+ */
+export const SLIDE_TOKEN_VARS = {
+  chrome: '--mn-ppt-chrome',
+  canvas: '--mn-ppt-canvas',
+  line: '--mn-ppt-line',
+  edge: '--mn-ppt-edge',
+  placeholder: '--mn-ppt-placeholder',
+  select: '--mn-ppt-select',
+  field: '--mn-ppt-field',
+  control: '--mn-ppt-control',
+} as const satisfies Record<keyof SlideTokens, string>

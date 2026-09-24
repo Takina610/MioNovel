@@ -817,6 +817,7 @@ function ReaderViewImpl({
               bookTitle={bookTitle ?? ''}
               author={author ?? ''}
               percent={mapRatio}
+              fontSize={settings.fontSize}
             />
           </article>
         ) : (

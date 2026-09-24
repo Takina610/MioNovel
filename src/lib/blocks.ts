@@ -129,10 +129,9 @@ export function mediaPath(src: string, resolve?: (src: string) => string | undef
 /**
  * 正文里的图片全部换成一行引用：`![](./figure.png)`。
  *
- * 编辑器、文档、聊天、表格这四种形态里不渲染任何图——封面、卷首插图、正文插图都不例外。
+ * 除了普通阅读器，别的形态都不渲染任何图——封面、卷首插图、正文插图都不例外。
  * 这不是「加载失败」，而是**这份文本里确实有一张图，这行是它的地址**：
  * 一句话说明这里原本是什么，同时把原图路径留给人查。
- * （页面（Word）与幻灯片放得下图，它们不走这一条。）
  */
 export function replaceMedia(root: Element, resolve?: (src: string) => string | undefined): void {
   const media = Array.from(root.querySelectorAll('img, svg'))
@@ -158,8 +157,8 @@ export function replaceMedia(root: Element, resolve?: (src: string) => string | 
  * 1. **拆掉 `<figure>`。** 图与图注本来就是两块（一行图、一行说明），套在 figure
  *    里会让「最深的块才是行」的判定把它们粘成一块；而 figure 自己又不在块级选择器
  *    里，于是**整张图会被丢掉**——聊天和幻灯片里就表现为「说明文字在、图没了」。
- * 2. **给还不在任何块里的图自己包一块。** `![](./路径)` 占位（编辑器 / 文档 / 聊天 /
- *    表格用）和原样的 `<img>`（页面 / 幻灯片用）都要包，否则它落在行的外面，
+ * 2. **给还不在任何块里的图自己包一块。** `![](./路径)` 占位（除普通阅读器之外的
+ *    六个形态都用它）和原样的 `<img>`（普通阅读器用）都要包，否则它落在行的外面，
  *    谁都渲染不到它。
  */
 export function normalizeMediaLines(body: Element): void {
@@ -244,18 +243,20 @@ export function isContentBlock(block: Block): boolean {
 /**
  * 哪种形态显示真图。**这条规矩只在这一处定义**，ReaderView 与 ChapterBody 都来问它。
  *
- * 2026-09-24：用户报了两次「某个形态也在放小说插图」。第一次修的是企业微信，
- * 第二次是 Word（一张封面铺满整张 A4 纸、还被拉变形，见决定记录 32 与 35）。
- * 根因是这条规矩曾经写在两个地方（ReaderView 一个三元、ChapterBody 一个三元），
- * 改动只落到一处。所以现在收成一个纯函数，verify:apps 直接断言它。
+ * 2026-09-24：用户报了三次「某个形态也在放小说插图」。第一次修的是企业微信，
+ * 第二次是 Word（一张封面铺满整张 A4 纸、还被拉变形，见决定记录 32 与 35），
+ * 第三次是幻灯片（见决定记录 38）。根因是这条规矩曾经写在两个地方
+ * （ReaderView 一个三元、ChapterBody 一个三元），改动只落到一处。
+ * 所以现在收成一个纯函数，verify:apps 直接断言它。
  *
- * 结论：**放真图的只有两个**——普通阅读器（`plain`，几套日间/夜间主题那一档，
- * 它本来就是「安静地看一本书」，插图该在）；幻灯片（`slide`，一页一张图就是
- * 它存在的意义）。编辑器（`code`，它有自己的图片占位）、文档、聊天、表格、
- * 页面一律写一行 `![](./路径)`。
+ * 结论：**放真图的只有普通阅读器一个**（`plain`，几套日间/夜间主题那一档，
+ * 它本来就是「安静地看一本书」，插图该在）。**其余六个形态**——编辑器
+ * （`code`，它有自己的图片占位）、文档、聊天、表格、页面、幻灯片——一律写一行
+ * `![](./路径)`：这一行说的是「这里原本有一张图，这是它的地址」，字一个不少，
+ * 图也没有被丢掉（路径是书里的原始路径，靠 resolve 从 blob 还原）。
  */
 export function mediaModeFor(chrome: ThemeChrome): 'keep' | 'reference' {
-  return chrome === 'plain' || chrome === 'slide' ? 'keep' : 'reference'
+  return chrome === 'plain' ? 'keep' : 'reference'
 }
 
 /**

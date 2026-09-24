@@ -1,19 +1,18 @@
 import { type ReactNode } from 'react'
-import { avatarOf, appName, fileKindLabel, fileNameFor } from '../lib/appdocs'
-import { formatBytes, formatDateTime, formatPercent } from '../lib/format'
+import { appName } from '../lib/appdocs'
 import { CHAT_RAIL } from '../lib/chat'
 import type { BookRecord } from '../db/db'
-import { OfficeFrame, OfficeStart } from './OfficeFrame'
-import { IconBookBlank, IconDoc, IconSlide } from '../components/ui/app-icons'
+import { OfficeFrame } from './OfficeFrame'
 import { ChatApp, ChatHome } from './ChatApp'
 import { DocApp } from './DocApp'
 import { DocHome } from './DocHome'
 import { ExcelApp } from './ExcelApp'
 import { ExcelHome } from './ExcelHome'
 import { PptApp } from './PptApp'
+import { PptHome } from './PptHome'
 import { WordApp } from './WordApp'
 import { WordHome } from './WordHome'
-import { ShelfShell, type ShelfProps } from './ShelfShell'
+import { ShelfShell } from './ShelfShell'
 import type { AppFrameProps, AppShellChrome } from './types'
 
 /**
@@ -144,99 +143,16 @@ export function AppShelf({
             // Word 那一屏的开始屏幕是单独的组件：左边一条导航栏、新建三张卡、
             // 页签行与一份两列列表（见 WordHome.tsx）。Excel 也是自己的一屏
             // （问候语、绿按钮、三个药丸、搜索文件——见 ExcelHome.tsx），
-            // PowerPoint 仍用共用的 OfficeStart
+            // PowerPoint 也是（问候语、八张模板卡、搜索文件——见 PptHome.tsx）
             return <WordHome {...props} />
           case 'sheet':
             return <ExcelHome {...props} />
           case 'slide':
-            return <OfficeHome chrome="slide" {...props} />
+            return <PptHome {...props} />
           default:
             return null
         }
       }}
     />
-  )
-}
-
-// 只有 Excel / PPT 还用这张共用的开始屏幕（Word 有自己的一屏，见 WordHome.tsx）
-const BLANK_ICONS: Record<'sheet' | 'slide', ReturnType<typeof IconDoc>> = {
-  sheet: <IconBookBlank className="h-8 w-8" />,
-  slide: <IconSlide className="h-8 w-8" />,
-}
-
-const BLANK_LABELS: Record<'sheet' | 'slide', string> = {
-  sheet: '空白工作簿',
-  slide: '空白演示文稿',
-}
-
-/**
- * Excel / PowerPoint 的开始屏幕（书架）。
- *
- * 真 Office 打开时就是这一屏：左边「新建」（空白工作簿/演示文稿），
- * 右边「最近」列表。用同一个组件 + 主题里的强调色，所以 Word 是蓝的、
- * Excel 是绿的、PowerPoint 是橙的——品牌色全部来自主题，组件里一个色号都没有。
- *
- * 顶上那条窄标题栏里，右边两个按钮是真的：阅读设置和导入（导入就是「新建」——
- * 拖一本小说进来，就是给这个「程序」新建一份文件）。
- */
-function OfficeHome({
-  chrome,
-  books,
-  onOpen,
-  onMenu,
-  onImport,
-  onOpenSettings,
-  dropping,
-  dim,
-  dimOn,
-  onToggleDim,
-}: { chrome: 'sheet' | 'slide' } & ShelfProps) {
-  const list = (books ?? []).map((book) => ({
-    id: book.id,
-    title: fileNameFor(chrome, book.title),
-    author: book.author,
-    meta: fileKindLabel(chrome),
-    size: formatBytes(book.fileSize),
-    when: formatDateTime(book.lastReadAt || book.addedAt),
-    percent: book.progress ? formatPercent(book.progress.ratio) : '',
-  }))
-
-  return (
-    <OfficeFrame
-      fileName={appName(chrome)}
-      avatar={avatarOf(books?.[0]?.author ?? '')}
-      tabs={[]}
-      activeTab=""
-      onTab={() => undefined}
-      onBack={onImport}
-      immersive={false}
-      statusLeft={<span className="mn-office__status-text">就绪</span>}
-      statusRight={null}
-      zoom={16}
-      zoomRange={[10, 34]}
-      onZoom={() => undefined}
-      onOpenSettings={onOpenSettings}
-      dim={dim}
-      dimOn={dimOn}
-      onToggleDim={onToggleDim}
-    >
-      <OfficeStart
-        blankLabel={BLANK_LABELS[chrome]}
-        blankHint="本地 txt / epub"
-        BlankIcon={BLANK_ICONS[chrome]}
-        books={list}
-        onOpen={(id) => {
-          const book = books?.find((item) => item.id === id)
-          if (book) onOpen(book)
-        }}
-        onMenu={(id) => {
-          const book = books?.find((item) => item.id === id)
-          if (book) onMenu(book)
-        }}
-        onImport={onImport}
-        dropping={dropping}
-        dim={dim}
-      />
-    </OfficeFrame>
   )
 }

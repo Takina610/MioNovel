@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { chapterBlocks, mediaModeFor } from '../lib/blocks'
 import { chapterMessages, chatSender } from '../lib/chat'
 import { activeRowOf, chapterRows, rowsTotal } from '../lib/sheet'
-import { chapterSlides } from '../lib/slide'
+import { chapterSlides, slideBudget } from '../lib/slide'
 import { ChatThread, SheetGrid, SlideCard } from './Content'
 
 /**
@@ -19,7 +19,7 @@ import { ChatThread, SheetGrid, SlideCard } from './Content'
 export interface ChapterBodyProps {
   chrome: 'chat' | 'sheet' | 'slide'
   html: string
-  /** 渲染时的图片地址 → 书里的原始路径（表格形态写图片引用要用） */
+  /** 渲染时的图片地址 → 书里的原始路径（三种块状形态写图片引用都要用） */
   resources?: Map<string, string>
   /** 章名。聊天的分隔线、表格的 A1、幻灯片的标题页都用它 */
   label: string
@@ -29,6 +29,8 @@ export interface ChapterBodyProps {
   author: string
   /** 章内进度 0-1。表格的「当前行」和幻灯片的「当前这张」按它算 */
   percent: number
+  /** 字号（幻灯片按它决定一张装多少字，见 lib/slide.ts 的 slideBudget） */
+  fontSize: number
 }
 
 export function ChapterBody({
@@ -39,6 +41,7 @@ export function ChapterBody({
   bookTitle,
   author,
   percent,
+  fontSize,
 }: ChapterBodyProps) {
   const resolve = useCallback((src: string) => resources?.get(src), [resources])
   const blocks = useMemo(
@@ -66,9 +69,10 @@ export function ChapterBody({
         ? chapterSlides(blocks, {
             title: label,
             subtitle: author ? `${bookTitle} · ${author}` : bookTitle,
+            ...slideBudget(fontSize),
           })
         : [],
-    [chrome, blocks, label, bookTitle, author],
+    [chrome, blocks, label, bookTitle, author, fontSize],
   )
 
   if (chrome === 'chat') {
@@ -87,10 +91,12 @@ export function ChapterBody({
   }
 
   return (
-    <div className="mn-slidestack">
+    <div className="mn-ppt__stage">
       {slides.map((slide) => (
-        // id 给缩略图栏点跳转用：和真 PPT 里点缩略图跳到那一张是一回事
-        <section key={slide.index} id={`mn-slide-${slide.index}`} className="mn-slidestack__item">
+        // id 给缩略图栏点跳转用：和真 PPT 里点缩略图跳到那一张是一回事。
+        // 一「页」= 一屏（高度由 PptApp 量出来写进 --mn-ppt-page），
+        // 所以上下滚动就是一张张翻——这正是编辑视图的样子
+        <section key={slide.index} id={`mn-slide-${slide.index}`} className="mn-ppt__page">
           <SlideCard slide={slide} />
         </section>
       ))}

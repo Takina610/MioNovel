@@ -30,12 +30,12 @@ globals.NodeFilter = testWindow.NodeFilter
 const { chapterBlocks, looksLikeDialogue, prepareBody, mediaLinesHtml, mediaModeFor } = await import('../src/lib/blocks.ts')
 const { chapterMessages, avatarInitial, chatSender, messageSender, CHAT_ME, CHAT_RAIL, sessionTag, sessionUnread } = await import('../src/lib/chat.ts')
 const { chapterRows, activeRowOf, rowsTotal, SHEET_COLUMNS, SHEET_HEAD } = await import('../src/lib/sheet.ts')
-const { chapterSlides } = await import('../src/lib/slide.ts')
+const { chapterSlides, slideBudget } = await import('../src/lib/slide.ts')
 const { chapterFileName } = await import('../src/lib/code.ts')
-const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeText, homeRows, pinnedBook, docOwnerOf, DOC_TABS, DOC_FILTERS, WORD_TABS, WORD_STYLES, WORD_HOME_TABS, WORD_NAV_TABS, wordHomeRows, wordDateText, EXCEL_TABS, EXCEL_HOME_TABS, excelHomeRows, greetingText } = await import('../src/lib/appdocs.ts')
+const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeText, homeRows, pinnedBook, docOwnerOf, DOC_TABS, DOC_FILTERS, WORD_TABS, WORD_STYLES, WORD_HOME_TABS, WORD_NAV_TABS, wordHomeRows, wordDateText, EXCEL_TABS, EXCEL_HOME_TABS, excelHomeRows, greetingText, PPT_TABS, PPT_HOME_TABS, PPT_TEMPLATES, pptHomeRows, slideStatusText } = await import('../src/lib/appdocs.ts')
 const { markFinds, clearFinds, countFinds, FIND_MARK } = await import('../src/lib/find.ts')
 const { getTheme, listThemes, buildThemeSheet, chromeOf } = await import('../src/themes/apply.ts')
-const { CODE_TOKEN_VARS, CHAT_TOKEN_VARS, PAGE_TOKEN_VARS, SHEET_TOKEN_VARS, TOKEN_VARS } = await import('../src/themes/vars.ts')
+const { CODE_TOKEN_VARS, CHAT_TOKEN_VARS, PAGE_TOKEN_VARS, SHEET_TOKEN_VARS, SLIDE_TOKEN_VARS, TOKEN_VARS } = await import('../src/themes/vars.ts')
 
 let failures = 0
 let checks = 0
@@ -76,6 +76,7 @@ console.log('\n主题注册表')
   const pageKeys = Object.keys(PAGE_TOKEN_VARS)
   const chatKeys = Object.keys(CHAT_TOKEN_VARS)
   const sheetKeys = Object.keys(SHEET_TOKEN_VARS)
+  const slideKeys = Object.keys(SLIDE_TOKEN_VARS)
 
   let missingTokens = 0
   let emptyTokens = 0
@@ -111,6 +112,12 @@ console.log('\n主题注册表')
         if (!theme.sheet[key as keyof typeof theme.sheet]) badChromeTokens++
       }
     }
+    if (theme.chrome === 'slide' && !theme.slide) badChromeTokens++
+    if (theme.slide) {
+      for (const key of slideKeys) {
+        if (!theme.slide[key as keyof typeof theme.slide]) badChromeTokens++
+      }
+    }
     if (theme.preset) {
       const { fontSize, lineHeight, contentWidth, indent, paragraphGap } = theme.preset
       if (fontSize !== undefined && (fontSize < 10 || fontSize > 40)) badPreset++
@@ -122,7 +129,7 @@ console.log('\n主题注册表')
   }
   check('每套主题的 18 个主 token 一个不缺', missingTokens === 0, `缺 ${missingTokens} 个`)
   check('没有空值 token', emptyTokens === 0, `空 ${emptyTokens} 个`)
-  check('声明了 code / chat / page / sheet 的主题把那一层的 token 也补全了', badChromeTokens === 0, `缺 ${badChromeTokens} 个`)
+  check('声明了 code / chat / page / sheet / slide 的主题把那一层的 token 也补全了', badChromeTokens === 0, `缺 ${badChromeTokens} 个`)
   check('每套主题自带的排版参数都在合理范围内', badPreset === 0, `越界 ${badPreset} 个`)
 
   const sheet = buildThemeSheet()
@@ -131,6 +138,10 @@ console.log('\n主题注册表')
   check('未知 id 回落到第一个内置主题', getTheme('不存在的主题').id === themes[0].id)
   check('聊天主题的 rail / bubble 进了样式表', sheet.includes('--mn-chat-rail') && sheet.includes('--mn-chat-bubble'))
   check('表格主题的网格 / 选中框进了样式表', sheet.includes('--mn-sheet-grid') && sheet.includes('--mn-sheet-select'))
+  check(
+    '演示文稿主题的工作区 / 选中橙进了样式表',
+    sheet.includes('--mn-ppt-canvas') && sheet.includes('--mn-ppt-select'),
+  )
 }
 
 /* ==========================================================================
@@ -407,6 +418,82 @@ console.log('\nExcel 的页签与开始屏幕')
 }
 
 /* ==========================================================================
+   四之二、PPT 的页签、模板与开始屏幕（2026-09-24 按截图复刻）
+   --------------------------------------------------------------------------
+   和 Word / Excel 那两节同一个道理：页签的顺序、哪几页是真的、开始屏幕上那一排
+   模板有几张哪一张点得动、状态栏那行字怎么写——对着屏幕扫一眼看不出对错
+   （少一页、某一页悄悄变成能点的、模板卡顺序换了、状态栏写成「第 1/1 张」），
+   但它们是「这个外壳诚不诚实」的全部依据，所以逐条断言。
+   ========================================================================== */
+
+console.log('\nPPT 的页签、模板与开始屏幕')
+{
+  // 三本书的样本和上面 Excel 那一节是同几本（同一批数据，看的就是两份规则一致）
+  const DAY = 86_400_000
+  const now = new Date(2026, 8, 24, 15, 0).getTime()
+  const shelf = [
+    { id: 'yuki', title: '雪国', author: '川端康成', fileName: 'yuki.txt', addedAt: now - 10 * DAY, lastReadAt: now - DAY },
+    { id: 'xue', title: '雪落香杉树', author: '大卫·伽特森', fileName: 'xue.txt', addedAt: now - 3 * DAY, lastReadAt: 0 },
+    { id: 'empty', title: '无名之书', author: '', fileName: '无名.txt', addedAt: now - 20 * DAY, lastReadAt: now - 2 * DAY },
+  ] as never as BookRecord[]
+
+  check(
+    '页签的顺序照截图（开始 / OfficePLUS / 插入 / 绘图 / 设计 / 切换 / 动画 / 幻灯片放映 / 记录 / 审阅 / 视图 / PDF工具箱 / 帮助）',
+    PPT_TABS.map((tab) => tab.label).join(' ') ===
+      '开始 OfficePLUS 插入 绘图 设计 切换 动画 幻灯片放映 记录 审阅 视图 PDF工具箱 帮助',
+    PPT_TABS.map((tab) => tab.label).join(' '),
+  )
+  check(
+    '只有「开始」和「视图」两页是真的，其余十一页灰着',
+    PPT_TABS.filter((tab) => !tab.disabled).map((tab) => tab.id).join(',') === 'home,view',
+    PPT_TABS.filter((tab) => !tab.disabled).map((tab) => tab.id).join(','),
+  )
+  check('「文件」不在页签表里（由 OfficeFrame 单独画）', !PPT_TABS.some((tab) => tab.label === '文件'))
+
+  check(
+    '开始屏幕三栏是 最近 / 收藏夹 / 与我共享',
+    PPT_HOME_TABS.map((tab) => tab.label).join(' ') === '最近 收藏夹 与我共享',
+    PPT_HOME_TABS.map((tab) => tab.label).join(' '),
+  )
+  check(
+    '模板卡八张、顺序照截图',
+    PPT_TEMPLATES.map((item) => item.label).join(' ') ===
+      '空白演示文稿 欢迎使用 PowerPoint 麦迪逊 地图集 花园锦簇 城市单色 亚洲设计演示文稿 朴实灵感',
+    PPT_TEMPLATES.map((item) => item.label).join(' '),
+  )
+  check(
+    '只有「空白演示文稿」是真的（它就是导入一本本地书），其余七张是 PowerPoint 的内置模板、都灰着',
+    PPT_TEMPLATES.filter((item) => item.blank).map((item) => item.id).join(',') === 'blank' &&
+      PPT_TEMPLATES.filter((item) => !item.blank).every((item) => item.art.title.length > 0),
+    PPT_TEMPLATES.filter((item) => item.blank).map((item) => item.id).join(','),
+  )
+  check(
+    '「收藏夹」「与我共享」老实空着（本地文件没有收藏与共享）',
+    pptHomeRows(shelf, { tab: 'starred' }).length === 0 &&
+      pptHomeRows(shelf, { tab: 'shared' }).length === 0 &&
+      PPT_HOME_TABS.every((tab) => tab.empty.length > 0),
+  )
+  check(
+    '「最近」与 Word / Excel 的开始屏幕是同一份规则（同一批数据排出来一模一样）',
+    pptHomeRows(shelf, { tab: 'recent' }).map((book) => book.title).join(',') ===
+      excelHomeRows(shelf, { tab: 'recent' }).map((book) => book.title).join(','),
+    pptHomeRows(shelf, { tab: 'recent' }).map((book) => book.title).join(','),
+  )
+  check(
+    '搜索按书名、作者、原文件名三样匹配',
+    pptHomeRows(shelf, { tab: 'recent', query: '雪' }).length === 2 &&
+      pptHomeRows(shelf, { tab: 'recent', query: 'yuki' }).length === 1 &&
+      pptHomeRows(shelf, { tab: 'recent', query: '不存在的书' }).length === 0,
+    '雪 2 / yuki 1 / 无 0',
+  )
+  check(
+    '状态栏第一格写「幻灯片 第 3 张，共 12 张」（截图里就是这么写的）',
+    slideStatusText(3, 12) === '幻灯片 第 3 张，共 12 张',
+    slideStatusText(3, 12),
+  )
+}
+
+/* ==========================================================================
    五、幻灯片：一段（或几段）= 一张
    ========================================================================== */
 
@@ -438,6 +525,76 @@ console.log('\n幻灯片（PPT）')
  * 一叠幻灯片里「正文那一半」的全部文字：标题 + 正文，**不算标题页**
  * （标题页上的副标题是书名，不是正文里的一段）。
  */
+// 一张装多少字跟着字号走：字号越大装得越少，否则版心会把多出来的字裁掉
+// ——在阅读器里那就是「正文少了一段」（编辑视图里一「页」就是一张 16:9 的幻灯片）
+{
+  const small = slideBudget(12)
+  const normal = slideBudget(18)
+  const large = slideBudget(34)
+  check(
+    '字号正常时预算仍是 220（不该因为这条多切张）',
+    normal.maxChars === 220 && normal.maxParts === 5,
+    `${normal.maxChars}/${normal.maxParts}`,
+  )
+  check(
+    '字号越大，一张装得越少（120000 ÷ 字号² 那个估算）',
+    small.maxChars === 220 && large.maxChars === 104 && large.maxChars < normal.maxChars,
+    `12px→${small.maxChars} 18px→${normal.maxChars} 34px→${large.maxChars}`,
+  )
+  check(
+    '再大的字也保底 80 字一张（不然一页只剩一句话）',
+    slideBudget(60).maxChars === 80 && slideBudget(200).maxChars === 80,
+    `${slideBudget(60).maxChars}`,
+  )
+  // 预算真的管用：把一章按大字号切出来，每张的正文都不超过那个数
+  const dense = chapterBlocks(
+    Array.from({ length: 12 }, (_, i) => `<p>${'灯'.repeat(200)}${i}</p>`).join(''),
+  )
+  const loose = chapterSlides(dense, { title: '第一章', ...slideBudget(12) })
+  const tight = chapterSlides(dense, { title: '第一章', ...slideBudget(34) })
+  const longest = Math.max(...dense.map((block) => block.text.length))
+  check(
+    '预算真的在管：同一章按大字号切出来的张数更多',
+    tight.length > loose.length,
+    `${loose.length} → ${tight.length} 张`,
+  )
+  check(
+    '每一张的正文都在预算之内（最多超出一整块——一块是不可切的最小单位）',
+    tight.every(
+      (slide) =>
+        slide.body.reduce((sum, part) => sum + part.text.length, 0) <= slideBudget(34).maxChars + longest,
+    ),
+    tight.map((s) => s.body.reduce((sum, p) => sum + p.text.length, 0)).join(','),
+  )
+
+  // 标题那一条：短的当标题、长的进正文。理由是版心——标题框里那行字 3.2em，
+  // 一段长正文塞进去尾巴会被裁掉（在阅读器里就是正文少了几个字）
+  {
+    const short = chapterSlides(chapterBlocks('<p>一个短段落</p><p>又一段</p>'), { title: '第一章' })
+    check(
+      '短段落当标题（标题就是它，正文里不再重复一遍）',
+      short.some(
+        (slide) =>
+          slide.title === '一个短段落' && !slide.body.some((part) => part.text === '一个短段落'),
+      ),
+      short.map((s) => `${s.title}/${s.body.length}`).join(','),
+    )
+    const long = '长'.repeat(120)
+    const longDeck = chapterSlides(chapterBlocks(`<p>${long}</p><p>后面一段</p>`), { title: '第一章' })
+    const target = longDeck.find((slide) => slide.body.some((part) => part.text === long))
+    check(
+      '长段落不当标题（标题留空、整段进正文，版心裁不掉它的尾巴）',
+      Boolean(target) && target?.title === '',
+      longDeck.map((s) => `${s.title.slice(0, 4)}/${s.body.length}`).join(','),
+    )
+    check(
+      '长段落进了正文之后，一个字都没少',
+      longDeck.reduce((sum, slide) => sum + slide.body.reduce((n, part) => n + part.text.length, 0), 0) >= 120,
+      String(longDeck.reduce((sum, slide) => sum + slide.body.reduce((n, part) => n + part.text.length, 0), 0)),
+    )
+  }
+}
+
 function blocksOf(slides: Array<{ title: string; body: Array<{ text: string }>; cover: boolean }>): string[] {
   const texts: string[] = []
   for (const slide of slides) {
@@ -735,19 +892,46 @@ console.log('\nWord 开始屏幕')
 console.log('\n放真图的形态')
 {
   // 「哪一屏显示小说插图」只在一处定义（lib/blocks.ts 的 mediaModeFor）。
-  // 这条规矩踩过两次：先是企业微信、后是 Word 还在放图，而改动只落到一个调用点。
-  // 所以直接断言那张表：**放真图的只有普通阅读器与幻灯片**，
-  // 编辑器（它自己那套占位）、文档、聊天、表格、页面一律写引用行。
+  // 这条规矩踩过三次：先是企业微信、再是 Word、最后是幻灯片还在放图，
+  // 而改动只落到一个调用点。所以直接断言那张表：
+  // **放真图的只有普通阅读器一个**，其余六个形态一律写引用行。
   const shells = ['plain', 'code', 'doc', 'chat', 'page', 'sheet', 'slide'] as const
   const keeping = shells.filter((shell) => mediaModeFor(shell) === 'keep')
   check(
-    '只有普通阅读器与幻灯片放真图，其余形态一律写 ![](./路径)',
-    keeping.length === 2 && keeping.join(',') === 'plain,slide',
+    '只有普通阅读器放真图，其余六个形态一律写 ![](./路径)',
+    keeping.length === 1 && keeping.join(',') === 'plain',
     keeping.join(','),
   )
   check(
-    'Word（page）与飞书（doc）都不放图（这两个形态分别被报过一次）',
-    mediaModeFor('page') === 'reference' && mediaModeFor('doc') === 'reference',
+    '报过的那三个形态（企业微信 / Word / 幻灯片）都不放图',
+    mediaModeFor('chat') === 'reference' &&
+      mediaModeFor('page') === 'reference' &&
+      mediaModeFor('slide') === 'reference',
+  )
+  check(
+    '编辑器、文档、表格也写引用行',
+    mediaModeFor('code') === 'reference' &&
+      mediaModeFor('doc') === 'reference' &&
+      mediaModeFor('sheet') === 'reference',
+  )
+
+  // 幻灯片里那行引用真的落在正文里：一张带图的章切出来，图是 `![](./路径)`，
+  // 而不是一个 <img>（这一轮用户报的就是它）
+  const deck = chapterSlides(
+    chapterBlocks(
+      '<p>图前面那一段话在这里，写得够长，不会被当成标题。</p>' +
+        // src 用渲染时的 blob 地址：引用行里要写回书里的原始路径（resolve 干的活）
+      '<figure><img src="blob:http://localhost/9f1" alt="插图"><figcaption>图注</figcaption></figure>',
+      { media: mediaModeFor('slide'), resolve: () => 'OEBPS/Images/pic.png' },
+    ),
+    { title: '第一章' },
+  )
+  const texts = deck.flatMap((slide) => [slide.title, ...slide.body.map((part) => part.text)])
+  check(
+    '幻灯片里的图变成一行引用（写的是书里的原始路径），没有一个 <img>',
+    texts.some((text) => text.includes('](./OEBPS/Images/pic.png)')) &&
+      !deck.some((slide) => slide.body.some((part) => /<img|<figure/i.test(part.html))),
+    texts.filter((text) => text.includes('![')).join(' | '),
   )
 }
 

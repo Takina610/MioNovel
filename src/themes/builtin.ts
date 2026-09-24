@@ -680,7 +680,8 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
     tokens: {
       bg: '#BFBFBF',
       surface: '#FFFFFF',
-      surface2: '#F0F0F0',
+      // 状态栏与开始屏幕的内容区量出来都是 #F5F5F5（Fluent 的中性一档）
+      surface2: '#F5F5F5',
       border: '#E0E0E0',
       borderStrong: '#C8C8C8',
       fg: '#242424',
@@ -696,6 +697,34 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
       readerLink: '#0563C1',
       readerSelection: '#B4D5FE',
       readerRule: '#E0E0E0',
+    },
+    /*
+     * 工作区这一层的值：2026-09-24 按两张 1920 宽的 PPT 截图量的
+     * （编辑窗口 1920×1034、开始屏幕 1920×1032）。
+     *
+     *   chrome      #E4EAEE：标题栏、页签行、开始屏幕左栏（和 Excel 同一层，
+     *               Office 365 的三件套本来就连成一片）
+     *   canvas      #E5EBEF：幻灯片外面那片工作区，**和缩略图栏是同一个色**
+     *   line        #D4D4D4（缩略图栏右边、备注带上面那两条 1px 线）
+     *   edge        #C6C6C6（幻灯片那一圈细边）
+     *   placeholder #A9A9A9（标题框 / 内容框的虚线）
+     *   select      #B7472A：选中缩略图的框。**不是品牌橙**——PowerPoint 的选中橙
+     *               从 2007 年留到今天，和标题栏按钮上的 #C43E1C 是两个色
+     *   field       #FAFAFA（字体框、字号框、搜索框的底）
+     *   control     #8A8A8A（控件描边）
+     *
+     * 状态栏和开始屏幕的内容区是同一个 #F5F5F5，所以那一层不另立 token，
+     * 直接把 surface2 定成它（office.css 里的状态栏本来就取 surface2）。
+     */
+    slide: {
+      chrome: '#E4EAEE',
+      canvas: '#E5EBEF',
+      line: '#D4D4D4',
+      edge: '#C6C6C6',
+      placeholder: '#A9A9A9',
+      select: '#B7472A',
+      field: '#FAFAFA',
+      control: '#8A8A8A',
     },
   },
   {
@@ -733,6 +762,19 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
       readerLink: '#3D99F5',
       readerSelection: '#543831',
       readerRule: '#333333',
+    },
+    // 暗色没有截图可量（那两张 PPT 截图都是亮的），所以照 PowerPoint 自己的深色
+    // 模式配：工作区比幻灯片深一档（幻灯片是那块亮的「纸」，工作区是它周围的黑），
+    // 选中的缩略图跟着暗色下的强调色走
+    slide: {
+      chrome: '#1F1F1F',
+      canvas: '#141414',
+      line: '#3D3D3D',
+      edge: '#4D4D4D',
+      placeholder: '#6E6E6E',
+      select: '#D97359',
+      field: '#292929',
+      control: '#6E6E6E',
     },
   },
 ]
