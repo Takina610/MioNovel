@@ -577,3 +577,296 @@ export function IconTheme(props: IconProps) {
     </Svg>
   )
 }
+
+/* ==========================================================================
+   飞书云文档（chrome: 'doc' 的首页）
+   --------------------------------------------------------------------------
+   这一批是「云文档首页」那一屏上的记号：商标、左侧导航、三张卡片上的
+   彩色图标、列表里的文件图标。
+
+   规格和上面那批一样（24 格、1.75 描边、圆头、currentColor），**只有三处例外**，
+   都是有意的：
+
+   1. **商标**（IconFeishuMark）写死了三个色号。商标就是商标——飞书自己的
+      深色模式里它也还是这三个颜色，跟着主题变色就不像那个产品了。
+      和 public/MioNovel.png 同一个道理。
+   2. **三张卡片的彩色图标**（新建 / 上传 / 模板库）写死了飞书那套插图色。
+      它们不是界面控件，是产品的插图，换成主题色就不是它了。
+   3. 实心色块上的白线（列表里的文件图标、徽标里的加号与箭头）写死 #fff：
+      那是记号自己的墨色，不是界面的颜色。徽标外圈那道「挖空」例外——
+      它露出来的必须是卡片自己的底色，所以取 var(--mn-surface)。
+   ========================================================================== */
+
+/**
+ * 飞书云文档的商标：青绿的一撇 + 蓝色的一弯 + 深蓝的一刀。
+ * 三个色号取自产品页面：主蓝 #3370FF、深蓝 #133C9A、青绿 #00D6B9。
+ */
+export function IconFeishuMark(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M10.1 4.7c3.3-.9 6.5-.6 9.4.9-1.3 3.3-3.1 6-5.6 8.2-1.9-2.7-3.2-5.7-3.8-9.1z" fill="#00D6B9" />
+      <path d="M2.5 10.4c3.7 2.9 7.8 3.7 12.2 2.4 1.5-.4 2.9-1 4.1-1.7-.6 4.4-3 7.5-7.1 9.1-4.4 1.7-7.6-.9-9.2-9.8z" fill="#3370FF" />
+      <path d="M15.7 12.7c2.2-.8 4-2 5.4-3.6.9 2.7.3 5.1-1.9 7.1-1.3-1.3-2.5-2.5-3.5-3.5z" fill="#133C9A" />
+    </svg>
+  )
+}
+
+/** 收起侧边栏：两条横线 + 一个向左的实心三角 */
+export function IconSideToggle(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.6 7.4h9.4M4.6 12h5.4" />
+      <path d="M11.6 9.4 15.8 12l-4.2 2.6z" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 主页：实心的房子，底下留一道门 */
+export function IconHomeFilled(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path
+        d="M10.7 4.2 4.2 9.4c-.5.4-.7.9-.7 1.5V19a1.7 1.7 0 0 0 1.7 1.7h3.6v-4.9a1.4 1.4 0 0 1 1.4-1.4h3.6a1.4 1.4 0 0 1 1.4 1.4v4.9h3.6A1.7 1.7 0 0 0 20.5 19v-8.1c0-.6-.2-1.1-.7-1.5l-6.5-5.2a2.1 2.1 0 0 0-2.6 0z"
+        fill="currentColor"
+        stroke="none"
+      />
+    </Svg>
+  )
+}
+
+/** 云盘：圆角方框里一个播放三角 */
+export function IconCloudDrive(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6.2 4.4h11.6a2 2 0 0 1 2 2v11.2a2 2 0 0 1-2 2H6.2a2 2 0 0 1-2-2V6.4a2 2 0 0 1 2-2z" />
+      <path d="M10.3 8.6v6.8l5.6-3.4z" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 知识库：一页文档，右下角还压着一页 */
+export function IconWiki(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12.6 4.3H6.6a1.2 1.2 0 0 0-1.2 1.2v13a1.2 1.2 0 0 0 1.2 1.2h10.8a1.2 1.2 0 0 0 1.2-1.2V9.5z" />
+      <path d="M12.4 4.4v5h5.8" />
+      <path d="M7.8 14.6h4.6v3.4H7.8z" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 智能纪要：三行字，中间那行右边缀一颗四角星（「智能」那一笔） */
+export function IconMinutes(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.6 6.6h14.8M4.6 12h5.6M4.6 17.4h14.8" />
+      <path d="m15.9 9.1 1 2.1 2.1 1-2.1 1-1 2.1-1-2.1-2.1-1 2.1-1z" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 云文档：实心圆角方块 + 两道白线。列表里的文件图标 */
+export function IconDocFilled(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5.2" fill="currentColor" stroke="none" />
+      <path d="M7.4 9h9.2M7.4 13h5.6" stroke="#fff" strokeWidth="1.9" />
+    </Svg>
+  )
+}
+
+/** 置顶文档/知识问答那一行的小图标：描边的一页纸 + 折角 */
+export function IconDocLine(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M13.1 3.9H6.5a1.2 1.2 0 0 0-1.2 1.2v13.6a1.2 1.2 0 0 0 1.2 1.2h11a1.2 1.2 0 0 0 1.2-1.2V9.3z" />
+      <path d="M12.9 4v5.1h5.6" />
+      <path d="M8 13.6h5.2v3.2H8z" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 细加号（侧栏那两个小按钮）。比功能区里的加号细一档 */
+export function IconPlusThin(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 5.6v12.8M5.6 12h12.8" strokeWidth="1.5" />
+    </Svg>
+  )
+}
+
+/** 两行「圈 + 线」：列表设置那一类的记号，侧栏「我的文档库」右边那个 */
+export function IconListDots(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="6.8" cy="9.2" r="2.1" />
+      <path d="M11.6 9.2h7.6" />
+      <circle cx="6.8" cy="15" r="2.1" />
+      <path d="M11.6 15h7.6" />
+    </Svg>
+  )
+}
+
+/** 侧栏底部那三个：打印 / 工具箱 / 回收站。图标照画，动作在这个外壳里没有 */
+export function IconDockPrint(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8.4 8.6V5.2a.8.8 0 0 1 .8-.8h5.6a.8.8 0 0 1 .8.8v3.4" />
+      <path d="M6.6 8.6h10.8a1.3 1.3 0 0 1 1.3 1.3v5.4a1.3 1.3 0 0 1-1.3 1.3h-1.6" />
+      <path d="M7.9 8.6H6.6a1.3 1.3 0 0 0-1.3 1.3v5.4a1.3 1.3 0 0 0 1.3 1.3h6.4" />
+      <path d="M7.9 14.4h6.7a1 1 0 0 1 1 1v4.2a1 1 0 0 1-1 1H7.9a1 1 0 0 1-1-1v-4.2a1 1 0 0 1 1-1z" />
+      <path d="M9.4 17.4h1M12.4 17.4h1.4" strokeWidth="1.6" />
+    </Svg>
+  )
+}
+
+export function IconDockTools(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6 8.6h12a1.6 1.6 0 0 1 1.6 1.6v7.6a1.6 1.6 0 0 1-1.6 1.6H6a1.6 1.6 0 0 1-1.6-1.6v-7.6A1.6 1.6 0 0 1 6 8.6z" />
+      <path d="M9.4 8.6V7.1a2 2 0 0 1 2-2h1.2a2 2 0 0 1 2 2v1.5" />
+      <circle cx="12" cy="13.8" r="1.3" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+export function IconDockTrash(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5.4 7.6h13.2" />
+      <path d="M9.4 7.6V5.9a1.3 1.3 0 0 1 1.3-1.3h2.6a1.3 1.3 0 0 1 1.3 1.3v1.7" />
+      <path d="M7.3 7.6l.7 10.3a1.5 1.5 0 0 0 1.5 1.4h5a1.5 1.5 0 0 0 1.5-1.4l.7-10.3" />
+      <path d="M10.2 15.1h3.6" strokeWidth="1.6" />
+    </Svg>
+  )
+}
+
+/** 关系图：三个节点连起来（顶栏第一个图标） */
+export function IconNodeGraph(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="6.2" r="2.5" />
+      <circle cx="6.2" cy="17.3" r="2.5" />
+      <circle cx="17.8" cy="17.3" r="2.5" />
+      <path d="M10.8 8.4 7.4 15M13.2 8.4l3.4 6.6M8.7 17.3h6.6" />
+    </Svg>
+  )
+}
+
+/** 灯泡：帮助/灵感那一类（顶栏） */
+export function IconBulb(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9.3 16.4a6.1 6.1 0 1 1 5.4 0v1.9a1.3 1.3 0 0 1-1.3 1.3h-2.8a1.3 1.3 0 0 1-1.3-1.3z" />
+      <path d="M10.3 21.6h3.4" />
+    </Svg>
+  )
+}
+
+/** 九宫格：应用中心（顶栏最后一个） */
+export function IconGridDots(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <g fill="currentColor" stroke="none">
+        <rect x="3.8" y="3.8" width="4" height="4" rx="1.2" />
+        <rect x="10" y="3.8" width="4" height="4" rx="1.2" />
+        <rect x="16.2" y="3.8" width="4" height="4" rx="1.2" />
+        <rect x="3.8" y="10" width="4" height="4" rx="1.2" />
+        <rect x="10" y="10" width="4" height="4" rx="1.2" />
+        <rect x="16.2" y="10" width="4" height="4" rx="1.2" />
+        <rect x="3.8" y="16.2" width="4" height="4" rx="1.2" />
+        <rect x="10" y="16.2" width="4" height="4" rx="1.2" />
+        <rect x="16.2" y="16.2" width="4" height="4" rx="1.2" />
+      </g>
+    </Svg>
+  )
+}
+
+/**
+ * 新建：蓝色的一页纸（右上角折了一下）+ 右下角一个「+」徽标。
+ * 徽标外圈那道白环是拿**卡片自己的底色**画的（见文件头第 3 条），
+ * 所以深色主题下它也不会露出一圈白。
+ */
+export function IconNewDoc(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path
+        d="M7.4 3.4h5.2c.5 0 .9.2 1.2.5l4.5 4.6c.3.3.5.7.5 1.2v6.5a2 2 0 0 1-2 2H7.4a2 2 0 0 1-2-2V5.4a2 2 0 0 1 2-2z"
+        fill="currentColor"
+        stroke="none"
+      />
+      <circle cx="16.6" cy="16.4" r="5.2" fill="none" strokeWidth="2.2" style={{ stroke: 'var(--mn-surface)' }} />
+      <circle cx="16.6" cy="16.4" r="4" fill="currentColor" stroke="none" />
+      <path d="M16.6 14.5v3.8M14.7 16.4h3.8" stroke="#fff" strokeWidth="1.8" />
+    </Svg>
+  )
+}
+
+/** 上传：橙色的一朵云 + 右下角一个向上的箭头徽标 */
+export function IconUploadBlob(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path
+        d="M8.6 16.6a4.4 4.4 0 0 1-.7-8.7 5.7 5.7 0 0 1 10.7 1.3 3.6 3.6 0 0 1-.5 7.4z"
+        fill="#FF811A"
+        stroke="none"
+      />
+      <circle cx="16.4" cy="16.4" r="5.2" fill="none" strokeWidth="2.2" style={{ stroke: 'var(--mn-surface)' }} />
+      <circle cx="16.4" cy="16.4" r="4" fill="#ED6D0C" stroke="none" />
+      <path d="M16.4 18.3v-3.9M14.6 16.2l1.8-1.8 1.8 1.8" stroke="#fff" strokeWidth="1.8" />
+    </Svg>
+  )
+}
+
+/** 模板库：三个形状叠在一起（蓝圆、黄块、红三角）——飞书那张插图的样子 */
+export function IconTemplates(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="9.2" cy="13.6" r="4.8" fill="#5B65F5" stroke="none" />
+      <path d="M13.4 4.4h6.4l-1.9 7.9h-6.4z" fill="#FCCA03" stroke="none" />
+      <path d="m15.4 10.6 5.6 9.4H9.8z" fill="#F54A45" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 文件夹：列表里「位置」那一列 */
+export function IconFolderLine(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.8 7.4a1.6 1.6 0 0 1 1.6-1.6h3.3l1.9 2.3h7.8a1.6 1.6 0 0 1 1.6 1.6v7.5a1.6 1.6 0 0 1-1.6 1.6H5.4a1.6 1.6 0 0 1-1.6-1.6z" />
+    </Svg>
+  )
+}
+
+/** 显示设置：几行字，其中一行挂着一个小方块（列设置就是这个意思） */
+export function IconDisplaySettings(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.4 6.6h15.2M4.4 12h6.6M4.4 17.4h15.2" />
+      <rect x="14.6" y="10.2" width="3.8" height="3.8" rx="1.1" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 列表视图：三行「小方块 + 线」 */
+export function IconViewList(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <g fill="currentColor" stroke="none">
+        <rect x="3.8" y="5.4" width="2.8" height="2.8" rx="0.9" />
+        <rect x="3.8" y="10.6" width="2.8" height="2.8" rx="0.9" />
+        <rect x="3.8" y="15.8" width="2.8" height="2.8" rx="0.9" />
+      </g>
+      <path d="M9.2 6.8h11M9.2 12h11M9.2 17.2h11" strokeWidth="1.9" />
+    </Svg>
+  )
+}
+
+/** 排序箭头（表头上那个）。向上是展开的另一档，由调用方转 180° */
+export function IconSortDown(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 5.4v13.2M7.4 13.8 12 18.4l4.6-4.6" strokeWidth="1.6" />
+    </Svg>
+  )
+}

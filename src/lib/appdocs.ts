@@ -1,5 +1,7 @@
+import type { BookRecord } from '../db/db'
 import type { ThemeChrome } from '../themes/types'
 import { formatChars, formatBytes, formatDateTime } from './format'
+import { bookPercent } from './progress'
 
 /**
  * 办公外壳的「文件」。
@@ -135,4 +137,121 @@ export function unitLabel(chrome: ThemeChrome, count: number): string {
     chat: '个会话',
   }
   return `${count} ${names[chrome] ?? '本'}`
+}
+
+/* ==========================================================================
+   云文档首页（飞书形态的书架）
+   --------------------------------------------------------------------------
+   首页上那一条页签、一个筛选、一列排序箭头，落到数据上其实只有一件事：
+   「把哪几本书、按什么顺序摆出来」。这些判断不看屏幕是发现不了的（排错了、
+   筛丢了，眼睛扫一遍列表未必看得出来），所以按老规矩拉成纯函数，交给
+   `bun run verify:apps` 逐条断言——组件那边只负责画。
+   ========================================================================== */
+
+/** 首页上的四个页签 */
+export type DocTab = 'recent' | 'mine' | 'shared' | 'starred'
+
+/** 「筛选」里那几档：按读到哪儿分 */
+export type DocFilter = 'all' | 'reading' | 'todo' | 'done'
+
+/** 表头上那个箭头排的是哪一列 */
+export type DocSortKey = 'recent' | 'created'
+
+export const DOC_TABS: ReadonlyArray<{ id: DocTab; label: string }> = [
+  { id: 'recent', label: '最近访问' },
+  { id: 'mine', label: '归我所有' },
+  { id: 'shared', label: '与我共享' },
+  { id: 'starred', label: '收藏' },
+]
+
+export const DOC_FILTERS: ReadonlyArray<{ id: DocFilter; label: string }> = [
+  { id: 'all', label: '全部文档' },
+  { id: 'reading', label: '在读' },
+  { id: 'todo', label: '未读' },
+  { id: 'done', label: '已读完' },
+]
+
+/**
+ * 这本书读到哪儿了。三个档次对应「筛选」里那三项。
+ *
+ * 「读完」按全书百分比算（和阅读器、状态栏同一个数），不按章节序号——
+ * 最后一章只读了一半的书不该出现在「已读完」里。没有进度的书是「未读」，
+ * 进度恰好为 0 的也算未读（打开过但停在第一行，和没打开过是一回事）。
+ */
+export function readStateOf(book: BookRecord): 'reading' | 'todo' | 'done' {
+  if (!book.progress) return 'todo'
+  const percent = bookPercent(book, book.progress.chapterIndex, book.progress.ratio)
+  if (percent >= 1) return 'done'
+  return percent > 0 ? 'reading' : 'todo'
+}
+
+/** 两位数补零，时间里的时和分要用 */
+function pad2(value: number): string {
+  return value.toString().padStart(2, '0')
+}
+
+/** 那一天零点的时间戳，用来算「隔了几天」 */
+function dayStart(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+}
+
+/**
+ * 列表里那一列时间。今天的写「今天 09:09」、昨天的写「昨天 21:40」、
+ * 今年的写「4月15日 09:07」、跨年的补上年份——飞书那一列就是这么写的。
+ *
+ * `now` 是给验收脚本留的：不算出一个固定的「今天」，这条规则就没法断言。
+ * 不传就是此刻。
+ */
+export function docTimeText(timestamp: number, now: number = Date.now()): string {
+  const date = new Date(timestamp)
+  const clock = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`
+  const days = Math.round((dayStart(new Date(now)) - dayStart(date)) / 86_400_000)
+  if (days <= 0) return `今天 ${clock}`
+  if (days === 1) return `昨天 ${clock}`
+  const monthDay = `${date.getMonth() + 1}月${date.getDate()}日`
+  const sameYear = date.getFullYear() === new Date(now).getFullYear()
+  return sameYear ? `${monthDay} ${clock}` : `${date.getFullYear()}年${monthDay} ${clock}`
+}
+
+/** 列表里「位置」那一列。我们只有一个空间，所有人的文档都在这里 */
+export const DOC_LOCATION = '我的空间'
+
+/** 列表里「所有者」那一列。书里的作者名是真数据，没有就写「我」 */
+export function docOwnerOf(book: BookRecord): string {
+  return book.author.trim() || '我'
+}
+
+/**
+ * 首页当前该显示哪几行、按什么顺序。
+ *
+ * 四个页签里只有两个有对应的数据源：**最近访问**（按最近阅读）和
+ * **归我所有**（按加入时间）。另外两个在这个应用里没有东西可列——
+ * 本地文件不上传，「与我共享」里永远是空的；收藏更是一个我们没有的功能。
+ * 所以它们**老实返回空数组**，由外壳写一句说明，而不是把同一批书
+ * 换个标题再列一遍。
+ */
+export function homeRows(
+  books: BookRecord[],
+  view: { tab: DocTab; filter: DocFilter; sortKey: DocSortKey; direction: 'asc' | 'desc' },
+): BookRecord[] {
+  if (view.tab === 'shared' || view.tab === 'starred') return []
+  const rows = books.filter((book) => view.filter === 'all' || readStateOf(book) === view.filter)
+  const key = (book: BookRecord): number =>
+    view.sortKey === 'created' ? book.addedAt : book.lastReadAt || book.addedAt
+  const sign = view.direction === 'desc' ? -1 : 1
+  return [...rows].sort((a, b) => sign * (key(a) - key(b)) || a.title.localeCompare(b.title, 'zh'))
+}
+
+/**
+ * 「置顶文档」那一行：最近读的那本。
+ *
+ * 真飞书的置顶是用户自己钉的，我们没有钉这个动作——但「最近在读的那本」
+ * 是这个位置唯一说得通的真数据（它就在列表最上面）。一本书都没有时返回
+ * undefined，外壳那边不摆这一行。
+ */
+export function pinnedBook(books: BookRecord[]): BookRecord | undefined {
+  return books.reduce<BookRecord | undefined>(
+    (best, book) => (!best || book.lastReadAt > best.lastReadAt ? book : best),
+    undefined,
+  )
 }

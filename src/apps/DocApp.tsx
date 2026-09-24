@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react'
-import { avatarOf, dateText } from '../lib/appdocs'
+import { avatarOf } from '../lib/appdocs'
 import { formatChars, formatPercent } from '../lib/format'
 import { cx } from '../lib/cx'
-import { IconChevron, IconImport, IconSearch } from '../components/ui/icons'
+import { IconChevron } from '../components/ui/icons'
 import {
   IconAlignJustify,
   IconAlignLeft,
@@ -10,7 +10,6 @@ import {
   IconCheckbox,
   IconComment,
   IconDivider,
-  IconDoc,
   IconFontColor,
   IconHighlight,
   IconLink,
@@ -21,9 +20,10 @@ import {
   IconThumbUp,
   IconUndo,
 } from '../components/ui/app-icons'
+import { useHotkeyCombo } from '../store/hotkeys'
+import { toggleFullscreen } from '../lib/fullscreen'
 import { AppMenu, NavRow } from './OfficeFrame'
 import type { AppFrameProps } from './types'
-import type { ShelfProps } from './ShelfShell'
 
 const FONT_LABELS: Record<string, string> = {
   sans: '系统默认',
@@ -51,6 +51,9 @@ const FONT_ORDER = ['sans', 'serif', 'kai', 'mono']
 export function DocApp(props: AppFrameProps) {
   const { book, settings, onSettingsChange } = props
   const [outlineOpen, setOutlineOpen] = useState(() => window.innerWidth >= 900)
+  const settingsHotkey = useHotkeyCombo('settings')
+  const fullscreenHotkey = useHotkeyCombo('fullscreen')
+  const dimHotkey = useHotkeyCombo('dim')
 
   const cycleFont = () => {
     const index = FONT_ORDER.indexOf(settings.fontFamily)
@@ -117,7 +120,9 @@ export function DocApp(props: AppFrameProps) {
           aria-label="回到云文档首页"
           onClick={props.onBack}
         >
-          <IconChevron className="h-4 w-4 rotate-180" />
+          {/* 返回箭头：chevron 画的是「向下」，顺时针转 90° 才是「向左」。
+              原来写的是 rotate-180，屏幕上是一个朝上的箭头（2026-09-24 修） */}
+          <IconChevron className="h-5 w-5 rotate-90" />
         </button>
         <div className="mn-doc__name" title={book.title}>
           {book.title}
@@ -146,19 +151,13 @@ export function DocApp(props: AppFrameProps) {
           </span>
           <AppMenu
             items={[
-              { label: '阅读设置（主题也在这里）', hint: 'S', onSelect: props.onOpenSettings },
+              { label: '阅读设置（主题也在这里）', hint: settingsHotkey, onSelect: props.onOpenSettings },
               {
                 label: props.dimOn ? '退出摸鱼模式' : '摸鱼模式（调暗正文）',
+                hint: dimHotkey,
                 onSelect: props.onToggleDim,
               },
-              {
-                label: '全屏',
-                hint: 'F',
-                onSelect: () => {
-                  if (document.fullscreenElement) void document.exitFullscreen()
-                  else void document.documentElement.requestFullscreen()
-                },
-              },
+              { label: '全屏', hint: fullscreenHotkey, onSelect: toggleFullscreen },
               { label: '回到云文档首页', separatorBefore: true, onSelect: props.onBack },
             ]}
           />
@@ -222,7 +221,11 @@ export function DocApp(props: AppFrameProps) {
               <button
                 key={item.id}
                 type="button"
-                className={cx('mn-doc__tool', item.active && 'is-active')}
+                className={cx(
+                  'mn-doc__tool',
+                  !toolbarIcons[item.id] && 'mn-doc__tool--text',
+                  item.active && 'is-active',
+                )}
                 title={item.title}
                 aria-label={item.title}
                 aria-pressed={item.active}
@@ -241,135 +244,6 @@ export function DocApp(props: AppFrameProps) {
             </button>
           </div>
           <div className="mn-doc__canvas mn-veil">{props.children}</div>
-        </main>
-      </div>
-    </div>
-  )
-}
-
-/**
- * 云文档首页（书架）。
- *
- * 左边是空间，右边是「最近访问」的列表：名称、位置、所有者、修改时间。
- * 所有者用的是书里的作者名，时间是这本书加入书架的时间——全是真的，
- * 不编一个「张三 3 分钟前编辑过」出来。
- */
-export function DocHome({
-  books,
-  onOpen,
-  onMenu,
-  onOpenSettings,
-  onImport,
-  dropping,
-}: ShelfProps) {
-  const [query, setQuery] = useState('')
-  const needle = query.trim().toLowerCase()
-  const list = (books ?? []).filter(
-    (book) =>
-      !needle ||
-      book.title.toLowerCase().includes(needle) ||
-      book.author.toLowerCase().includes(needle),
-  )
-
-  return (
-    <div className={cx('mn-doc mn-doc--home', dropping && 'mn-drop-active')}>
-      <header className="mn-doc__bar">
-        <span className="mn-doc__brand">云文档</span>
-        <label className="mn-doc__search">
-          <IconSearch className="h-4 w-4" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索文档"
-            aria-label="搜索文档"
-          />
-        </label>
-        <div className="mn-doc__bar-right">
-          <button type="button" className="mn-doc__import" onClick={onImport}>
-            <IconImport className="h-4 w-4" />
-            导入
-          </button>
-          <span className="mn-doc__avatar" title="我">
-            我
-          </span>
-          <AppMenu
-            items={[
-              { label: '阅读设置（主题也在这里）', onSelect: onOpenSettings },
-              { label: '导入文件', onSelect: onImport },
-              {
-                label: '全屏',
-                separatorBefore: true,
-                onSelect: () => {
-                  if (document.fullscreenElement) void document.exitFullscreen()
-                  else void document.documentElement.requestFullscreen()
-                },
-              },
-            ]}
-          />
-        </div>
-      </header>
-
-      <div className="mn-doc__home-body">
-        <aside className="mn-doc__spaces">
-          <button type="button" className="mn-doc__space is-active">
-            <IconDoc className="h-4 w-4" />
-            我的空间
-          </button>
-          <button type="button" className="mn-doc__space" disabled title="这个外壳里只有一个空间">
-            <IconDoc className="h-4 w-4" />
-            共享空间
-          </button>
-          <button type="button" className="mn-doc__space" disabled title="这个外壳里只有一个空间">
-            <IconDoc className="h-4 w-4" />
-            知识库
-          </button>
-        </aside>
-
-        <main className="mn-doc__home-main">
-          <div className="mn-doc__home-head">
-            <h2>最近访问</h2>
-            <span>{books === undefined ? '正在读…' : `${list.length} 篇`}</span>
-          </div>
-          <div className="mn-doc__table" role="table">
-            <div className="mn-doc__table-head" role="row">
-              <span>名称</span>
-              <span>位置</span>
-              <span>所有者</span>
-              <span>修改时间</span>
-              <span />
-            </div>
-            {books === undefined ? (
-              <p className="mn-doc__empty">正在打开书架…</p>
-            ) : list.length === 0 ? (
-              <p className="mn-doc__empty">
-                {books.length === 0 ? '还没有文档。拖一本小说进来，或者点右上角的「导入」。' : `没有匹配「${query}」的文档`}
-              </p>
-            ) : (
-              list.map((book) => (
-                <div key={book.id} className="mn-doc__table-row" role="row">
-                  <button type="button" className="mn-doc__doc" onClick={() => onOpen(book)}>
-                    <IconDoc className="mn-doc__doc-icon h-4 w-4" />
-                    <span className="truncate">{book.title}</span>
-                  </button>
-                  <span className="mn-doc__cell-soft">我的空间</span>
-                  <span className="mn-doc__cell-soft">{book.author || '我'}</span>
-                  <span className="mn-doc__cell-soft">{dateText(book.lastReadAt || book.addedAt)}</span>
-                  <button
-                    type="button"
-                    className="mn-doc__row-more"
-                    title="更多操作"
-                    aria-label={`${book.title} 的更多操作`}
-                    onClick={() => onMenu(book)}
-                  >
-                    ⋯
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-          <p className="mn-doc__home-hint">
-            点一下文档就能进阅读器 · ⋯ 里是解析设置与删除 · 全是本地文件，不上传
-          </p>
         </main>
       </div>
     </div>

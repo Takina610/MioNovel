@@ -26,8 +26,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 44px;
-  padding: 0 12px;
+  height: 50px;
+  padding: 0 14px;
   background: var(--mn-surface);
   border-bottom: 1px solid var(--mn-border);
   font-size: 13px;
@@ -60,8 +60,8 @@
 .mn-doc__icon-btn {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
   color: var(--mn-fg-muted);
   transition:
@@ -81,6 +81,11 @@
 
 .mn-doc__icon-btn:disabled {
   opacity: 0.4;
+}
+
+.mn-doc__icon-btn svg {
+  width: 20px;
+  height: 20px;
 }
 
 /* 「已读 42%」：飞书没有这一格，但读者需要知道读到哪了，所以做成一颗安静的胶囊 */
@@ -207,9 +212,9 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 1px;
-  height: 38px;
-  padding: 0 10px;
+  gap: 2px;
+  height: 44px;
+  padding: 0 12px;
   background: var(--mn-surface);
   border-bottom: 1px solid var(--mn-border);
   overflow-x: auto;
@@ -225,9 +230,9 @@
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 5px;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
   color: var(--mn-fg-muted);
   transition:
     background-color var(--mn-dur-1) var(--mn-ease),
@@ -248,10 +253,25 @@
   opacity: 0.4;
 }
 
+/* 工具条上的图标：盒子 30、图标 20。我们这批记号画在 24 格里、墨迹占约 16 格，
+   20 的盒子≈14 的视觉大小，和飞书工具条上那些图标一样大 */
+.mn-doc__tool svg {
+  width: 20px;
+  height: 20px;
+}
+
 .mn-doc__tool-glyph {
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* 字形的那些按钮（字体名、A⁻ / A⁺）宽度跟着字走：
+   给死宽会把字挤出盒子，压到旁边的字号按钮上 */
+.mn-doc__tool--text {
+  width: auto;
+  min-width: 30px;
+  padding: 0 8px;
 }
 
 .mn-doc__toolbar-gap {
@@ -287,203 +307,757 @@
 }
 
 /* ==========================================================================
-   云文档首页（书架）
+   云文档首页（.mn-doc--home）
+   --------------------------------------------------------------------------
+   飞书云文档「主页」那一屏：左边一条 300px 的空间栏（底色 --mn-bg，比正文区
+   深一档），右边是白底的一列卡片、一条页签和一张文档列表。
+
+   尺寸是从那一屏上量下来的：侧栏 300、搜索框 32 高、导航行 36（间隔 2）、
+   卡片 64 高（294 宽、间隔 20）、列表行 56、四列数据各 224、行尾 ⋯ 34。
+   颜色一律走 token，一个色号都不写——同一副外壳要给「飞书 亮」和「飞书 暗」
+   两套主题用（见 docs/SPEC.md 五 5.5）。
+
+   灰着的那些（云盘 / 知识库 / 智能纪要、顶栏三个图标、模板库、底部三个）
+   都是真的 disabled：它们在这个应用里没有对应的东西，`title` 里写清了原因。
+   视觉上压到 0.6 透明度——比截图里那种「能点」的样子淡一档，这是有意的：
+   **看起来灰的东西才是诚实的**，理由同决定记录 27。
    ========================================================================== */
 
 .mn-doc--home {
-  background: var(--mn-bg);
-}
-
-.mn-doc__search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: min(420px, 46vw);
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 6px;
-  background: var(--mn-surface-2);
-  color: var(--mn-fg-faint);
-}
-
-.mn-doc__search input {
-  flex: 1;
-  border: 0;
-  background: transparent;
-  color: var(--mn-fg);
-  font-size: 12.5px;
-  outline: none;
-}
-
-.mn-doc__import {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 6px;
-  background: var(--mn-accent);
-  color: #fff;
-  font-size: 12.5px;
-}
-
-.mn-doc__home-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
+  flex-direction: row;
   align-items: stretch;
-}
-
-.mn-doc__spaces {
-  flex: 0 0 208px;
-  width: 208px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 14px 8px;
-  background: var(--mn-bg);
-  border-right: 1px solid var(--mn-border);
-}
-
-.mn-doc__space {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 6px;
-  color: var(--mn-fg-muted);
-  font-size: 12.5px;
-  text-align: left;
-}
-
-.mn-doc__space:hover:not(:disabled) {
-  background: var(--mn-surface-2);
-  color: var(--mn-fg);
-}
-
-.mn-doc__space.is-active {
-  background: var(--mn-accent-soft);
-  color: var(--mn-accent);
-  font-weight: 600;
-}
-
-.mn-doc__space:disabled {
-  opacity: 0.5;
-}
-
-.mn-doc__home-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 18px 24px 40px;
-  overflow-y: auto;
   background: var(--mn-surface);
 }
 
-.mn-doc__home-head {
+/* ---- 左边的空间栏 ---- */
+
+.mn-doc__side {
+  flex: 0 0 300px;
+  width: 300px;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding-bottom: 10px;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 8px;
+  background: var(--mn-bg);
+  user-select: none;
 }
 
-.mn-doc__home-head h2 {
-  margin: 0;
+.mn-doc__side-top {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  flex: 0 0 auto;
+  height: 52px;
+  padding: 0 6px 0 13px;
+}
+
+/* 收起侧栏：真飞书里这个按钮会把侧栏折起来，我们没有那个形态 */
+.mn-doc__side-fold {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--mn-fg-muted);
+  opacity: 0.7;
+}
+
+/* 图标盒子为什么是这个数：见文件末尾「图标尺寸」那一节 */
+.mn-doc__side-fold svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* 商标：三个色号写在图标里（产品记号不跟主题走，同文件头第 1 条） */
+.mn-doc__mark {
+  flex: 0 0 auto;
+  width: 25px;
+  height: 24px;
+}
+
+.mn-doc__brand-name {
   color: var(--mn-fg);
   font-size: 15px;
   font-weight: 600;
 }
 
-.mn-doc__home-head span {
-  color: var(--mn-fg-faint);
-  font-size: 11.5px;
+/* 商标的墨迹在 24 格里只占 19x16.5，盒子给宽一点，和名字挨近一点 */
+.mn-doc__mark + .mn-doc__brand-name {
+  margin-left: -6px;
 }
 
-.mn-doc__table {
+.mn-doc__find {
   display: flex;
-  flex-direction: column;
-}
-
-.mn-doc__table-head,
-.mn-doc__table-row {
-  display: grid;
-  grid-template-columns: minmax(0, 2.2fr) 1fr 1fr 1.2fr 32px;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--mn-surface);
+  color: var(--mn-fg-faint);
 }
 
-.mn-doc__table-head {
-  height: 30px;
+.mn-doc__find-icon {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+}
+
+.mn-doc__find input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 14px;
+  outline: none;
+}
+
+.mn-doc__find button {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--mn-fg-faint);
+}
+
+.mn-doc__find button:hover {
+  color: var(--mn-fg);
+}
+
+/* 中间这一整块（导航、置顶、我的文档库）自己滚，搜索框和底部那条永远在 */
+.mn-doc__side-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 0 8px;
+}
+
+.mn-doc__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 一行导航 / 一个文档：36 高、圆角 8，选中的底色是强调色 15% 铺在侧栏底上
+   （量到的 #D3DEF6 就是 #1456F0 的 15%——这里用强调色算，不写死色号） */
+.mn-doc__navrow,
+.mn-doc__side-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
   color: var(--mn-fg-muted);
-  font-size: 11.5px;
-  border-bottom: 1px solid var(--mn-border-strong);
+  font-size: 14px;
+  text-align: left;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
 }
 
-.mn-doc__table-row {
-  height: 38px;
-  border-bottom: 1px solid var(--mn-border);
-  font-size: 12.5px;
+.mn-doc__navrow:hover:not(:disabled),
+.mn-doc__side-row:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
 }
 
-.mn-doc__table-row:hover {
+.mn-doc__navrow.is-active {
+  background: color-mix(in srgb, var(--mn-accent) 15%, transparent);
+  color: var(--mn-accent);
+  font-weight: 500;
+}
+
+.mn-doc__navrow:disabled,
+.mn-doc__side-row--ghost:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.mn-doc__nav-icon,
+.mn-doc__side-icon {
+  flex: 0 0 auto;
+}
+
+.mn-doc__side-row svg,
+.mn-doc__side-row--ghost svg {
+  width: 22px;
+  height: 22px;
+}
+
+.mn-doc__navrow svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* 文档行比导航行缩进一档（图标在 24 的位置上），字用正文色 */
+.mn-doc__side-row {
+  gap: 9px;
+  padding-left: 24px;
+  color: var(--mn-fg);
+}
+
+.mn-doc__side-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mn-doc__side-label {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  margin-top: 14px;
+  padding: 0 8px;
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+}
+
+.mn-doc__side-label--tools {
+  justify-content: space-between;
+  padding-right: 4px;
+}
+
+.mn-doc__side-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mn-doc__side-tools button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  color: var(--mn-fg-muted);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-doc__side-tools svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mn-doc__side-tools button:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-doc__side-empty {
+  padding: 4px 8px 4px 24px;
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+}
+
+/* 底部那三个（打印 / 工具箱 / 回收站）：三等分，中间两条竖线 */
+.mn-doc__dock {
+  flex: 0 0 auto;
+  display: flex;
+  height: 44px;
+  border-top: 1px solid var(--mn-border);
+}
+
+.mn-doc__dock button {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  color: var(--mn-fg-muted);
+  opacity: 0.7;
+}
+
+.mn-doc__dock svg {
+  width: 24px;
+  height: 24px;
+}
+
+.mn-doc__dock button + button {
+  border-left: 1px solid var(--mn-border);
+}
+
+/* ---- 右边：主页 ---- */
+
+.mn-doc__home {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--mn-surface);
+}
+
+.mn-doc__top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 26px 0 28px;
+}
+
+.mn-doc__page-title {
+  margin: 0;
+  color: var(--mn-fg);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.mn-doc__top-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.mn-doc__top-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--mn-fg-muted);
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-doc__top-btn:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-doc__top-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.mn-doc__top-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.mn-doc__avatar--lg {
+  width: 30px;
+  height: 30px;
+  font-size: 13px;
+}
+
+.mn-doc__home-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 18px 40px 30px;
+}
+
+/* 侧栏和列表都用细一档的滚动条：14px 会明显挤掉一列文字的宽度。
+   选择器里带上 html[data-chrome] 是为了压过 office.css 里那条全局宽度 */
+html[data-chrome='doc'] .mn-doc__side-scroll::-webkit-scrollbar,
+html[data-chrome='doc'] .mn-doc__home-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+/* ---- 三张动作卡片 ---- */
+
+.mn-doc__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 294px);
+  gap: 20px;
+  padding-top: 13px;
+}
+
+.mn-doc__card {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 64px;
+  padding: 0 14px;
+  border: 1px solid var(--mn-border);
+  border-radius: 8px;
+  background: var(--mn-surface);
+  text-align: left;
+  transition:
+    border-color var(--mn-dur-1) var(--mn-ease),
+    background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-doc__card:hover:not(:disabled) {
+  border-color: var(--mn-accent);
+  background: color-mix(in srgb, var(--mn-accent) 4%, var(--mn-surface));
+}
+
+/* 模板库那一张在这个外壳里没有：压灰，但卡片本身的形状留着 */
+.mn-doc__card:disabled {
+  cursor: default;
+}
+
+.mn-doc__card:disabled .mn-doc__card-icon {
+  opacity: 0.45;
+}
+
+.mn-doc__card:disabled .mn-doc__card-title {
+  color: var(--mn-fg-muted);
+}
+
+/* 三张卡片的图标是产品插图：墨迹只画在 24 格里的 16-18 格上，
+   所以盒子给 40px 才能得到和飞书那一屏一样的 28px 视觉大小 */
+.mn-doc__card-icon {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  margin-left: -6px;
+}
+
+.mn-doc__card-icon--new {
+  color: var(--mn-accent);
+}
+
+.mn-doc__card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mn-doc__card-title {
+  color: var(--mn-fg);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mn-doc__card-sub {
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mn-doc__card-chevron {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--mn-fg-faint);
+}
+
+/* ---- 页签那一行 ---- */
+
+.mn-doc__tabs {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  min-height: 48px;
+  margin-top: 17px;
+  color: var(--mn-fg-muted);
+  font-size: 15px;
+}
+
+.mn-doc__tab {
+  color: inherit;
+  white-space: nowrap;
+  transition: color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-doc__tab:hover {
+  color: var(--mn-fg);
+}
+
+.mn-doc__tab.is-active {
+  color: var(--mn-accent);
+  font-weight: 500;
+}
+
+.mn-doc__tab-add {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  opacity: 0.7;
+}
+
+.mn-doc__tabs-gap {
+  flex: 1;
+}
+
+/* 筛选 / 显示设置：触发器是一段带图标的字，菜单是共用的那个下拉 */
+/* 页签行右半边那三个控件自成一组：谁都不许被挤扁。
+   原来它们和页签同处一条 flex 行，空间不够时被压到 26px 宽——
+   于是「筛选」「显示设置」的字压在了旁边的视图切换上（字是 nowrap 的，
+   盒子被压小、字照原样溢出，看起来就是两个控件叠在一起）。 */
+.mn-doc__view {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 0 0 auto;
+}
+
+.mn-doc__view .mn-appmenu-wrap,
+.mn-doc__view .mn-appmenu-btn {
+  flex: 0 0 auto;
+}
+
+/* 「筛选」「显示设置」的触发器。名字跟阅读器工具条那一格（.mn-doc__tool）分开：
+   两者撞在同一个类上，首页这两个按钮就被工具条的尺寸压成了 30×30 的方格，
+   nowrap 的字溢出格子、压在右边的视图切换上（2026-09-24 修） */
+.mn-doc__viewbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 6px;
+  color: var(--mn-fg-muted);
+  font-size: 14px;
+  white-space: nowrap;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-doc__viewbtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mn-doc__viewbtn:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+/* 列表 / 网格：两格的分段控件 */
+.mn-doc__segmented {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding: 2px;
+  border-radius: 8px;
   background: var(--mn-surface-2);
 }
 
-.mn-doc__doc {
+.mn-doc__segment svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mn-doc__segment {
+  display: grid;
+  place-items: center;
+  width: 37px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--mn-fg-muted);
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-doc__segment:hover {
+  color: var(--mn-fg);
+}
+
+.mn-doc__segment.is-active {
+  background: var(--mn-surface);
+  color: var(--mn-accent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--mn-fg) 12%, transparent);
+}
+
+/* ---- 文档列表 ---- */
+
+.mn-doc__head-row,
+.mn-doc__row {
+  display: grid;
+  align-items: center;
+}
+
+.mn-doc__head-row {
+  height: 36px;
+  border-bottom: 1px solid var(--mn-border);
+  color: var(--mn-fg-muted);
+  font-size: 14px;
+}
+
+.mn-doc__row {
+  height: 56px;
+  border-bottom: 1px solid var(--mn-border);
+  font-size: 14px;
+}
+
+.mn-doc__row:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-doc__cell {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+  overflow: hidden;
+}
+
+.mn-doc__cell--soft {
+  color: var(--mn-fg-muted);
+}
+
+.mn-doc__open {
   height: 100%;
   color: var(--mn-fg);
   text-align: left;
 }
 
-.mn-doc__doc-icon {
+.mn-doc__file {
   flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
   color: var(--mn-accent);
 }
 
-.mn-doc__cell-soft {
-  min-width: 0;
+.mn-doc__title-text {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: var(--mn-fg-muted);
+}
+
+.mn-doc__folder {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: var(--mn-fg-faint);
+}
+
+.mn-doc__owner {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* 表头能排的那两列 */
+.mn-doc__sort {
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+}
+
+.mn-doc__sort:hover,
+.mn-doc__sort.is-active {
+  color: var(--mn-fg);
+}
+
+.mn-doc__sort-arrow {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+}
+
+.mn-doc__sort-arrow.is-asc {
+  transform: rotate(180deg);
 }
 
 .mn-doc__row-more {
   display: grid;
   place-items: center;
   width: 26px;
-  height: 24px;
+  height: 26px;
   border-radius: 4px;
   color: var(--mn-fg-muted);
-  opacity: 0;
-  transition: opacity var(--mn-dur-1) var(--mn-ease);
-}
-
-.mn-doc__table-row:hover .mn-doc__row-more {
-  opacity: 1;
+  font-size: 15px;
+  line-height: 1;
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
 }
 
 .mn-doc__row-more:hover {
-  background: color-mix(in srgb, var(--mn-fg) 10%, transparent);
+  background: color-mix(in srgb, var(--mn-fg) 8%, transparent);
   color: var(--mn-fg);
 }
 
-.mn-doc__empty,
-.mn-doc__home-hint {
-  padding: 16px 2px;
+.mn-doc__notice {
+  padding: 22px 2px;
   color: var(--mn-fg-faint);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
-.mn-doc__home-hint {
+/* ---- 网格视图 ---- */
+
+.mn-doc__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
+  gap: 18px;
   padding-top: 12px;
+}
+
+.mn-doc__cardtile {
+  position: relative;
+  min-width: 0;
+}
+
+.mn-doc__tile-open {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+}
+
+.mn-doc__thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border: 1px solid var(--mn-border);
+  border-radius: 8px;
+  background: var(--mn-surface-2);
+  transition: border-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-doc__tile-open:hover .mn-doc__thumb {
+  border-color: var(--mn-accent);
+}
+
+.mn-doc__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mn-doc__thumb-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: rgb(255 255 255 / 0.85);
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.mn-doc__tile-title {
+  overflow: hidden;
+  color: var(--mn-fg);
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mn-doc__tile-sub {
+  overflow: hidden;
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mn-doc__row-more--tile {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: color-mix(in srgb, var(--mn-surface) 82%, transparent);
 }
 
 /* 空壳（书没读出来时）：只有顶栏和一个白底的空文档区 */
@@ -491,27 +1065,88 @@
   max-width: 220px;
 }
 
-@media (max-width: 900px) {
-  .mn-doc__outline,
-  .mn-doc__spaces {
-    position: absolute;
-    top: 44px;
-    bottom: 0;
-    left: 0;
-    z-index: 30;
-    width: min(78vw, 260px);
-    flex-basis: auto;
-    border-right: 1px solid var(--mn-border-strong);
-    box-shadow: var(--mn-shadow-panel);
+/* ---- 窄窗口 ----
+   桌面宽窗口下侧栏是常驻的一条；窄了之后整屏改成竖排：品牌行 + 搜索 + 一排
+   导航（横着滚），列表占满剩下的宽度。置顶与「我的文档库」那一串收起来——
+   列表里本来就有它们，手机上不必横向再挤一条 300px 的栏。 */
+
+@media (max-width: 1180px) {
+  .mn-doc__head-row,
+  .mn-doc__row {
+    font-size: 13.5px;
+  }
+}
+
+@media (max-width: 860px) {
+  .mn-doc--home {
+    flex-direction: column;
   }
 
-  .mn-doc__table-head,
-  .mn-doc__table-row {
-    grid-template-columns: minmax(0, 2fr) 1fr 1.1fr 32px;
+  .mn-doc__side {
+    flex: 0 0 auto;
+    width: 100%;
+    padding-bottom: 4px;
   }
 
-  .mn-doc__table-head span:nth-child(2),
-  .mn-doc__table-row .mn-doc__cell-soft:nth-child(2) {
+  .mn-doc__side-scroll {
+    overflow: visible;
+    padding-top: 8px;
+  }
+
+  .mn-doc__nav {
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .mn-doc__nav::-webkit-scrollbar {
+    height: 0;
+  }
+
+  .mn-doc__navrow {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 0 10px;
+  }
+
+  .mn-doc__side-label,
+  .mn-doc__side-row,
+  .mn-doc__side-empty,
+  .mn-doc__dock {
     display: none;
+  }
+
+  .mn-doc__top {
+    height: 48px;
+    padding: 0 14px;
+  }
+
+  .mn-doc__home-scroll {
+    padding: 0 14px 32px;
+  }
+
+  .mn-doc__cards {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding-top: 8px;
+  }
+
+  /* 页签换行：手机上「筛选 / 显示设置 / 视图切换」不该被挤到屏幕外 */
+  .mn-doc__tabs {
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    height: auto;
+    min-height: 44px;
+    padding: 8px 0;
+  }
+
+  .mn-doc__tabs-gap {
+    display: none;
+  }
+
+  .mn-doc__side-tools svg {
+    width: 18px;
+    height: 18px;
   }
 }

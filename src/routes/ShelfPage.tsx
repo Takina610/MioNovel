@@ -33,6 +33,8 @@ import { SettingsPanel } from '../components/reader/SettingsPanel'
 import { useDecoy } from '../store/decoy'
 import { useDim } from '../store/dim'
 import { useHotkeyCombo } from '../store/hotkeys'
+import { useHotkey } from '../hooks/useHotkeys'
+import { toggleFullscreen } from '../lib/fullscreen'
 import { useImports } from '../store/imports'
 import { useSettings } from '../store/settings'
 import { cx } from '../lib/cx'
@@ -123,6 +125,11 @@ function GridShelfPage() {
 
   const dragging = useFileDrop(addFiles)
   const visible = useMemo(() => filterAndSort(books ?? [], query, sort), [books, query, sort])
+
+  // 书架上的两条命令：设置页里能改键（命令表见 lib/hotkey.ts）。
+  // 输入框里打字时它们让位（focused 档），所以搜索时打 s 不会弹出面板
+  useHotkey('settings', () => setSettingsOpen((open) => !open))
+  useHotkey('fullscreen', toggleFullscreen)
   const panelBook = useMemo(
     () => (panelBookId && books ? (books.find((book) => book.id === panelBookId) ?? null) : null),
     [books, panelBookId],
@@ -343,12 +350,19 @@ function CodeShelfPage() {
   const dragging = useFileDrop(addFiles)
   const tasks = useImports((state) => state.tasks)
   const decoy = useDecoy((state) => state.enabled)
+
+  // 编辑器书架上的三条命令：和阅读器里那三条同名同键（改一处两处都变）
+  useHotkey('settings', () => setSettingsOpen((open) => !open))
+  useHotkey('toc', () => setSideOpen((open) => !open))
+  useHotkey('fullscreen', toggleFullscreen)
   const decoyId = useDecoy((state) => state.preset)
   const toggleDecoy = useDecoy((state) => state.toggle)
   const dim = useDim((state) => state.enabled)
   const toggleDim = useDim((state) => state.toggle)
   const decoyHotkey = useHotkeyCombo('decoy')
   const dimHotkey = useHotkeyCombo('dim')
+  const settingsHotkey = useHotkeyCombo('settings')
+  const fullscreenHotkey = useHotkeyCombo('fullscreen')
   const list = useMemo(() => filterAndSort(books ?? [], '', sort), [books, sort])
   const selected = useMemo(
     () => (selectedId ? (list.find((book) => book.id === selectedId) ?? null) : null),
@@ -508,15 +522,14 @@ function CodeShelfPage() {
           },
           {
             label: decoy ? 'Preferences: Open Settings' : '阅读设置',
+            hint: settingsHotkey,
             onSelect: () => setSettingsOpen(true),
             separatorBefore: true,
           },
           {
             label: decoy ? 'View: Full Screen' : '全屏',
-            onSelect: () => {
-              if (document.fullscreenElement) void document.exitFullscreen()
-              else void document.documentElement.requestFullscreen()
-            },
+            hint: fullscreenHotkey,
+            onSelect: toggleFullscreen,
           },
         ]}
         tabs={
@@ -652,7 +665,7 @@ function CodeShelfPage() {
               list.length === 0
                 ? decoy
                   ? '把文件拖进窗口即可打开。'
-                  : 'txt 和 epub 都行，文件不上传'
+                  : 'txt 和 epub'
                 : selected?.state === 'importing'
                   ? decoy
                     ? '正在索引…'
@@ -754,7 +767,7 @@ function EmptyShelf({ onPick }: { onPick: () => void }) {
       </div>
       <div className="mt-3 text-[15px] font-medium text-fg">把小说拖进来</div>
       <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-fg-muted">
-        txt 和 epub 都行。文件只存在这台设备上，不上传，断网也能读。
+        txt · epub
       </p>
       <Button variant="outline" className="mt-5 gap-1.5" onClick={onPick}>
         <IconImport className="h-4 w-4" />

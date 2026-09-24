@@ -5,7 +5,8 @@ import type { BookRecord } from '../db/db'
 import { OfficeFrame, OfficeStart } from './OfficeFrame'
 import { IconBookBlank, IconDoc, IconSlide } from '../components/ui/app-icons'
 import { ChatApp, ChatHome } from './ChatApp'
-import { DocApp, DocHome } from './DocApp'
+import { DocApp } from './DocApp'
+import { DocHome } from './DocHome'
 import { ExcelApp } from './ExcelApp'
 import { PptApp } from './PptApp'
 import { WordApp } from './WordApp'
@@ -173,6 +174,9 @@ function OfficeHome({
   onImport,
   onOpenSettings,
   dropping,
+  dim,
+  dimOn,
+  onToggleDim,
 }: { chrome: 'page' | 'sheet' | 'slide' } & ShelfProps) {
   const list = (books ?? []).map((book) => ({
     id: book.id,
@@ -199,14 +203,13 @@ function OfficeHome({
       zoomRange={[10, 34]}
       onZoom={() => undefined}
       onOpenSettings={onOpenSettings}
-      dim={0}
-      dimOn={false}
-      onToggleDim={() => undefined}
+      dim={dim}
+      dimOn={dimOn}
+      onToggleDim={onToggleDim}
     >
       <OfficeStart
-        appLabel={appName(chrome)}
         blankLabel={BLANK_LABELS[chrome]}
-        blankHint="拖一本小说进来，就是这个「新建」"
+        blankHint="本地 txt / epub"
         BlankIcon={BLANK_ICONS[chrome]}
         books={list}
         onOpen={(id) => {
@@ -219,6 +222,7 @@ function OfficeHome({
         }}
         onImport={onImport}
         dropping={dropping}
+        dim={dim}
       />
     </OfficeFrame>
   )

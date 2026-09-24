@@ -237,3 +237,22 @@ export function chapterBlocks(
 export function isContentBlock(block: Block): boolean {
   return block.text.length > 0
 }
+
+/**
+ * 正文 HTML → 「图片写成一行引用」的正文 HTML。
+ *
+ * 编辑器形态和飞书形态都不渲染任何图：打开一本书应该是一片字，
+ * 而不是一张全屏的图。做法和 chapterBlocks 的 'reference' 模式共用同一套
+ * （替换 + 整理成块），只是这里返回 HTML——那两个形态的正文是直出的。
+ *
+ * 引用行里写的是**书里的原始路径**（`OEBPS/Images/pic.png`），不是渲染时的
+ * blob 地址，所以 resolve 必须把 blob 还原回原始路径（见 hooks/useChapterHtml）。
+ */
+export function mediaLinesHtml(
+  html: string,
+  resolve?: (src: string) => string | undefined,
+): string {
+  if (!html) return html
+  const { body } = prepareBody(html, { media: 'reference', resolve })
+  return body.innerHTML
+}

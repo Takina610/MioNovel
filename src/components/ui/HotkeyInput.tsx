@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { comboFromEvent, comboProblem } from '../../lib/hotkey'
+import { comboFromEvent, comboProblem, type HotkeyScope } from '../../lib/hotkey'
 import { cx } from '../../lib/cx'
 import { useHotkeyBindings } from '../../store/hotkeys'
 
 interface HotkeyInputProps {
-  /** 功能名，只用在 aria-label 上（面板里那一行的标题是共用的「快捷键」） */
+  /** 功能名。这一行左边的字就是它 */
   name: string
   combo: string
+  /** 这一条属于哪一档（global 必须带修饰键，focused 可以是单键）。见 lib/hotkey.ts */
+  scope?: HotkeyScope
   onChange: (combo: string) => void
   onReset: () => void
-  /** 除了「必须带修饰键」之外还要查的条件（比如已被另一个功能占用），返回文案表示不可用 */
+  /** 组合本身合不合法之外还要查的条件（比如已被另一个功能占用），返回文案表示不可用 */
   check?: (combo: string) => string | null
 }
 
@@ -23,7 +25,7 @@ interface HotkeyInputProps {
  *
  * Esc 取消，Backspace / Delete 恢复默认。修饰键单独按不算一个组合（它们只是前缀）。
  */
-export function HotkeyInput({ name, combo, onChange, onReset, check }: HotkeyInputProps) {
+export function HotkeyInput({ name, combo, scope, onChange, onReset, check }: HotkeyInputProps) {
   const [recording, setRecording] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -55,7 +57,7 @@ export function HotkeyInput({ name, combo, onChange, onReset, check }: HotkeyInp
       const next = comboFromEvent(event)
       // 只按了修饰键：它还不是一个组合，继续等真正的那个键
       if (!next) return
-      const problem = comboProblem(next) ?? check?.(next) ?? null
+      const problem = comboProblem(next, scope) ?? check?.(next) ?? null
       if (problem) {
         setError(problem)
         return
@@ -76,11 +78,11 @@ export function HotkeyInput({ name, combo, onChange, onReset, check }: HotkeyInp
       window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('pointerdown', onPointerDown, true)
     }
-  }, [recording, onChange, onReset, check])
+  }, [recording, onChange, onReset, check, scope])
 
   return (
     <div className="flex items-start justify-between gap-3">
-      <span className="text-[13px] text-fg-muted">快捷键</span>
+      <span className="whitespace-nowrap text-[13px] text-fg-muted">{name}</span>
       <span className="flex flex-col items-end gap-1">
         <button
           ref={buttonRef}

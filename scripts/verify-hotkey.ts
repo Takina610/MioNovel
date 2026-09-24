@@ -10,10 +10,23 @@
  *   2. code → 标签 的来回换算（KeyQ / Digit1 / F2 / Slash / Numpad1）
  *   3. 一次按键能不能匹配组合：多按一个修饰键不算、德语布局下 Alt+S 仍要命中
  *   4. 录键时要挡掉的东西：只有修饰键、只带 Shift、认不出来的串
+ *   5. 命令表本身：默认组合不重复、每条都合法、标签齐全、两条「伪装」功能是全局档，
+ *      以及「这个功能在哪些形态下存在」（hotkeyLiveOn）——快捷键与设置面板共用它
  *
  * 用法：bun run verify:hotkey
  */
-import { comboFromEvent, comboProblem, keyLabel, matchesCombo, parseCombo } from '../src/lib/hotkey'
+import {
+  comboFromEvent,
+  comboProblem,
+  DEFAULT_HOTKEYS,
+  hotkeyCommandOf,
+  hotkeyLiveOn,
+  HOTKEY_COMMANDS,
+  HOTKEY_LABELS,
+  keyLabel,
+  matchesCombo,
+  parseCombo,
+} from '../src/lib/hotkey'
 
 let checked = 0
 const problems: string[] = []
@@ -108,11 +121,70 @@ check('认不出来的组合不匹配', matchesCombo(keyEvent({ code: 'KeyQ', al
 
 // 4) 录键校验
 const plain = comboProblem('K')
-check('单个字母被挡下（提示要带修饰键）', plain !== null && plain.includes('Ctrl'), true)
+check('单个字母被挡下（全局快捷键要带修饰键）', plain !== null && plain.includes('Ctrl'), true)
 const shiftOnly = comboProblem('Shift+Q')
 check('只带 Shift 也被挡下', shiftOnly !== null && shiftOnly.includes('Ctrl'), true)
 check('Alt+Q 可用', comboProblem('Alt+Q'), null)
 check('Ctrl+Shift+J 可用', comboProblem('Ctrl+Shift+J'), null)
+// 页面里的命令（focused）可以绑单键：它们只在没有输入焦点时响
+check('focused 档允许单键', comboProblem('S', 'focused'), null)
+check('focused 档仍然挡掉认不出来的串', comboProblem('Hyper+Q', 'focused'), '这个组合认不出来')
+check('同一个单键在 global 档过不了', comboProblem('S', 'global') !== null, true)
+
+// 5) 命令表：默认值、标签、作用域都要自洽
+{
+  const ids = HOTKEY_COMMANDS.map((command) => command.id)
+  check('命令 id 不重复', new Set(ids).size, ids.length)
+  const combos = HOTKEY_COMMANDS.map((command) => command.combo)
+  check('默认组合不重复（两条命令抢同一个键，谁先响说不清）', new Set(combos).size, combos.length)
+  check(
+    '每条默认组合都合法（按它自己的作用域判）',
+    HOTKEY_COMMANDS.every((command) => comboProblem(command.combo, command.scope) === null),
+    true,
+  )
+  check(
+    '每条命令都有中文标签',
+    HOTKEY_COMMANDS.every((command) => command.label.trim().length > 0),
+    true,
+  )
+  check(
+    '两条「伪装」功能是全局档（不带修饰键会在输入框里误触发）',
+    HOTKEY_COMMANDS.filter((command) => command.scope === 'global').map((command) => command.id).join(','),
+    'decoy,dim',
+  )
+  check('页面里的三条命令是 focused 档', HOTKEY_COMMANDS.filter((c) => c.id === 'settings' || c.id === 'toc' || c.id === 'fullscreen').every((c) => c.scope === 'focused'), true)
+  check('默认组合表和命令表一致', DEFAULT_HOTKEYS.settings, 'S')
+  check('默认组合表和命令表一致（全屏）', DEFAULT_HOTKEYS.fullscreen, 'F')
+  check('标签表和命令表一致', HOTKEY_LABELS.toc, '目录 / 侧栏')
+  check('查得到某条命令的作用域', hotkeyCommandOf('decoy').scope, 'global')
+
+  // 「在不在」这一个判断，快捷键与设置面板共用（hotkeyLiveOn）。
+  // 这一条是踩出来的：面板里五套办公外壳都有「摸鱼模式」开关，而它的键只在
+  // 编辑器形态下响应，于是飞书里按 Alt+S 毫无反应。
+  check('演示模式只在编辑器形态下存在', hotkeyLiveOn('decoy', 'code'), true)
+  check('演示模式在飞书里不存在', hotkeyLiveOn('decoy', 'doc'), false)
+  check('摸鱼模式在编辑器形态下存在', hotkeyLiveOn('dim', 'code'), true)
+  check(
+    '摸鱼模式在五套办公外壳里都存在',
+    ['doc', 'chat', 'page', 'sheet', 'slide'].every((chrome) => hotkeyLiveOn('dim', chrome)),
+    true,
+  )
+  check(
+    '两个「伪装」功能在普通阅读形态下都不存在',
+    hotkeyLiveOn('decoy', 'plain') === false && hotkeyLiveOn('dim', 'plain') === false,
+    true,
+  )
+  check(
+    '没写 presence 的命令到处都在（登记在哪个页面就在哪儿生效）',
+    hotkeyLiveOn('settings', 'plain') && hotkeyLiveOn('toc', 'doc'),
+    true,
+  )
+  check(
+    '有 presence 的两条必须是 global 档（页面里的命令由登记决定，不看这个）',
+    HOTKEY_COMMANDS.filter((command) => command.presence).every((command) => command.scope === 'global'),
+    true,
+  )
+}
 
 if (problems.length === 0) {
   console.log(`快捷键验收通过（${checked} 项断言）`)

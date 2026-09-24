@@ -21,6 +21,8 @@ import {
   IconPhone,
   IconVideo,
 } from '../components/ui/app-icons'
+import { useHotkeyCombo } from '../store/hotkeys'
+import { toggleFullscreen } from '../lib/fullscreen'
 import { AppMenu, NavRow } from './OfficeFrame'
 import type { AppFrameProps } from './types'
 import type { ShelfProps } from './ShelfShell'
@@ -58,6 +60,9 @@ export function ChatApp(props: AppFrameProps) {
   const { book } = props
   const [recordsOpen, setRecordsOpen] = useState(() => window.innerWidth >= 1024)
   const [view, setView] = useState<RailView>('msg')
+  const settingsHotkey = useHotkeyCombo('settings')
+  const fullscreenHotkey = useHotkeyCombo('fullscreen')
+  const dimHotkey = useHotkeyCombo('dim')
 
   const sender = chatSender(book.author)
   const hue = avatarHue(sender)
@@ -113,18 +118,16 @@ export function ChatApp(props: AppFrameProps) {
               </button>
               <AppMenu
                 items={[
-                  { label: '阅读设置（主题也在这里）', hint: 'S', onSelect: props.onOpenSettings },
+                  { label: '阅读设置（主题也在这里）', hint: settingsHotkey, onSelect: props.onOpenSettings },
                   {
                     label: props.dimOn ? '退出摸鱼模式' : '摸鱼模式（调暗消息区）',
+                    hint: dimHotkey,
                     onSelect: props.onToggleDim,
                   },
                   {
                     label: '全屏',
-                    hint: 'F',
-                    onSelect: () => {
-                      if (document.fullscreenElement) void document.exitFullscreen()
-                      else void document.documentElement.requestFullscreen()
-                    },
+                    hint: fullscreenHotkey,
+                    onSelect: toggleFullscreen,
                   },
                   { label: '回到会话列表', separatorBefore: true, onSelect: props.onBack },
                 ]}
@@ -420,7 +423,7 @@ function ChatListView({
   onOpenBook?: (book: BookRecord) => void
 }) {
   if (total === 0) {
-    return <p className="mn-office__side-hint">还没有会话。拖一本小说进来，或者点下面的「导入文件」。</p>
+    return <p className="mn-office__side-hint">还没有会话</p>
   }
   if (books.length === 0) {
     return <p className="mn-office__side-hint">没有匹配「{query}」的</p>
@@ -585,7 +588,7 @@ function ChatListView({
  * 底下写清怎么把书弄进来。不自动打开某本书——理由和编辑器形态的首页一样
  * （见 docs/SPEC.md 五 5.4 第 5 条）。
  */
-export function ChatHome({ books, onOpen, onMenu, onImport, onOpenSettings, dropping }: ShelfProps) {
+export function ChatHome({ books, onOpen, onMenu, onImport, onOpenSettings, dropping, dim, dimOn, onToggleDim }: ShelfProps) {
   const [view, setView] = useState<RailView>('msg')
   return (
     <div className={cx(dropping && 'mn-drop-active')}>
@@ -595,19 +598,19 @@ export function ChatHome({ books, onOpen, onMenu, onImport, onOpenSettings, drop
         books={books}
         onImport={onImport}
         onOpenSettings={onOpenSettings}
-        dim={0}
-        dimOn={false}
-        onToggleDim={() => undefined}
+        dim={dim}
+        dimOn={dimOn}
+        onToggleDim={onToggleDim}
         onOpenBook={onOpen}
         main={
-          <div className="mn-chat__stage">
+          <div className="mn-chat__stage mn-veil">
             <div className="mn-chat__empty">
               <p className="mn-chat__empty-title">选择一个会话</p>
               <p className="mn-chat__empty-hint">
                 {books === undefined
                   ? '正在打开书架…'
                   : books.length === 0
-                    ? '还没有会话。拖一本小说进来，或者点左下角的「导入文件」。'
+                    ? '还没有会话'
                     : '左边是全部会话（= 全部书）。点一个就开始读。'}
               </p>
               {books && books.length > 0 ? (

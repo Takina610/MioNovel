@@ -93,9 +93,89 @@ export function matchesCombo(event: KeyboardEvent, combo: string): boolean {
  * 必须带 Ctrl / Alt / ⌘ 之一：只带 Shift 的话，在输入框里打一个大写字母就会触发，
  * 而全局快捷键是**不管焦点在哪都会响**的（见 hooks/useGlobalHotkeys）。
  */
-export function comboProblem(combo: string): string | null {
+export function comboProblem(combo: string, scope: HotkeyScope = 'global'): string | null {
   const parts = parseCombo(combo)
   if (!parts) return '这个组合认不出来'
-  if (!parts.ctrl && !parts.alt && !parts.meta) return '要带上 Ctrl 或 Alt'
+  if (scope === 'global' && !parts.ctrl && !parts.alt && !parts.meta) return '要带上 Ctrl 或 Alt'
   return null
+}
+
+/* ==========================================================================
+   命令表
+   --------------------------------------------------------------------------
+   哪些功能有快捷键、各是什么组合、属于哪一档生效范围——这张表是**唯一事实来源**。
+   设置面板、菜单上的键位提示、冲突检查都从它推出来；加一个快捷键 = 这里加一条
+   + 在页面上用 `useHotkey(id, …)` 登记一下（见 hooks/useHotkeys）。
+   ========================================================================== */
+
+/**
+ * 一个快捷键的生效范围。
+ *
+ *   focused  只在「没有在输入框里打字」时响应，所以**可以是不带修饰键的单键**
+ *            （S / T / F）：它们只在该页面里、且焦点不在输入框时生效。
+ *   global   不管焦点在哪都会响，所以**必须带一个真修饰键**——否则在搜索框里
+ *            打一个 s 就会把设置面板开出来（见 hooks/useGlobalHotkeys）。
+ */
+export type HotkeyScope = 'focused' | 'global'
+
+export type HotkeyId = 'settings' | 'toc' | 'fullscreen' | 'decoy' | 'dim'
+
+/**
+ * 这个功能在哪些形态下存在。
+ *
+ * 有些功能只属于某几种形态——**只要这个功能在那一屏上看得见、按下去有反应，
+ * 它的键就该在那儿响**，两处不能各判各的（这一条是踩出来的：设置面板里
+ * 五套办公外壳都有「摸鱼模式」开关，而它的键只在编辑器形态下响应，
+ * 于是飞书里按 Alt+S 毫无反应）。
+ *
+ *   editor   只有编辑器形态（VS Code 那两套）：演示模式
+ *   shells   所有带外壳的形态（编辑器 + 五套办公外壳）：摸鱼模式——
+ *            它们都有「正文那一片」可压。也是设置面板里那一栏出现的条件
+ *   （不写） 到处都在：页面里的 S / T / F，登记在哪个页面就在哪儿生效
+ */
+export type HotkeyPresence = 'editor' | 'shells'
+
+export interface HotkeyCommand {
+  id: HotkeyId
+  label: string
+  /** 默认组合。存的是给人看的一行字，和用户改过之后的格式完全一样 */
+  combo: string
+  scope: HotkeyScope
+  presence?: HotkeyPresence
+}
+
+export const HOTKEY_COMMANDS: readonly HotkeyCommand[] = [
+  { id: 'settings', label: '阅读设置', combo: 'S', scope: 'focused' },
+  { id: 'toc', label: '目录 / 侧栏', combo: 'T', scope: 'focused' },
+  { id: 'fullscreen', label: '全屏', combo: 'F', scope: 'focused' },
+  { id: 'decoy', label: '演示模式', combo: 'Alt+Q', scope: 'global', presence: 'editor' },
+  { id: 'dim', label: '摸鱼模式', combo: 'Alt+S', scope: 'global', presence: 'shells' },
+]
+
+export const DEFAULT_HOTKEYS = Object.fromEntries(
+  HOTKEY_COMMANDS.map((command) => [command.id, command.combo]),
+) as Record<HotkeyId, string>
+
+/** 菜单提示与错误文案里要把功能的名字说出来，所以标签也放这儿，和默认值挨着 */
+export const HOTKEY_LABELS = Object.fromEntries(
+  HOTKEY_COMMANDS.map((command) => [command.id, command.label]),
+) as Record<HotkeyId, string>
+
+export function hotkeyCommandOf(id: HotkeyId): HotkeyCommand {
+  return HOTKEY_COMMANDS.find((command) => command.id === id) ?? HOTKEY_COMMANDS[0]
+}
+
+/**
+ * 这个功能此刻在不在。`chrome` 取 `<html>` 上的 data-chrome（见 themes/apply.ts）。
+ *
+ * **快捷键和设置面板都读这一个函数**：只在看得见、按得响的地方响应，
+ * 而不是「键还占着，但状态改在你看不见的地方」。普通阅读形态（plain）
+ * 没有内容区可压，所以这些功能在那儿整个不存在。
+ */
+export function hotkeyLiveOn(id: HotkeyId, chrome: string): boolean {
+  const presence = hotkeyCommandOf(id).presence
+  if (!presence) return true
+  if (presence === 'editor') return chrome === 'code'
+  // shells：编辑器 + 五套办公外壳，也就是「不是普通阅读形态」
+  return chrome !== '' && chrome !== 'plain'
 }

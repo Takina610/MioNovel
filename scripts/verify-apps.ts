@@ -13,7 +13,9 @@
  *
  * 块切分要用 DOMParser，Bun 里没有，所以用 happy-dom 顶一个（和 verify:epub 一样）。
  */
+import { readFileSync, readdirSync } from 'node:fs'
 import { Window } from 'happy-dom'
+import type { BookRecord } from '../src/db/db'
 
 const testWindow = new Window({ url: 'http://localhost/' })
 const globals = globalThis as unknown as Record<string, unknown>
@@ -25,12 +27,12 @@ globals.Element = testWindow.Element
 globals.HTMLElement = testWindow.HTMLElement
 globals.NodeFilter = testWindow.NodeFilter
 
-const { chapterBlocks, looksLikeDialogue, prepareBody } = await import('../src/lib/blocks.ts')
+const { chapterBlocks, looksLikeDialogue, prepareBody, mediaLinesHtml } = await import('../src/lib/blocks.ts')
 const { chapterMessages, avatarInitial } = await import('../src/lib/chat.ts')
 const { chapterRows, activeRowOf, rowsTotal } = await import('../src/lib/sheet.ts')
 const { chapterSlides } = await import('../src/lib/slide.ts')
 const { chapterFileName } = await import('../src/lib/code.ts')
-const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf } = await import('../src/lib/appdocs.ts')
+const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeText, homeRows, pinnedBook, docOwnerOf, DOC_TABS, DOC_FILTERS } = await import('../src/lib/appdocs.ts')
 const { getTheme, listThemes, buildThemeSheet, chromeOf } = await import('../src/themes/apply.ts')
 const { CODE_TOKEN_VARS, CHAT_TOKEN_VARS, TOKEN_VARS } = await import('../src/themes/vars.ts')
 
@@ -171,6 +173,22 @@ console.log('\n块切分')
   )
   const { elements } = prepareBody('<div><p>甲</p><p>乙</p></div>')
   check('外层 div 不算一块（最里层才是）', elements.length === 2 && elements[0].textContent === '甲')
+
+  // 飞书形态（chrome: 'doc'）也不显示图：整章图片换成一行引用，和编辑器形态同一条约定
+  const docHtml = mediaLinesHtml(CHAPTER_HTML, () => 'OEBPS/Images/pic.png')
+  check('飞书形态的正文里没有 <img> / <svg> 了', !/<img|<svg/i.test(docHtml))
+  const mediaAt = docHtml.indexOf('![')
+  check(
+    '图片写成一行引用，路径是书里的原始路径',
+    docHtml.includes('![插图](./OEBPS/Images/pic.png)'),
+    mediaAt >= 0 ? docHtml.slice(mediaAt, mediaAt + 40) : '(没有引用行)',
+  )
+  check('图注还留着（拆 figure 之后它自己一行）', docHtml.includes('插图说明'))
+  check(
+    '标题、对话、双语段、引文一个都没丢',
+    ['第3章 少年与灯', '他合上书', '少年は振り返らなかった', '引文一段'].every((piece) => docHtml.includes(piece)),
+  )
+  check('空 HTML 不会被弄坏', mediaLinesHtml('') === '')
 }
 
 /* ==========================================================================
@@ -277,6 +295,125 @@ console.log('\n文件名与标题')
   check('节名有长度上限', sectionNameOf('很长'.repeat(30), 0).length <= 40)
   check('头像取作者首字，没作者写「我」', avatarOf('张三') === '张' && avatarOf('  ') === '我')
   check('编辑器形态的文件名照旧（一章一个 .md）', chapterFileName('第3章 少年与灯', 2) === '第3章 少年与灯.md')
+}
+
+/* ==========================================================================
+   六、云文档首页：页签、筛选、排序、那一列时间（飞书形态的书架）
+   ========================================================================== */
+
+console.log('\n云文档首页（飞书）')
+{
+  const DAY = 86_400_000
+  const now = new Date(2026, 8, 24, 15, 0, 0).getTime() // 2026-09-24 15:00
+  /** 四章、共 1000 字的假书：进度一算就知道该落在哪一档 */
+  const book = (over: Partial<BookRecord>): BookRecord => ({
+    id: 'b',
+    state: 'ready',
+    title: '未命名',
+    author: '',
+    format: 'txt',
+    addedAt: now,
+    lastReadAt: now,
+    totalChars: 1000,
+    chapterCount: 4,
+    charOffsets: [0, 250, 500, 750, 1000],
+    groups: [],
+    progress: null,
+    fileName: 'x.txt',
+    fileSize: 1,
+    signature: 's',
+    ...over,
+  })
+
+  check('读到一半算「在读」', readStateOf(book({ progress: { chapterIndex: 1, ratio: 0.5, updatedAt: 0 } })) === 'reading')
+  check('最后一章读完算「已读完」', readStateOf(book({ progress: { chapterIndex: 3, ratio: 1, updatedAt: 0 } })) === 'done')
+  check('没读过的算「未读」', readStateOf(book({ progress: null })) === 'todo')
+  check('打开过但停在第一行也算「未读」（不是「读完了」）', readStateOf(book({ progress: { chapterIndex: 0, ratio: 0, updatedAt: 0 } })) === 'todo')
+  check('最后一章读一半不算「已读完」', readStateOf(book({ progress: { chapterIndex: 3, ratio: 0.5, updatedAt: 0 } })) === 'reading')
+
+  check('今天的写「今天 时:分」', docTimeText(new Date(2026, 8, 24, 9, 9).getTime(), now) === '今天 09:09')
+  check('昨天的写「昨天 时:分」', docTimeText(new Date(2026, 8, 23, 21, 40).getTime(), now) === '昨天 21:40')
+  check('今年的写「几月几日 时:分」', docTimeText(new Date(2026, 3, 15, 9, 7).getTime(), now) === '4月15日 09:07')
+  check('跨年的补上年份', docTimeText(new Date(2025, 11, 31, 8, 5).getTime(), now) === '2025年12月31日 08:05')
+  check('凌晨也补零（03:04 不是 3:4）', docTimeText(new Date(2026, 8, 24, 3, 4).getTime(), now) === '今天 03:04')
+
+  const older = book({ id: 'old', title: '老书', addedAt: now - 10 * DAY, lastReadAt: now - 5 * DAY })
+  const newer = book({ id: 'new', title: '新书', addedAt: now - DAY, lastReadAt: now - DAY })
+  // 这两本的时间刻意差一秒：时间一样时按书名兜底那条另有断言，
+  // 混在一起测的话排序结果会变成「拼音顺序」而不是「时间顺序」
+  const reading = book({ id: 'reading', title: '在读的书', addedAt: now, lastReadAt: now, progress: { chapterIndex: 1, ratio: 0.5, updatedAt: 0 } })
+  const done = book({ id: 'done', title: '读完的书', addedAt: now - 1000, lastReadAt: now - 1000, progress: { chapterIndex: 3, ratio: 1, updatedAt: 0 } })
+  const shelf = [older, newer, reading, done]
+
+  check(
+    '「最近访问」按最近读的排（默认倒序）',
+    homeRows(shelf, { tab: 'recent', filter: 'all', sortKey: 'recent', direction: 'desc' }).map((b) => b.id).join(',') ===
+      'reading,done,new,old',
+  )
+  check(
+    '「归我所有」按加入时间排',
+    homeRows(shelf, { tab: 'mine', filter: 'all', sortKey: 'created', direction: 'desc' }).map((b) => b.id).join(',') ===
+      'reading,done,new,old',
+  )
+  check(
+    '箭头点一下换方向',
+    homeRows(shelf, { tab: 'recent', filter: 'all', sortKey: 'recent', direction: 'asc' })[0].id === 'old',
+  )
+  check(
+    '筛选「未读」只留没读过的（老书、新书）',
+    homeRows(shelf, { tab: 'recent', filter: 'todo', sortKey: 'recent', direction: 'desc' }).every((b) => b.progress === null),
+  )
+  check(
+    '筛选「已读完」只留读完了的',
+    homeRows(shelf, { tab: 'recent', filter: 'done', sortKey: 'recent', direction: 'desc' }).map((b) => b.id).join(',') === 'done',
+  )
+  check(
+    '「与我共享」「收藏」老实空着（本地文件没有这两个东西）',
+    homeRows(shelf, { tab: 'shared', filter: 'all', sortKey: 'recent', direction: 'desc' }).length === 0 &&
+      homeRows(shelf, { tab: 'starred', filter: 'all', sortKey: 'recent', direction: 'desc' }).length === 0,
+  )
+  check('时间一样时按书名兜底（顺序稳定）', (() => {
+    const same = [book({ id: 'a', title: '乙' }), book({ id: 'b', title: '甲' })]
+    const rows = homeRows(same, { tab: 'recent', filter: 'all', sortKey: 'recent', direction: 'desc' })
+    return rows[0].title === '甲'
+  })())
+  check('「置顶文档」是最近读的那本', pinnedBook(shelf)?.id === 'reading')
+  check('一本书都没有时不摆置顶行', pinnedBook([]) === undefined)
+  check('所有者：没有作者就写「我」', docOwnerOf(book({ author: '' })) === '我' && docOwnerOf(book({ author: '张三' })) === '张三')
+  check('四个页签、四档筛选都写的是中文标签', DOC_TABS.length === 4 && DOC_FILTERS.length === 4 && DOC_TABS.every((t) => !!t.label))
+}
+
+/* ==========================================================================
+   七、界面文案：不许写操作指南与自我说明
+   ========================================================================== */
+
+console.log('\n界面文案')
+{
+  // 用户明确要求过：界面上只留具体事实，不写「点一下就能……」这类旁白，
+  // 也不写「全是本地文件，不上传」这类自我说明（规矩见 AGENTS.md）。
+  // 下面这几句是删过的，别再回来——它们是那个毛病的典型写法。
+  const banned = [
+    '点一下文档就能进阅读器',
+    '全是本地文件，不上传',
+    '拖一本小说进来，或者',
+    '用存着的原始文件重跑',
+    '不用再拖一次',
+  ]
+  const files = readdirSync('src', { recursive: true, encoding: 'utf8' }).filter((name) => /\.tsx?$/.test(name))
+  const hits: string[] = []
+  for (const name of files) {
+    const text = readFileSync(`src/${name}`, 'utf8')
+    // 只看会出现给人看的那些行：注释里写「别这么写」是允许的
+    const visible = text
+      .split('\n')
+      .filter((line) => {
+        const trimmed = line.trim()
+        return !trimmed.startsWith('*') && !trimmed.startsWith('//') && !trimmed.startsWith('/*')
+      })
+      .join('\n')
+    for (const phrase of banned) if (visible.includes(phrase)) hits.push(`${name}: ${phrase}`)
+  }
+  check('界面文案里没有操作指南 / 自我说明式的句子', hits.length === 0, hits.join(' | '))
 }
 
 /* ========================================================================== */

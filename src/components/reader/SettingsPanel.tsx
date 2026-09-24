@@ -11,6 +11,8 @@ import { DECOY_PRESETS } from '../../lib/decoy'
 import { useDecoy } from '../../store/decoy'
 import { DIM_LEVEL_RANGE, useDim } from '../../store/dim'
 import {
+  hotkeyCommandOf,
+  hotkeyLiveOn,
   HOTKEY_LABELS,
   resolveCombo,
   useHotkeyBindings,
@@ -56,13 +58,14 @@ export function SettingsPanel({
   const setCombo = useHotkeyBindings((state) => state.setCombo)
   const resetCombo = useHotkeyBindings((state) => state.resetCombo)
 
-  // 摸鱼模式只在带外壳的形态里存在（编辑器、飞书文档、企业微信、Office 三件套），
-  // 所以它那一栏也只在那些主题下出现。判断和 hook 里一样走 chromeOf(getTheme(...))，
-  // 不认主题 id：再加一套外壳主题，这里不用改
+  // 每一栏在不在，读的是**功能自己的形态**（命令表里的 presence，hotkeyLiveOn）：
+  // 演示模式只属于编辑器形态，摸鱼模式属于所有带外壳的形态。
+  // 这么写是为了让「面板里有这个开关」与「这个键按得响」永远是同一件事——
+  // 上一版两处各判各的，结果五套办公外壳的正文按 Alt+S 毫无反应。
+  // 判断走 chromeOf(getTheme(...))，不认主题 id：再加一套外壳主题，这里不用改。
   const chrome = chromeOf(getTheme(settings.themeId))
   const codeChrome = chrome === 'code'
   const appChrome = !codeChrome && chrome !== 'plain'
-  const shellChrome = codeChrome || appChrome
 
   /** 两个功能不能绑同一个组合：谁先响应说不清，索性在录的时候挡住 */
   const conflictWith = (id: HotkeyId, combo: string): string | null => {
@@ -104,47 +107,52 @@ export function SettingsPanel({
           />
         </section>
 
-        <section className="space-y-3">
-          <SectionTitle>演示模式</SectionTitle>
-          <Switch
-            label="正文显示成代码"
-            description="书架、文件名、状态栏一起换成代码的样子"
-            checked={decoyEnabled}
-            onChange={setDecoyEnabled}
-          />
-          <div className="grid grid-cols-2 gap-1.5">
-            {DECOY_PRESETS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setDecoyPreset(item.id)}
-                aria-pressed={decoyPresetId === item.id}
-                className={cx(
-                  'rounded-lg border px-2.5 py-1.5 text-left text-[12.5px]',
-                  'transition-[border-color,background-color,color,transform,box-shadow] duration-[var(--mn-dur-2)] ease-[var(--mn-ease)] active:scale-[0.97]',
-                  decoyPresetId === item.id
-                    ? 'border-accent bg-accent-soft text-accent shadow-[0_0_0_3px_color-mix(in_srgb,var(--mn-accent)_12%,transparent)]'
-                    : 'border-border text-fg-muted hover:border-border-strong hover:bg-surface-2',
-                )}
-              >
-                {item.name}
-              </button>
-            ))}
-          </div>
-          <HotkeyInput
-            name={HOTKEY_LABELS.decoy}
-            combo={resolveCombo(combos, 'decoy')}
-            onChange={(combo) => setCombo('decoy', combo)}
-            onReset={() => resetCombo('decoy')}
-            check={(combo) => conflictWith('decoy', combo)}
-          />
-          <p className="text-[11.5px] leading-relaxed text-fg-faint">
-            只在 VS Code 那两套主题下生效。
-          </p>
-        </section>
+        {/* 演示模式那一栏只属于编辑器形态：它在别的主题下要显示什么，是以后单独设计的
+            一件事（见 docs/SPEC.md 决定记录 30）。在那之前，非编辑器主题下这一栏、
+            这个开关和它的键位都不出现——而不是摆一个按了没反应的开关。
+            条件读 hotkeyLiveOn：和这个键在哪儿响应是同一个判断 */}
+        {hotkeyLiveOn('decoy', chrome) ? (
+          <section className="space-y-3">
+            <SectionTitle>演示模式</SectionTitle>
+            <Switch
+              label="正文显示成代码"
+              description="书架、文件名、状态栏一起换成代码的样子"
+              checked={decoyEnabled}
+              onChange={setDecoyEnabled}
+            />
+            <div className="grid grid-cols-2 gap-1.5">
+              {DECOY_PRESETS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setDecoyPreset(item.id)}
+                  aria-pressed={decoyPresetId === item.id}
+                  className={cx(
+                    'rounded-lg border px-2.5 py-1.5 text-left text-[12.5px]',
+                    'transition-[border-color,background-color,color,transform,box-shadow] duration-[var(--mn-dur-2)] ease-[var(--mn-ease)] active:scale-[0.97]',
+                    decoyPresetId === item.id
+                      ? 'border-accent bg-accent-soft text-accent shadow-[0_0_0_3px_color-mix(in_srgb,var(--mn-accent)_12%,transparent)]'
+                      : 'border-border text-fg-muted hover:border-border-strong hover:bg-surface-2',
+                  )}
+                >
+                  {item.name}
+                </button>
+              ))}
+            </div>
+            <HotkeyInput
+              name="演示模式快捷键"
+              scope={hotkeyCommandOf('decoy').scope}
+              combo={resolveCombo(combos, 'decoy')}
+              onChange={(combo) => setCombo('decoy', combo)}
+              onReset={() => resetCombo('decoy')}
+              check={(combo) => conflictWith('decoy', combo)}
+            />
+          </section>
+        ) : null}
 
-        {/* 摸鱼模式那一栏只属于带外壳的形态：普通主题下没有「内容区」可压 */}
-        {shellChrome ? (
+        {/* 摸鱼模式那一栏只属于带外壳的形态（编辑器 + 五套办公外壳）：
+            普通阅读主题下没有「内容区」可压。条件同样读 hotkeyLiveOn */}
+        {hotkeyLiveOn('dim', chrome) ? (
           <section className="space-y-3">
             <SectionTitle>摸鱼模式</SectionTitle>
             <Switch
@@ -165,7 +173,8 @@ export function SettingsPanel({
               format={(value) => `${Math.round(value * 100)}%`}
             />
             <HotkeyInput
-              name={HOTKEY_LABELS.dim}
+              name="摸鱼模式快捷键"
+              scope={hotkeyCommandOf('dim').scope}
               combo={resolveCombo(combos, 'dim')}
               onChange={(combo) => setCombo('dim', combo)}
               onReset={() => resetCombo('dim')}
@@ -174,6 +183,26 @@ export function SettingsPanel({
           </section>
         ) : null}
 
+        {/* 页面里的三条命令。归在这里而不是散在各栏里：它们是「怎么用这个应用」的，
+            不属于某一个功能；上面两条「伪装」功能的键放在各自那一栏更方便对照 */}
+        <section className="space-y-3">
+          <SectionTitle>快捷键</SectionTitle>
+          {(['settings', 'toc', 'fullscreen'] as HotkeyId[]).map((id) => (
+            <HotkeyInput
+              key={id}
+              name={HOTKEY_LABELS[id]}
+              scope={hotkeyCommandOf(id).scope}
+              combo={resolveCombo(combos, id)}
+              onChange={(combo) => setCombo(id, combo)}
+              onReset={() => resetCombo(id)}
+              check={(combo) => conflictWith(id, combo)}
+            />
+          ))}
+          <p className="text-[11.5px] leading-relaxed text-fg-faint">
+            输入框里打字时这些键不生效。
+          </p>
+        </section>
+
         {/* 阅读模式只对普通形态和编辑器形态有意义：办公外壳里的正文不是整页排版的
             （文档是一张纸、表格是网格、PPT 是一张张贴着、聊天是消息流），
             分栏翻页在那儿不成立。所以这里明说一句，而不是留两个按了没反应的按钮 */}
@@ -181,8 +210,7 @@ export function SettingsPanel({
           <section className="space-y-3">
             <SectionTitle>阅读模式</SectionTitle>
             <p className="text-[11.5px] leading-relaxed text-fg-faint">
-              这一套外壳里正文按上下滚动走：它的版面不是你自己的排版，是那个软件的
-              （页面、网格、幻灯片、消息流）。切回普通主题就能用分栏翻页。
+              这一套外壳里正文按上下滚动走，切回普通主题才用得上分栏翻页。
             </p>
           </section>
         ) : (

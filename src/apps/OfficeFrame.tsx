@@ -279,10 +279,24 @@ export interface AppMenuItem {
   label: string
   hint?: string
   separatorBefore?: boolean
+  /** 勾选态（「筛选」「显示设置」这种多选一/多选多的菜单要用） */
+  checked?: boolean
   onSelect: () => void
 }
 
-export function AppMenu({ items, label = '更多' }: { items: AppMenuItem[]; label?: string }) {
+export function AppMenu({
+  items,
+  label = '更多',
+  trigger,
+}: {
+  items: AppMenuItem[]
+  label?: string
+  /**
+   * 触发器长什么样。不传就是那个 ⋯；首页上要给头像一个菜单，
+   * 就把它传进来——菜单的行为（点外面关、Esc 关）只有这一份实现。
+   */
+  trigger?: ReactNode
+}) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -306,13 +320,13 @@ export function AppMenu({ items, label = '更多' }: { items: AppMenuItem[]; lab
     <div ref={ref} className="mn-appmenu-wrap">
       <button
         type="button"
-        className={cx('mn-appmenu-btn', open && 'is-open')}
+        className={cx('mn-appmenu-btn', trigger ? 'mn-appmenu-btn--bare' : null, open && 'is-open')}
         aria-label={label}
         aria-expanded={open}
         title={label}
         onClick={() => setOpen((current) => !current)}
       >
-        ⋯
+        {trigger ?? '⋯'}
       </button>
       {open ? (
         <div className="mn-appmenu" role="menu">
@@ -327,7 +341,12 @@ export function AppMenu({ items, label = '更多' }: { items: AppMenuItem[]; lab
                   item.onSelect()
                 }}
               >
-                <span>{item.label}</span>
+                <span className="mn-appmenu__label">
+                  {item.checked !== undefined ? (
+                    <span className="mn-appmenu__check">{item.checked ? '✓' : ''}</span>
+                  ) : null}
+                  <span>{item.label}</span>
+                </span>
                 {item.hint ? <kbd>{item.hint}</kbd> : null}
               </button>
             </div>
@@ -349,7 +368,6 @@ export function AppMenu({ items, label = '更多' }: { items: AppMenuItem[]; lab
  * 没有别的选中态，一个只选中不打开的列表看着更像坏了（见决定记录 27）。
  */
 export function OfficeStart({
-  appLabel,
   blankLabel,
   blankHint,
   BlankIcon,
@@ -358,8 +376,8 @@ export function OfficeStart({
   onMenu,
   onImport,
   dropping,
+  dim = 0,
 }: {
-  appLabel: string
   blankLabel: string
   blankHint: string
   BlankIcon: ReactNode
@@ -368,6 +386,8 @@ export function OfficeStart({
   onMenu: (id: string) => void
   onImport: () => void
   dropping?: boolean
+  /** 摸鱼模式的压暗程度：开始屏幕上的「最近」那一块也算内容区 */
+  dim?: number
 }) {
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()
@@ -376,7 +396,10 @@ export function OfficeStart({
     : books
 
   return (
-    <div className={cx('mn-start', dropping && 'mn-drop-active')}>
+    <div
+      className={cx('mn-start', dropping && 'mn-drop-active')}
+      style={{ ['--mn-dim' as string]: String(dim) }}
+    >
       <div className="mn-start__side">
         <div className="mn-start__side-head">新建</div>
         <button type="button" className="mn-start__blank" onClick={onImport}>
@@ -386,7 +409,7 @@ export function OfficeStart({
         </button>
       </div>
 
-      <div className="mn-start__main">
+      <div className="mn-start__main mn-veil">
         <div className="mn-start__head">
           <span className="mn-start__head-label">最近</span>
           <label className="mn-start__search">
@@ -436,17 +459,10 @@ export function OfficeStart({
           ))}
           {visible.length === 0 ? (
             <p className="mn-start__empty">
-              {books.length === 0
-                ? `还没有文件。拖一本小说进来，或者点左边的「${blankLabel}」。`
-                : `没有匹配「${query}」的文件`}
+              {books.length === 0 ? '还没有文件' : `没有匹配「${query}」的文件`}
             </p>
           ) : null}
         </div>
-        <p className="mn-start__hint">
-          {books.length > 0
-            ? `最近 ${visible.length} 个文件 · 点一下打开 · 右边的 ⋯ 打开解析设置`
-            : `${appLabel} 的开始屏幕`}
-        </p>
       </div>
     </div>
   )

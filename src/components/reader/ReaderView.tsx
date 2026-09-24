@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { clamp01 } from '../../lib/progress'
+import { mediaLinesHtml } from '../../lib/blocks'
 import { decorateChapterHtml, type CodeLine } from '../../lib/code'
 import type { ReaderSettings } from '../../store/settings'
 import type { ThemeChrome } from '../../themes/types'
@@ -170,6 +171,12 @@ function ReaderViewImpl({
   // 演示模式只属于代码形态：普通形态下它什么也不该改（之前把这一条漏了，
   // 结果在普通形态里按过 Alt+Q 之后，章末的上下章按钮被一并吞掉）
   const decoy = code && decoyFlag ? decoyPresetId : null
+  /**
+   * 飞书形态也不显示图：整章的图片换成一行 `![](./路径)`，和编辑器形态同一条约定。
+   * 理由是同一个——那一屏的价值在于「这是一篇文档」，一张全屏的插页会把这话冲掉；
+   * 而引用行写的是书里的原始路径，图并没有被丢掉（Word、幻灯片、聊天照常放图）。
+   */
+  const mediaLines = chrome === 'doc'
   const decorated = useMemo(
     () =>
       code
@@ -178,10 +185,12 @@ function ReaderViewImpl({
             decoy,
             seed: decoySeedValue,
           })
-        : { html, lines: [] as CodeLine[] },
+        : mediaLines
+          ? { html: mediaLinesHtml(html, (src) => resources.get(src)), lines: [] as CodeLine[] }
+          : { html, lines: [] as CodeLine[] },
     // painted 进依赖：高亮器加载完之后重画一遍，代码才是有颜色的
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [code, html, resources, decoy, decoySeedValue, painted],
+    [code, mediaLines, html, resources, decoy, decoySeedValue, painted],
   )
   // 换章时新 HTML 要等图片资源就位才到得了，期间 DOM 里还是上一章的内容。
   // 这时候量出来的页数、算出来的位置都是旧内容的——必须先确认拿到的是这一章，

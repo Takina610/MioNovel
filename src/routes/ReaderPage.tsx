@@ -16,7 +16,7 @@ import type { BookRecord } from '../db/db'
 import { useBook, useBooks } from '../hooks/useBooks'
 import { useChapter, warmNeighbours } from '../hooks/useChapter'
 import { useChapterHtml } from '../hooks/useChapterHtml'
-import { useHotkeys } from '../hooks/useHotkeys'
+import { useHotkey, useHotkeys } from '../hooks/useHotkeys'
 import { useToc } from '../hooks/useToc'
 import { useScopedTheme, useUserCss } from '../hooks/useTheme'
 import { bookFolderName, chapterFileName } from '../lib/code'
@@ -30,6 +30,7 @@ import {
 import { bookPercent, clamp01, locateByPercent } from '../lib/progress'
 import { formatChars, formatPercent } from '../lib/format'
 import { cx } from '../lib/cx'
+import { toggleFullscreen } from '../lib/fullscreen'
 import { useDecoy } from '../store/decoy'
 import { useDim } from '../store/dim'
 import { useHotkeyCombo } from '../store/hotkeys'
@@ -90,6 +91,9 @@ export function ReaderPage() {
   const toggleDim = useDim((state) => state.toggle)
   const decoyHotkey = useHotkeyCombo('decoy')
   const dimHotkey = useHotkeyCombo('dim')
+  const settingsHotkey = useHotkeyCombo('settings')
+  const tocHotkey = useHotkeyCombo('toc')
+  const fullscreenHotkey = useHotkeyCombo('fullscreen')
 
   const perBookStyle = bookId ? perBook[bookId] : undefined
   const perBookEnabled = perBookStyle?.enabled ?? false
@@ -297,35 +301,26 @@ export function ReaderPage() {
   }, [chrome, chapterIndex])
 
   // ---- 快捷键 ----
+  // 三条命令都能在阅读设置里改键（命令表见 lib/hotkey.ts）。
+  // Esc 是约定（关面板），不参与改键，仍然走上面那个 useHotkeys。
+  useHotkey('toc', () => {
+    // 编辑器形态下 T 是「收起/展开侧栏」，和编辑器里一样。
+    // 办公外壳那一层的侧栏开关在各自的视图页签上（那儿才是它们的位置），
+    // 所以这里不动它——一个键在两个地方各管一半反而说不清
+    if (chrome === 'code') setSideOpen((open) => !open)
+    else if (chrome === 'plain') setTocOpen((open) => !open)
+  })
+  useHotkey('settings', () => setSettingsOpen((open) => !open))
+  useHotkey('fullscreen', toggleFullscreen)
+
   useHotkeys(
     (event) => {
-      switch (event.key) {
-        case 't':
-        case 'T':
-          // 编辑器形态下 T 是「收起/展开侧栏」，和编辑器里一样。
-          // 办公外壳那一层的侧栏开关在各自的视图页签上（那儿才是它们的位置），
-          // 所以这里不动它——一个键在两个地方各管一半反而说不清
-          if (chrome === 'code') setSideOpen((open) => !open)
-          else if (chrome === 'plain') setTocOpen((open) => !open)
-          return
-        case 's':
-        case 'S':
-          setSettingsOpen((open) => !open)
-          return
-        case 'Escape':
-          setTocOpen(false)
-          setSettingsOpen(false)
-          return
-        case 'f':
-        case 'F':
-          if (document.fullscreenElement) void document.exitFullscreen()
-          else void document.documentElement.requestFullscreen()
-          return
-        default:
-          return
+      if (event.key === 'Escape') {
+        setTocOpen(false)
+        setSettingsOpen(false)
       }
     },
-    [chrome],
+    [],
   )
 
   const handleSeek = useCallback(
@@ -547,7 +542,7 @@ export function ReaderPage() {
                 : sideOpen
                   ? '收起侧栏'
                   : '展开侧栏',
-              hint: 'T',
+              hint: tocHotkey,
               onSelect: () => setSideOpen((open) => !open),
             },
             {
@@ -565,17 +560,14 @@ export function ReaderPage() {
             },
             {
               label: decoy ? 'Preferences: Open Settings' : '阅读设置',
-              hint: 'S',
+              hint: settingsHotkey,
               separatorBefore: true,
               onSelect: () => setSettingsOpen(true),
             },
             {
               label: decoy ? 'View: Toggle Full Screen' : '全屏',
-              hint: 'F',
-              onSelect: () => {
-                if (document.fullscreenElement) void document.exitFullscreen()
-                else void document.documentElement.requestFullscreen()
-              },
+              hint: fullscreenHotkey,
+              onSelect: toggleFullscreen,
             },
           ]}
           tabs={openChapters.map((index) => ({

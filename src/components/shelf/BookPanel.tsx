@@ -296,9 +296,7 @@ export function BookPanel({ book, open, onClose, onRead, onDeleted }: BookPanelP
             </div>
           ) : null}
           <p className="text-[11.5px] leading-relaxed text-fg-faint">
-            {isTxt
-              ? '用存着的原始文件重跑，不用再拖一次。章节重新划分后，阅读进度会清零。'
-              : '用存着的原始文件重跑，不用再拖一次。跑完阅读进度会清零。'}
+            {isTxt ? '重新分章后阅读进度会清零' : '跑完阅读进度会清零'}
           </p>
         </section>
 
