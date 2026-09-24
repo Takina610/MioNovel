@@ -113,6 +113,48 @@ export interface PageTokens {
 }
 
 /**
+ * 表格形态（Excel）多出来的几个值。
+ *
+ * 都是「网格」这一层的东西，别的 token 表达不了：
+ *
+ *   gridLine    网格线。表格里那一堆 1px 的灰线：它比 border 浅一档
+ *   headerBg    行列标题（A/B/C 与 1/2/3）的底
+ *   headerFg    行列标题上的字
+ *   headerLine  标题行 / 标题列的分隔线（比网格线深一档：那一圈是「框」，不是格）
+ *   headerSelBg 当前行列的标题底（Excel 里选中的行列标题会垫一层浅灰）
+ *   select      选中框与当前行列标题上那条 2px 的边。**它不是品牌绿**：
+ *               Excel 的选中绿是 #217346（从 Office 2007 用到今天），
+ *               而标题栏、页签、按钮上的品牌绿是 #107C41
+ *   chrome      标题栏、页签行、工作表标签条、开始屏幕左栏共用的那层底色
+ *               （Excel 365 是淡蓝灰 #E4EAEE，不是白的）
+ *   field       名称框、编辑栏、搜索框的底
+ *   control     下拉框、按钮、药丸的描边（字体的下拉框、收藏夹、搜索文件都用它）
+ *
+ * 其余全部复用主 token（网格底 = readerBg、字号框里的字 = fg、
+ * 状态栏 = surface2、工作表标签上的强调色 = accent）。
+ */
+export interface SheetTokens {
+  /** 网格线 */
+  gridLine: string
+  /** 行列标题的底 */
+  headerBg: string
+  /** 行列标题上的字 */
+  headerFg: string
+  /** 标题行 / 标题列的分隔线 */
+  headerLine: string
+  /** 当前行列的标题底 */
+  headerSelBg: string
+  /** 选中框与当前行列标题的强调色 */
+  select: string
+  /** 标题栏 / 页签行 / 标签条 / 开始屏幕左栏的底色 */
+  chrome: string
+  /** 名称框、编辑栏、搜索框的底 */
+  field: string
+  /** 下拉框与按钮的描边 */
+  control: string
+}
+
+/**
  * 主题 token。应用外壳（书架、工具栏、弹窗）和正文共用同一组变量：
  * 换主题是整个 app 一起变，不让正文和 UI 各说各话。
  *
@@ -165,6 +207,8 @@ export interface ReaderTheme {
   chat?: ChatTokens
   /** chrome: 'page' 的纸与控件 */
   page?: PageTokens
+  /** chrome: 'sheet' 的网格、行列标题与选中框 */
+  sheet?: SheetTokens
   /**
    * 这套主题自带的排版参数。**只在用户主动选中它时**写进阅读设置，
    * 之后用户怎么改都归用户——它是一次预设，不是一层覆盖。

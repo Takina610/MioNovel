@@ -209,87 +209,8 @@
   opacity: 0.4;
 }
 
-/* 自动保存：截图里它停在「关」（本地文件不上云，没有要同步的东西） */
-.mn-word__autosave {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 8px 0 2px;
-  color: var(--mn-fg-faint);
-  font-size: 12.5px;
-  white-space: nowrap;
-}
-
-.mn-word__switch {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 44px;
-  height: 22px;
-  padding: 2px 7px 2px 2px;
-  border: 1px solid var(--mn-page-control);
-  border-radius: 11px;
-  color: var(--mn-fg-muted);
-  font-size: 11.5px;
-}
-
-.mn-word__switch-knob {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--mn-fg-muted);
-}
-
-/* 升级计划那个小牌子。它是灰的：本地文件用不上云服务 */
-.mn-word__alert {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 34px;
-  margin-right: 6px;
-  padding: 0 10px;
-  background: var(--mn-surface);
-  border: 1px solid var(--mn-page-control);
-  border-radius: 3px;
-  color: var(--mn-fg-muted);
-  font-size: 12.5px;
-  white-space: nowrap;
-}
-
-/* 页签行右端那三个：批注 / 编辑 / 共享 */
-.mn-word__tabbtn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 9px;
-  background: var(--mn-surface);
-  border: 1px solid var(--mn-border-strong);
-  border-radius: 3px;
-  color: var(--mn-fg-muted);
-  font-size: 12.5px;
-  white-space: nowrap;
-}
-
-.mn-word__tabbtn svg {
-  flex: 0 0 auto;
-}
-
-/* 共享是实心的一块强调色。上面的白字是「实心块自己的墨色」——
-   和飞书商标里那几笔白线同一个例外（见 app-icons.tsx 的文件头） */
-.mn-word__share {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 9px;
-  background: var(--mn-accent);
-  border: 1px solid var(--mn-accent);
-  border-radius: 3px;
-  color: #fff;
-  font-size: 12.5px;
-  white-space: nowrap;
-}
+/* 自动保存、开关、升级计划、页签行右端那三个（批注 / 编辑 / 共享）都在
+   office.css 里——Word 与 Excel 的截图里它们画得一模一样，所以是共用零件 */
 
 /* ---- 功能区里几个 Word 自己的零件（字体框、字号框、样式库） ---- */
 
@@ -515,11 +436,9 @@ html[data-chrome='page'] .mn-scroll::-webkit-scrollbar-thumb {
     width: min(240px, 34vw);
   }
 
-  .mn-word__autosave {
-    display: none;
-  }
-
-  .mn-word__alert {
+  /* 窄屏上标题栏那两件（自动保存、升级计划）收起：和 Excel 同一处理 */
+  .mn-office__autosave,
+  .mn-office__alert {
     display: none;
   }
 }

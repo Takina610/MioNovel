@@ -282,7 +282,9 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
    *                    会话列表 #F0F3F7、聊天底 #F5F7FA、收到的气泡 #E4E7EB、
    *                    链接与选中态 #267EF0、选中的会话行 #3586F4、未读角标 #FC5A4E
    *   page  Word       Office 品牌蓝 #185ABD
-   *   sheet Excel      Office 品牌绿 #107C41
+   *   sheet Excel      Office 品牌绿 #107C41（页签、按钮、开始屏幕的那个绿按钮）；
+   *                    但**网格里的选中框是另一个绿** #217346——Excel 从 2007 起
+   *                    就用它画选中的行列标题和单元格框，见下面 sheet 那一层
    *   slide PowerPoint Office 品牌橙 #C43E1C
    *
    * Office 那三套的中性色不是挑的，是 Fluent 2 的官方 token（桌面版 Word / Excel /
@@ -583,6 +585,31 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
       readerSelection: '#CFE5D9',
       readerRule: '#E1E1E1',
     },
+    /*
+     * 网格这一层的值：2026-09-24 按一张 1917×1006 的 Excel 截图量的
+     * （那张图右上角写着工作簿1 - Excel，功能区里挂着 OfficePLUS 与两个加载项）。
+     *
+     *   gridLine    #E0E0E0（量了三条，都是这个值）
+     *   headerBg    #F0F0F0，headerFg #444444，headerLine #ABABAB（标题行底下那条）
+     *   headerSelBg #E1E1E1：**选中的行列标题是灰的，不是绿的**——绿的只有
+     *               「A」/「1」那几个字和朝单元格那一侧的 2px 边（#217346）
+     *   select      #217346：Excel 的选中绿。它和品牌绿 #107C41 是两个色，
+     *               前者从 Office 2007 用到今天，后者是现在的品牌色（页签、按钮）
+     *   chrome      #E4EAEE：标题栏、页签行、工作表标签条、开始屏幕左栏共用这一层
+     *               （量出来的；Excel 365 的标题栏不是白的，这两条在 Fluent 里连成一片）
+     *   field       #FFFFFF（名称框与编辑栏），control #8A8A8A（下拉框与药丸的描边）
+     */
+    sheet: {
+      gridLine: '#E0E0E0',
+      headerBg: '#F0F0F0',
+      headerFg: '#444444',
+      headerLine: '#ABABAB',
+      headerSelBg: '#E1E1E1',
+      select: '#217346',
+      chrome: '#E4EAEE',
+      field: '#FFFFFF',
+      control: '#8A8A8A',
+    },
   },
   {
     id: 'excel-dark',
@@ -619,6 +646,19 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
       readerLink: '#3D99F5',
       readerSelection: '#2F543F',
       readerRule: '#3D3D3D',
+    },
+    // 暗色没有截图可量（那张 Excel 截图是亮的），所以照 Excel 自己的深色模式配：
+    // 网格线比底深一档、标题底与面板同色、选中框跟着暗色下的强调色走
+    sheet: {
+      gridLine: '#404040',
+      headerBg: '#292929',
+      headerFg: '#D6D6D6',
+      headerLine: '#525252',
+      headerSelBg: '#3D3D3D',
+      select: '#51D68E',
+      chrome: '#1F1F1F',
+      field: '#292929',
+      control: '#6E6E6E',
     },
   },
   {

@@ -59,6 +59,15 @@ export interface SheetRow {
 /** 表头：第 2 行那三个字段名 */
 export const SHEET_HEAD = ['正文', '字数', '类型'] as const
 
+/**
+ * 三列各叫什么（A / B / C）。
+ *
+ * 表头那一行（Excel 里那一排字母）和单元格地址都取自这里：正文在 A 列，
+ * 字数 B、类型 C。**一处定义**——字母序列和字段名的顺序必须一一对上，
+ * 分开写两边就会各说各话（`verify:apps` 里对着这条断言）。
+ */
+export const SHEET_COLUMNS: ReadonlyArray<string> = SHEET_HEAD.map((_, index) => columnName(index + 1))
+
 /** 正文从第几行开始。标题行 + 字段名行之后 */
 export const SHEET_FIRST_ROW = 3
 

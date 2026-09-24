@@ -77,12 +77,23 @@ export interface RibbonItem {
   id: string;
   kind?: "big" | "stack" | "small" | "icon" | "text" | "rule" | "node" | "column";
   icon?: ReactNode;
-  label?: string;
+  /**
+   * 格子底下（或右边）那行字。给字符串就是一行；Excel 里「查找录入 VLOOKUP」
+   * 「加载项」这种是**两行**的，所以允许给节点（里面自己放 <br />）。
+   */
+  label?: ReactNode;
   title?: string;
   disabled?: boolean;
   active?: boolean;
   /** 右下角那个小三角：这一格还有下拉。灰着的格子里它只是个记号 */
   menu?: boolean;
+  /**
+   * 紧一档的格子（Excel 那一套）。Word 的格子是「图标 22 + 右边的字」，
+   * Excel 同一条命令只有 16-18px 的图标、旁边一个小三角，两组格子还得并排
+   * 塞进同一行——所以这只是**同一个形状的密度**，不是另一种形状。
+   * 具体松紧写在 styles/excel.css 的 .mn-rb--dense 里。
+   */
+  dense?: boolean;
   /** kind: 'node' 时整格的内容 */
   node?: ReactNode;
   /** kind: 'column' 时竖着码的那几格 */
@@ -164,7 +175,12 @@ function RibbonItemCell({ item }: { item: RibbonItem }) {
   return (
     <button
       type="button"
-      className={cx("mn-rb", `mn-rb--${kind}`, item.active && "is-active")}
+      className={cx(
+        "mn-rb",
+        `mn-rb--${kind}`,
+        item.dense && "mn-rb--dense",
+        item.active && "is-active",
+      )}
       title={item.title}
       aria-label={item.title}
       aria-pressed={item.active}
@@ -230,6 +246,11 @@ export interface OfficeFrameProps {
   titleCenter?: ReactNode;
   /** 标题栏右侧、头像左边那一格（升级计划那类） */
   titleAlert?: ReactNode;
+  /**
+   * 标题栏上的装饰画（Excel 开始屏幕右上角那片淡灰的商标水印）。
+   * 只画不接事件：`aria-hidden` + `pointer-events: none`，压在最右边、被标题栏裁掉。
+   */
+  titleArt?: ReactNode;
   /** 页签行右端那三个（批注 / 编辑 / 共享） */
   tabActions?: ReactNode;
   tabs: RibbonTab[];
@@ -279,6 +300,7 @@ export function OfficeFrame({
   titleTools,
   titleCenter,
   titleAlert,
+  titleArt,
   tabActions,
   tabs,
   activeTab,
@@ -306,6 +328,9 @@ export function OfficeFrame({
   // 功能区能整个收起来（真 Office 里功能区右下角那个小三角就是这个）。
   // 收起来只收起面板，页签那一行留着——不然连「文件」都点不到了。
   const [ribbonOpen, setRibbonOpen] = useState(true);
+  // 没有页签 = 这是开始屏幕。真 Office 那两屏是分开的，标题栏也差一档
+  // （Excel 的开始屏幕是 58 高，工作簿里是 44），所以这里挂一个类让 CSS 认。
+  const start = tabs.length === 0;
 
   if (immersive) {
     return (
@@ -319,8 +344,18 @@ export function OfficeFrame({
   }
 
   return (
-    <div className="mn-office" style={{ ["--mn-dim" as string]: String(dim) }}>
+    <div
+      className={cx("mn-office", start && "mn-office--start")}
+      style={{ ["--mn-dim" as string]: String(dim) }}
+    >
       <header className="mn-office__title">
+        {/* 装饰画放在最前面：它绝对定位压在最右边，DOM 里排在前面才画在底下
+            （排在后面会盖住头像和那几个按钮） */}
+        {titleArt ? (
+          <div className="mn-office__title-art" aria-hidden>
+            {titleArt}
+          </div>
+        ) : null}
         {brand ? <span className="mn-office__brand">{brand}</span> : null}
         {titleTools ? <div className="mn-office__qat">{titleTools}</div> : null}
         <div className="mn-office__file">
@@ -369,7 +404,7 @@ export function OfficeFrame({
 
       {/* 开始屏幕上没有功能区：真 Office 那两屏就是分开的（页签为空 = 这是开始屏幕）。
           主页签那一行里的「文件」只在有页签时出现 */}
-      {tabs.length > 0 ? (
+      {!start ? (
         <div className="mn-ribbon">
           <div className="mn-ribbon__tabs" role="tablist">
             <button
@@ -407,8 +442,10 @@ export function OfficeFrame({
           </div>
           {ribbonOpen ? (
             <div className="mn-ribbon__panel">
-              {(active.groups ?? []).map((group) => (
-                <RibbonGroupView key={group.label} group={group} />
+              {(active.groups ?? []).map((group, index) => (
+                // key 里带序号：Excel 上有两组都叫「OfficePLUS」（左右各一个），
+                // 只用组名当 key 会撞车
+                <RibbonGroupView key={`${group.label}-${index}`} group={group} />
               ))}
               <button
                 type="button"

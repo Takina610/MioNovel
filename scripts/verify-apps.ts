@@ -29,13 +29,13 @@ globals.NodeFilter = testWindow.NodeFilter
 
 const { chapterBlocks, looksLikeDialogue, prepareBody, mediaLinesHtml, mediaModeFor } = await import('../src/lib/blocks.ts')
 const { chapterMessages, avatarInitial, chatSender, messageSender, CHAT_ME, CHAT_RAIL, sessionTag, sessionUnread } = await import('../src/lib/chat.ts')
-const { chapterRows, activeRowOf, rowsTotal } = await import('../src/lib/sheet.ts')
+const { chapterRows, activeRowOf, rowsTotal, SHEET_COLUMNS, SHEET_HEAD } = await import('../src/lib/sheet.ts')
 const { chapterSlides } = await import('../src/lib/slide.ts')
 const { chapterFileName } = await import('../src/lib/code.ts')
-const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeText, homeRows, pinnedBook, docOwnerOf, DOC_TABS, DOC_FILTERS, WORD_TABS, WORD_STYLES, WORD_HOME_TABS, WORD_NAV_TABS, wordHomeRows, wordDateText } = await import('../src/lib/appdocs.ts')
+const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeText, homeRows, pinnedBook, docOwnerOf, DOC_TABS, DOC_FILTERS, WORD_TABS, WORD_STYLES, WORD_HOME_TABS, WORD_NAV_TABS, wordHomeRows, wordDateText, EXCEL_TABS, EXCEL_HOME_TABS, excelHomeRows, greetingText } = await import('../src/lib/appdocs.ts')
 const { markFinds, clearFinds, countFinds, FIND_MARK } = await import('../src/lib/find.ts')
 const { getTheme, listThemes, buildThemeSheet, chromeOf } = await import('../src/themes/apply.ts')
-const { CODE_TOKEN_VARS, CHAT_TOKEN_VARS, PAGE_TOKEN_VARS, TOKEN_VARS } = await import('../src/themes/vars.ts')
+const { CODE_TOKEN_VARS, CHAT_TOKEN_VARS, PAGE_TOKEN_VARS, SHEET_TOKEN_VARS, TOKEN_VARS } = await import('../src/themes/vars.ts')
 
 let failures = 0
 let checks = 0
@@ -75,6 +75,7 @@ console.log('\n主题注册表')
   const codeKeys = Object.keys(CODE_TOKEN_VARS)
   const pageKeys = Object.keys(PAGE_TOKEN_VARS)
   const chatKeys = Object.keys(CHAT_TOKEN_VARS)
+  const sheetKeys = Object.keys(SHEET_TOKEN_VARS)
 
   let missingTokens = 0
   let emptyTokens = 0
@@ -104,6 +105,12 @@ console.log('\n主题注册表')
         if (!theme.page[key as keyof typeof theme.page]) badChromeTokens++
       }
     }
+    if (theme.chrome === 'sheet' && !theme.sheet) badChromeTokens++
+    if (theme.sheet) {
+      for (const key of sheetKeys) {
+        if (!theme.sheet[key as keyof typeof theme.sheet]) badChromeTokens++
+      }
+    }
     if (theme.preset) {
       const { fontSize, lineHeight, contentWidth, indent, paragraphGap } = theme.preset
       if (fontSize !== undefined && (fontSize < 10 || fontSize > 40)) badPreset++
@@ -115,7 +122,7 @@ console.log('\n主题注册表')
   }
   check('每套主题的 18 个主 token 一个不缺', missingTokens === 0, `缺 ${missingTokens} 个`)
   check('没有空值 token', emptyTokens === 0, `空 ${emptyTokens} 个`)
-  check('声明了 code / chat / page 的主题把那一层的 token 也补全了', badChromeTokens === 0, `缺 ${badChromeTokens} 个`)
+  check('声明了 code / chat / page / sheet 的主题把那一层的 token 也补全了', badChromeTokens === 0, `缺 ${badChromeTokens} 个`)
   check('每套主题自带的排版参数都在合理范围内', badPreset === 0, `越界 ${badPreset} 个`)
 
   const sheet = buildThemeSheet()
@@ -123,6 +130,7 @@ console.log('\n主题注册表')
   check('样式表里写了 color-scheme（原生控件跟着明暗走）', sheet.includes('color-scheme: dark') && sheet.includes('color-scheme: light'))
   check('未知 id 回落到第一个内置主题', getTheme('不存在的主题').id === themes[0].id)
   check('聊天主题的 rail / bubble 进了样式表', sheet.includes('--mn-chat-rail') && sheet.includes('--mn-chat-bubble'))
+  check('表格主题的网格 / 选中框进了样式表', sheet.includes('--mn-sheet-grid') && sheet.includes('--mn-sheet-select'))
 }
 
 /* ==========================================================================
@@ -305,6 +313,97 @@ console.log('\n表格（Excel）')
   check('当前行按章内比例换算（头尾都夹住）', activeRowOf(rows, 0) === rows[0].row && activeRowOf(rows, 1) === rows[rows.length - 1].row)
   check('工作表名截到 31 字以内', sheetNameOf('很长的章节名'.repeat(8), 0).length <= 31)
   check('工作表名去掉 Excel 不认的字符', !/[:\\/?*[\]]/.test(sheetNameOf('第1章：出发/归来', 0)))
+  // 列标题（A / B / C）与字段名（正文 / 字数 / 类型）必须一一对上：分开写两边就会
+  // 各说各话，而屏幕上只看得到「A」底下那一列写着什么
+  check(
+    '三列的字母是 A / B / C，和字段名一一对应（正文在 A 列）',
+    SHEET_COLUMNS.length === SHEET_HEAD.length &&
+      SHEET_COLUMNS.join('') === 'ABC' &&
+      rows.every((row) => row.address.startsWith(SHEET_COLUMNS[0])),
+    SHEET_COLUMNS.join(','),
+  )
+}
+
+/* ==========================================================================
+   四之二、Excel 的页签、开始屏幕与问候语
+   --------------------------------------------------------------------------
+   和 Word 那一套同一个道理：页签的顺序、哪几页是真的、开始屏幕上哪一栏是空的、
+   问候语按什么钟点换——对着屏幕扫一眼看不出对错，但它们是「这个外壳诚不诚实」
+   的全部依据，所以逐条断言。
+   ========================================================================== */
+
+console.log('\nExcel 的页签与开始屏幕')
+{
+  // 三本书：一本中文、一本日文（原文件名是罗马字）、一本没有作者的书。
+  // 时间用固定值——「按最近读的排」这条规则要能一眼看出来对不对
+  const DAY = 86_400_000
+  const now = new Date(2026, 8, 24, 15, 0).getTime()
+  const shelf = [
+    { id: 'yuki', title: '雪国', author: '川端康成', fileName: 'yuki.txt', addedAt: now - 10 * DAY, lastReadAt: now - DAY },
+    { id: 'xue', title: '雪落香杉树', author: '大卫·伽特森', fileName: 'xue.txt', addedAt: now - 3 * DAY, lastReadAt: 0 },
+    { id: 'empty', title: '无名之书', author: '', fileName: '无名.txt', addedAt: now - 20 * DAY, lastReadAt: now - 2 * DAY },
+  ] as never as BookRecord[]
+
+  check(
+    '页签的顺序照截图（开始 / OfficePLUS / 插入 / 绘图 / 页面布局 / 公式 / 数据 / 审阅 / 视图 / PDF工具箱 / 帮助）',
+    EXCEL_TABS.map((tab) => tab.label).join(' ') ===
+      '开始 OfficePLUS 插入 绘图 页面布局 公式 数据 审阅 视图 PDF工具箱 帮助',
+    EXCEL_TABS.map((tab) => tab.label).join(' '),
+  )
+  check(
+    '只有「开始」和「视图」两页是真的，其余九页灰着',
+    EXCEL_TABS.filter((tab) => !tab.disabled).map((tab) => tab.id).join(',') === 'home,view',
+    EXCEL_TABS.filter((tab) => !tab.disabled).map((tab) => tab.id).join(','),
+  )
+  check('「文件」不在页签表里（由 OfficeFrame 单独画）', !EXCEL_TABS.some((tab) => tab.label === '文件'))
+
+  check(
+    '开始屏幕三栏是 最近 / 收藏夹 / 与我共享',
+    EXCEL_HOME_TABS.map((tab) => tab.label).join(' ') === '最近 收藏夹 与我共享',
+    EXCEL_HOME_TABS.map((tab) => tab.label).join(' '),
+  )
+  check(
+    '「收藏夹」「与我共享」老实空着（本地文件没有收藏与共享）',
+    excelHomeRows(shelf, { tab: 'starred' }).length === 0 &&
+      excelHomeRows(shelf, { tab: 'shared' }).length === 0 &&
+      EXCEL_HOME_TABS.every((tab) => tab.empty.length > 0),
+  )
+  check(
+    '「最近」与 Word 那一屏是同一份规则（同一批数据排出来一模一样）',
+    excelHomeRows(shelf, { tab: 'recent' }).map((book) => book.title).join(',') ===
+      wordHomeRows(shelf, { tab: 'recent' }).map((book) => book.title).join(','),
+    excelHomeRows(shelf, { tab: 'recent' }).map((book) => book.title).join(','),
+  )
+  {
+    const all = excelHomeRows(shelf, { tab: 'recent' })
+    const found = excelHomeRows(shelf, { tab: 'recent', query: '雪' })
+    check(
+      '搜到的那几本仍然按最近读的排（搜索不打乱顺序）',
+      found.length > 0 && found.every((book) => all.includes(book)),
+    )
+    check(
+      '搜索按书名、作者、原文件名三样匹配',
+      excelHomeRows(shelf, { tab: 'recent', query: '雪' }).length === 2 &&
+        excelHomeRows(shelf, { tab: 'recent', query: '川端' }).length === 1 &&
+        excelHomeRows(shelf, { tab: 'recent', query: 'yuki' }).length === 1 &&
+        excelHomeRows(shelf, { tab: 'recent', query: '不存在的书' }).length === 0,
+      '雪 2 / 川端 1 / yuki 1 / 无 0',
+    )
+  }
+
+  // 问候语读的是这台设备现在的钟点（不是编的）。四个分界都要对得住
+  const at = (hour: number) => greetingText(new Date(2026, 8, 24, hour, 30).getTime())
+  check(
+    '问候语按钟点换（0-4 晚上好 / 5-11 早上好 / 12-17 下午好 / 18-23 晚上好）',
+    at(3) === '晚上好' &&
+      at(5) === '早上好' &&
+      at(11) === '早上好' &&
+      at(12) === '下午好' &&
+      at(17) === '下午好' &&
+      at(18) === '晚上好' &&
+      at(23) === '晚上好',
+    [3, 5, 12, 18].map(at).join(','),
+  )
 }
 
 /* ==========================================================================

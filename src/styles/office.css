@@ -139,6 +139,118 @@
   font-weight: 600;
 }
 
+/* ---- 标题栏上那几件三件套共用的零件 ----
+   「自动保存 + 开关」「升级计划那个牌子」「页签行右端的批注 / 编辑 / 共享」在
+   Word 与 Excel 的截图里画得一模一样（量出来的高度、圆角、字号都相同），
+   所以放在共用的框里——一处改，两屏都对。**描边取 --mn-office-control**：
+   纸那一层叫 --mn-page-control，网格那一层叫 --mn-sheet-control，
+   两个 chrome 各自把它接过来（量出来都是 #8A8A8A，但两边是各自量的）。 */
+
+html[data-chrome='page'] {
+  --mn-office-control: var(--mn-page-control);
+}
+
+html[data-chrome='sheet'] {
+  --mn-office-control: var(--mn-sheet-control);
+}
+
+/* 自动保存：两屏里它都停在「关」（本地文件不上云，没有要同步的东西） */
+.mn-office__autosave {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 2px;
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.mn-office__switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 44px;
+  height: 22px;
+  padding: 2px 7px 2px 2px;
+  border: 1px solid var(--mn-office-control);
+  border-radius: 11px;
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+}
+
+.mn-office__switch-knob {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--mn-fg-muted);
+}
+
+/* 升级计划那个小牌子。它是灰的：本地文件用不上云服务。两屏都没有那颗红点——
+   红点是「你有未读通知」的意思，我们没有这件事（见决定记录 34） */
+.mn-office__alert {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  margin-right: 6px;
+  padding: 0 10px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-office-control);
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* 页签行右端那几个：批注 / 编辑 / 共享 */
+.mn-office__tabbtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.mn-office__tabbtn svg {
+  flex: 0 0 auto;
+}
+
+/* 共享是实心的一块强调色。上面的白字是「实心块自己的墨色」——
+   和飞书商标里那几笔白线同一个例外（见 app-icons.tsx 的文件头） */
+.mn-office__share {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  background: var(--mn-accent);
+  border: 1px solid var(--mn-accent);
+  border-radius: 3px;
+  color: #fff;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* 标题栏上的装饰画（Excel 开始屏幕右上角那片淡灰的水印）：压在最右边、
+   跟着标题栏裁掉，只画不接事件。它在 DOM 里排在标题栏最前面，所以画在底下 */
+.mn-office__title-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--mn-fg-faint);
+}
+
 /* ---- 功能区 ----
    尺寸照 2026-09-24 那张 1920×1030 的 Word 截图量的：
      页签行 33（页签左右各 9px 外边距，当前那一页底下 2px 强调色短线）

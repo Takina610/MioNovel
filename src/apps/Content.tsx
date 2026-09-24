@@ -1,6 +1,7 @@
+import { useLayoutEffect, useRef, useState } from 'react'
 import { messageSender, type ChatMessage } from '../lib/chat'
 import type { SheetRow } from '../lib/sheet'
-import { SHEET_HEAD } from '../lib/sheet'
+import { SHEET_COLUMNS, SHEET_FIRST_ROW, SHEET_HEAD } from '../lib/sheet'
 import type { Slide } from '../lib/slide'
 import { cx } from '../lib/cx'
 
@@ -87,9 +88,83 @@ export interface SheetGridProps {
   total: number
 }
 
+/**
+ * 工作表网格。
+ *
+ * 最上面那一行是**列标题**（A / B / C，当前那一列点亮）——Excel 的窗口里
+ * 它一直在，所以这里也一直在；表头里那三个字段名（正文 / 字数 / 类型）在
+ * 第 2 行，和第 1 行一样都是这份表的一部分（见 lib/sheet.ts）。
+ *
+ * 行号那一格的宽度、列标题的行高、网格线的颜色都写在 styles/excel.css 里，
+ * 全部取 `--mn-sheet-*` 那几个 token（一处定义，行列标题共用）。
+ */
 export function SheetGrid({ rows, title, activeRow, total }: SheetGridProps) {
+  const active = rows.find((row) => row.row === activeRow)
+  const activeLetter = active ? active.address.match(/^([A-Z]+)/)?.[1] : undefined
+
+  /**
+   * 数据后面那一片空格子。
+   *
+   * Excel 里往下看到底都是格子，不是一片白——短章（两段话）在这一屏里会露出
+   * 大半个窗口，所以我们把剩下的那一屏补成空行。**这不是编内容**：空行只有
+   * 行号，而行号是结构性计数器（和 VS Code 的行号、幻灯片序号同一类，
+   * 见 AGENTS.md 第二节第 4 条）。
+   *
+   * 数量按「滚动容器还空着多少」算，而且基准高度要扣掉**已经画上去的空行**
+   * （fillersRef）：不扣的话「补上 → 变高 → 不用补 → 又变矮」会来回抖。
+   */
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const fillersRef = useRef(0)
+  const [fillers, setFillers] = useState(0)
+
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current
+    const scroller = sheet?.closest('.mn-scroll') as HTMLElement | null
+    if (!sheet || !scroller) return
+    const measure = () => {
+      // 挑「一行有多高」：补出来的空行和数据行是同一套格子（CSS 里同一档行高），
+      // 所以量到哪个都一样。行高量不出来（还没排版）就什么也不做
+      const sample =
+        sheet.querySelector<HTMLElement>('.mn-sheet__fill .mn-sheet__row') ??
+        sheet.querySelector<HTMLElement>('.mn-sheet__row:not(.mn-sheet__row--cols)')
+      const rowH = sample?.offsetHeight ?? 0
+      if (rowH <= 0) return
+      // 基准高度是「不含空行」的那一份：不扣掉已画的空行，加了就超、超了又减，会来回抖
+      const base = sheet.offsetHeight - fillersRef.current * rowH
+      // floor 不是 ceil：宁可差一行，也不要多出一行把页面顶出滚动条
+      const next = Math.max(0, Math.floor((scroller.clientHeight - base) / rowH))
+      if (next !== fillersRef.current) {
+        fillersRef.current = next
+        setFillers(next)
+      }
+    }
+    measure()
+    // 刚挂上时字号变量、字体都可能还没落定，量到的行高会偏。补两拍再量一次
+    const settle = window.setTimeout(measure, 100)
+    const observer = new ResizeObserver(measure)
+    observer.observe(scroller)
+    return () => {
+      window.clearTimeout(settle)
+      observer.disconnect()
+    }
+  }, [rows, fillers])
+
+  const lastRow = rows.length > 0 ? rows[rows.length - 1].row : SHEET_FIRST_ROW - 1
+
   return (
-    <div className="mn-sheet">
+    <div className="mn-sheet" ref={sheetRef}>
+      <div className="mn-sheet__row mn-sheet__row--cols">
+        <span className="mn-sheet__corner" />
+        {SHEET_COLUMNS.map((column) => (
+          <span
+            key={column}
+            className="mn-sheet__colhead"
+            data-active={column === activeLetter ? 'true' : undefined}
+          >
+            {column}
+          </span>
+        ))}
+      </div>
       <div className="mn-sheet__row mn-sheet__row--title">
         <span className="mn-sheet__gutter" />
         <span className="mn-sheet__cell mn-sheet__cell--title" style={{ gridColumn: '2 / -1' }}>
@@ -127,6 +202,18 @@ export function SheetGrid({ rows, title, activeRow, total }: SheetGridProps) {
           </div>
         )
       })}
+      {fillers > 0 ? (
+        <div className="mn-sheet__fill" aria-hidden>
+          {Array.from({ length: fillers }, (_, index) => (
+            <div key={index} className="mn-sheet__row">
+              <span className="mn-sheet__gutter">{lastRow + index + 1}</span>
+              <span className="mn-sheet__cell" />
+              <span className="mn-sheet__cell" />
+              <span className="mn-sheet__cell" />
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="mn-sheet__foot">
         共 {rows.length} 段 · {total} 字
       </div>

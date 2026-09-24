@@ -1534,3 +1534,534 @@ export function IconZoomIn(props: IconProps) {
     </Svg>
   )
 }
+
+/* ==========================================================================
+   Excel 形态（2026-09-24，决定记录 36）
+   --------------------------------------------------------------------------
+   规格同上（24 格、1.75 描边、圆头、currentColor）。这一批按一张 Excel 截图
+   一比一复刻：功能区的十组格子、编辑栏、行列标题、视图页签那几格。
+
+   记号分三类：
+
+   1. **字**：对齐方式里的「ab」「方向」「自动换行」、数字组里的小数位、
+      「VLOOKUP」——真 Excel 里它们本来就是字，所以用 <text> 画
+      （和 IconZoom100 同一个路子）；字号按 24 格里墨迹 60% 的口径给。
+   2. **网格**：样式组与单元格组那几格都是「一个格子 + 一点动作」
+      （条件格式 = 格子里两块变色、插入 = 箭头进格子、删除 = 格子上一个叉）。
+      这些是**同一个记号**的变体，所以下面那几支画法刻意保持一致。
+   3. **别的产品的记号**（OfficePLUS 的表格美化、便捷工具那六格、图片转文字）：
+      颜色照截图取（绿 / 橙），和 IconAiHelper 那三支一样写死——它们是加载项的
+      招牌，不是界面的一部分。其余一律 currentColor。
+   ========================================================================== */
+
+/* ---- Excel 的商标与文件 ---- */
+
+/**
+ * Excel 的商标：一块深绿的方块，右上角一块亮绿，中间一个白 X。
+ * 三个绿都是产品色（#185C37 / #21A366 / #FFFFFF），跟着主题变色就不像它了。
+ */
+export function IconExcelMark(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M4.4 3.6h9.2l6 6v10.8a2.4 2.4 0 0 1-2.4 2.4H4.4A2.4 2.4 0 0 1 2 20.4V6a2.4 2.4 0 0 1 2.4-2.4z" fill="#185C37" />
+      <path d="M13.6 3.6 19.6 9.6h-4.4a1.6 1.6 0 0 1-1.6-1.6z" fill="#21A366" />
+      <path d="M2 12.4h11.6v9.2H4.4A2.4 2.4 0 0 1 2 19.2z" fill="#107C41" />
+      <path d="m5.4 8.6 2.4 3.9-2.5 3.9M8 8.6l-2.6 3.9L8 16.4M4.2 8.6h1.4M6.6 8.6h1.4M4.6 16.4H6M7 16.4h1.4" stroke="#fff" strokeWidth="1.35" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/**
+ * 工作簿的图标：一页纸 + 左下角一个绿方块里的 X。
+ * 徽标用主题的强调色（和 IconWordFile 同一个道理：它是文件类型记号，不是商标）。
+ */
+export function IconExcelFile(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6.4 3.4h8.2l4 4v10.2a2 2 0 0 1-2 2H6.4a2 2 0 0 1-2-2V5.4a2 2 0 0 1 2-2z" />
+      <path d="M14.2 3.6v4h4" />
+      <rect x="2.6" y="13.4" width="10" height="7" rx="1.4" style={{ fill: 'var(--mn-accent)' }} stroke="none" />
+      <path d="m4.8 15.2 2.3 3.4M7.1 15.2l-2.3 3.4M9.2 15.2h1.9" stroke="#fff" strokeWidth="1.25" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  )
+}
+
+/** 开始使用（开始屏幕左栏那个「>」方框，真 Excel 里是漫游向导） */
+export function IconTour(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m10 7.6 4.4 4.4-4.4 4.4" />
+    </Svg>
+  )
+}
+
+/**
+ * 标题栏右上角那片水印（开始屏幕）。
+ *
+ * 真 Excel 那里是**放大了几十倍的商标**，只露出一角：所以看上去是一圈圈同心圆
+ * 与斜条纹，而不是一个完整的图标。这里就照那个样子画**几何**（不带品牌色）——
+ * 它是标题栏上的装饰，颜色跟 currentColor 走，暗色主题下自己就暗下去。
+ */
+export function IconExcelWatermark(props: IconProps) {
+  return (
+    <svg viewBox="0 0 620 58" fill="none" stroke="currentColor" focusable="false" {...props}>
+      <circle cx="654" cy="29" r="150" strokeWidth="26" opacity="0.55" />
+      <circle cx="654" cy="29" r="96" strokeWidth="20" opacity="0.55" />
+      <path d="M470 -40 560 -40M446 6 566 6M446 52 566 52M470 98 560 98" strokeWidth="22" opacity="0.5" />
+      <path d="M330 -30 396 24M310 40 376 94" strokeWidth="18" opacity="0.45" />
+      <path d="M214 -26 268 16M198 34 252 76M182 94 236 136" strokeWidth="14" opacity="0.4" />
+    </svg>
+  )
+}
+
+/* ---- 字体组 ---- */
+
+/** 拼音指南：一个「文」上面标着拼音（截图里是 wén 两个字头） */
+export function IconPhoneticGuide(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <text x="12" y="9" textAnchor="middle" fontSize="6.4" fill="currentColor" stroke="none">
+        wén
+      </text>
+      <path d="M4.4 12.6h15.2M7.2 12.6v7.2M12 12.6v7.4M16.8 12.6v5.4M7.2 16h4.8" strokeWidth="1.5" />
+    </Svg>
+  )
+}
+
+/* ---- 对齐方式组 ---- */
+
+/** 方向（文字方向）：一个小「ab」加一个斜着往上的箭头 */
+export function IconOrientation(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <text x="2.6" y="19" fontSize="8" fontWeight="600" fill="currentColor" stroke="none">
+        ab
+      </text>
+      <path d="M9.6 17.4c1.8-.6 3-2 3.6-4.2" />
+      <path d="m17 7.6 1.8 2.2-2.6.6M18.8 9.8c-.9 3.4-3.2 5.5-7.2 6.4" />
+    </Svg>
+  )
+}
+
+/** 自动换行：「ab」下面一条折回来的箭头（Excel 那个记号） */
+export function IconWrapAb(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <text x="4.6" y="10.6" fontSize="8" fontWeight="600" fill="currentColor" stroke="none">
+        ab
+      </text>
+      <path d="M4.4 14.6h9.4a2.8 2.8 0 0 1 0 5.6h-2.6" />
+      <path d="m13.4 18 2.4 2.2-2.4 2.2" />
+    </Svg>
+  )
+}
+
+/** 顶端对齐：三行字贴着上边。左边那道竖线是「这一格」的边 */
+export function IconAlignTop(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.6 4.6v14.8" />
+      <path d="M7 6.6h13M7 10.4h9M7 14.2h11" />
+    </Svg>
+  )
+}
+
+/** 垂直居中：三行字在正中间 */
+export function IconAlignMiddle(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.6 4.6v14.8" />
+      <path d="M7 8.6h13M7 12.4h9M7 16.2h11" />
+    </Svg>
+  )
+}
+
+/** 底端对齐：三行字贴着下边 */
+export function IconAlignBottom(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.6 4.6v14.8" />
+      <path d="M7 10.6h13M7 14.4h9M7 18.2h11" />
+    </Svg>
+  )
+}
+
+/* ---- 数字组 ---- */
+
+/** 货币：一个带框的币种记号 + 右下角一枚硬币 */
+export function IconCurrency(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2.4" y="4.2" width="14" height="10.4" rx="1.4" />
+      <text x="9.4" y="12.2" textAnchor="middle" fontSize="8.6" fontWeight="600" fill="currentColor" stroke="none">
+        ¥
+      </text>
+      <circle cx="17.4" cy="16.8" r="3.6" fill="currentColor" stroke="none" />
+      <path
+        d="M14.6 16.8h5.6M17.4 14v5.6"
+        strokeWidth="1.4"
+        style={{ stroke: 'var(--mn-surface)' }}
+      />
+    </Svg>
+  )
+}
+
+/** 增加小数位数：.00 左边一只向左的箭头（真 Excel 那个记号就是这么画的） */
+export function IconDecimalUp(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <text x="0.4" y="14.4" fontSize="9" fill="currentColor" stroke="none">
+        .00
+      </text>
+      <path d="M15.8 8.4h6M18 6.2l-2.2 2.2 2.2 2.2" strokeWidth="1.6" />
+      <text x="13.6" y="20.4" fontSize="7.6" fill="currentColor" stroke="none">
+        0
+      </text>
+    </Svg>
+  )
+}
+
+/** 减少小数位数：往右再补一位 */
+export function IconDecimalDown(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <text x="0.4" y="14.4" fontSize="9" fill="currentColor" stroke="none">
+        .00
+      </text>
+      <path d="M15.8 8.4h6M19.6 6.2l2.2 2.2-2.2 2.2" strokeWidth="1.6" />
+      <text x="23.6" y="20.4" textAnchor="end" fontSize="7.6" fill="currentColor" stroke="none">
+        0
+      </text>
+    </Svg>
+  )
+}
+
+/* ---- 样式组与单元格组：一个格子 + 一点动作 ---- */
+
+/** 条件格式：格子里两块变色（Excel 的记号是红蓝各一块） */
+export function IconCondFormat(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.4" width="17.2" height="15.2" rx="1.2" />
+      <path d="M3.4 9.4h17.2M3.4 14.6h17.2M9.1 4.4v15.2M14.8 4.4v15.2" strokeWidth="1.3" />
+      <rect x="3.9" y="4.9" width="4.7" height="4" fill="currentColor" stroke="none" />
+      <rect x="15.3" y="15.1" width="4.7" height="4" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 套用表格格式：格子 + 一支刷子 */
+export function IconTableStyle(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.4" width="17.2" height="15.2" rx="1.2" />
+      <path d="M3.4 9.4h17.2M9.1 4.4v15.2M14.8 4.4v15.2" strokeWidth="1.3" />
+      <path d="M3.9 4.9h4.7v4H3.9zM9.6 4.9h4.7v4H9.6zM15.3 4.9h4.7v4h-4.7z" fill="currentColor" stroke="none" />
+      <path d="m13.4 13.2 4.4 4.4-2.8 2.8-4.4-4.4z" style={{ fill: 'var(--mn-surface)' }} />
+      <path d="m10.6 16 2.8 2.8" strokeWidth="1.5" />
+    </Svg>
+  )
+}
+
+/** 单元格样式：格子中间那一块被刷过 */
+export function IconCellStyles(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.4" width="17.2" height="15.2" rx="1.2" />
+      <path d="M3.4 9.4h17.2M3.4 14.6h17.2M9.1 4.4v15.2M14.8 4.4v15.2" strokeWidth="1.3" />
+      <rect x="9.6" y="9.9" width="4.7" height="4.2" fill="currentColor" stroke="none" />
+      <path d="m12.6 13.6 5 5-2.8 2.8-5-5z" style={{ fill: 'var(--mn-surface)' }} />
+      <path d="m9.8 16.4 2.8 2.8" strokeWidth="1.5" />
+    </Svg>
+  )
+}
+
+/** 插入单元格：一个箭头从左上角进格子 */
+export function IconCellInsert(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9.4 4.6h10.2a1.2 1.2 0 0 1 1.2 1.2v13.6a1.2 1.2 0 0 1-1.2 1.2H9.4" />
+      <path d="M9.4 4.6v16.8" strokeWidth="1.5" />
+      <path d="M9.4 12.4h5.4" strokeWidth="1.5" />
+      <path d="M4 8.2 1.8 12 4 15.8" strokeWidth="1.5" />
+      <path d="M1.8 12h6.4" strokeWidth="1.5" />
+    </Svg>
+  )
+}
+
+/** 删除单元格：格子上一个叉 */
+export function IconCellDelete(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4.6" y="4.8" width="14.8" height="14.4" rx="1.2" />
+      <path d="M4.6 9.6h14.8M4.6 14.4h14.8M9.8 4.8v14.4M14.4 4.8v14.4" strokeWidth="1.3" />
+      <path d="m9 9.9 6 6M15 9.9l-6 6" strokeWidth="2" />
+    </Svg>
+  )
+}
+
+/** 单元格格式：格子里那一行被选中（一条粗横杠） */
+export function IconCellFormat(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4.6" y="4.8" width="14.8" height="14.4" rx="1.2" />
+      <path d="M4.6 9.6h14.8M4.6 14.4h14.8M9.8 4.8v14.4M14.4 4.8v14.4" strokeWidth="1.3" />
+      <path d="M4.6 14.4h14.8" strokeWidth="2.4" />
+    </Svg>
+  )
+}
+
+/* ---- 编辑组 ---- */
+
+/** 填充：一个框 + 一个往下落的箭头 */
+export function IconFillDown(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="5" y="3.6" width="14" height="7.4" rx="1.2" />
+      <path d="M12 12.6v8.6" strokeWidth="1.9" />
+      <path d="m8.6 18 3.4 3.4L15.4 18" strokeWidth="1.9" />
+    </Svg>
+  )
+}
+
+/** 清除：一块橡皮（真 Excel 里它是紫的，这里跟文字同色） */
+export function IconClearAll(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m11.6 3.8 8.6 8.6-7.4 7.4H7.6l-4.2-4.2z" />
+      <path d="M4.4 20.2h15.2" strokeWidth="2.4" />
+      <path d="m8.4 7 8.6 8.6" strokeWidth="1.5" />
+    </Svg>
+  )
+}
+
+/** 排序和筛选：AZ 加一个漏斗（Excel 里这两件事就在一格上） */
+export function IconSortFilter(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <text x="0.8" y="12" fontSize="9.4" fontWeight="600" fill="currentColor" stroke="none">
+        AZ
+      </text>
+      <path d="M2.2 15.2h6.6M5.5 14v6.4M2.6 20.4l2.9-6.4 2.9 6.4" strokeWidth="1.4" />
+      <path d="M13 4.6h8.6l-3.3 4.2v5.4l-2 .9V8.8z" />
+    </Svg>
+  )
+}
+
+/* ---- 视图页签 ---- */
+
+/** 普通视图：一张网格，格子占满（这就是我们现在的样子） */
+export function IconNormalView(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.6" width="17.2" height="14.8" rx="1.2" />
+      <path d="M3.4 9.8h17.2M3.4 15h17.2M9.1 4.6v14.8M14.8 4.6v14.8" strokeWidth="1.3" />
+    </Svg>
+  )
+}
+
+/** 页面布局：一页纸上有一条页眉与一条页脚 */
+export function IconPageLayoutView(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="5" y="3.6" width="14" height="16.8" rx="1.2" />
+      <path d="M5 7.6h14M5 16.4h14" strokeWidth="1.5" />
+      <path d="M7.4 10.6h6M7.4 13h4" strokeWidth="1.4" />
+    </Svg>
+  )
+}
+
+/** 分页预览：网格上两条虚线（哪里分页） */
+export function IconPageBreakView(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.6" width="17.2" height="14.8" rx="1.2" />
+      <path d="M3.4 10.4h17.2M10.8 4.6v14.8" strokeDasharray="2.4 2.2" strokeWidth="1.3" />
+      <path d="M3.4 15.6h17.2" strokeWidth="1.3" />
+    </Svg>
+  )
+}
+
+/** 自定义视图：网格 + 一支笔（保存下来的视图） */
+export function IconCustomViews(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.6" width="17.2" height="14.8" rx="1.2" />
+      <path d="M3.4 9.8h17.2M9.1 4.6v14.8" strokeWidth="1.3" />
+      <path d="m14.6 12.2 3.4 3.4-1.6 1.6-3.4-3.4z" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 网格线：一张网格，线画得比别处清楚 */
+export function IconGridLines(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.6" width="17.2" height="14.8" rx="1.2" strokeWidth="1.4" />
+      <path d="M3.4 9.6h17.2M3.4 14.6h17.2M9.1 4.6v14.8M14.8 4.6v14.8" />
+    </Svg>
+  )
+}
+
+/** 编辑栏：一个框里写着 fx */
+export function IconFormulaBar(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2.6" y="6.6" width="18.8" height="10.8" rx="1.6" />
+      <text x="7" y="14.6" fontSize="7.4" fontStyle="italic" fontWeight="600" fill="currentColor" stroke="none">
+        fx
+      </text>
+      <path d="M11.6 8.8v6.4" strokeWidth="1.3" />
+    </Svg>
+  )
+}
+
+/** 标题（行列标题）：网格上头多一排 A B C */
+export function IconSheetHeaders(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="3.6" width="17.2" height="16.8" rx="1.2" />
+      <path d="M3.4 8.4h17.2M9.1 8.4v12M14.8 8.4v12" />
+      <text x="6.3" y="7.2" textAnchor="middle" fontSize="4.6" fill="currentColor" stroke="none">
+        A
+      </text>
+      <text x="12" y="7.2" textAnchor="middle" fontSize="4.6" fill="currentColor" stroke="none">
+        B
+      </text>
+      <text x="17.6" y="7.2" textAnchor="middle" fontSize="4.6" fill="currentColor" stroke="none">
+        C
+      </text>
+    </Svg>
+  )
+}
+
+/** 冻结窗格：网格上头那一条被一条实线钉住（下头那两条是虚线） */
+export function IconFreezePanes(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.6" width="17.2" height="14.8" rx="1.2" />
+      <path d="M3.4 9.6h17.2" strokeWidth="2.2" />
+      <path d="M9.1 9.6v9.8M14.8 9.6v9.8M3.4 14.6h17.2" strokeDasharray="2.4 2.2" strokeWidth="1.3" />
+    </Svg>
+  )
+}
+
+/** 工作表标签：底下一条标签条，当前那一张挑出来（Excel 的标签栏记号） */
+export function IconSheetTab(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.6" width="17.2" height="10.4" rx="1.2" />
+      <path d="M3.4 18.6h4.4a1.2 1.2 0 0 0 1.2-1.2v-1.4h6.4v1.4a1.2 1.2 0 0 0 1.2 1.2h4.4" />
+    </Svg>
+  )
+}
+
+/* ---- 加载项那几格（别的产品的记号，颜色照截图取） ---- */
+
+/** 表格美化（OfficePLUS）：一张绿格子 + 一支绿刷子 */
+export function IconTableBeautify(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <g fill="none" stroke="#107C41" strokeWidth="1.7">
+        <rect x="2.6" y="4.6" width="13.6" height="13.2" rx="1" />
+        <path d="M2.6 9h13.6M2.6 13.4h13.6M7.2 4.6v13.2M11.8 4.6v13.2" />
+      </g>
+      <path d="M14.6 9.4c3.4 0 5.8 1.6 5.8 3.8 0 1.4-1 2.4-2.4 3.4l-2.2 1.6c-1 .8-2.4.4-2.8-.8-.2-.6 0-1.2.4-1.6.8-.8 2-1.4 2-2.6 0-1.2-1.4-2-3.2-2.2z" fill="#107C41" stroke="none" />
+    </svg>
+  )
+}
+
+/** 高级筛选：绿格子 + 漏斗 */
+export function IconAdvFilter(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <g fill="none" stroke="#107C41" strokeWidth="1.7">
+        <rect x="2.6" y="4.6" width="12.8" height="12.8" rx="1" />
+        <path d="M2.6 9h12.8M7 4.6v12.8" />
+      </g>
+      <path d="M13.4 12.4h8l-3 3.8v4.2l-2-.9v-3.3z" fill="#107C41" stroke="none" />
+    </svg>
+  )
+}
+
+/** 文本提取：一页纸上的 A + 一颗宝石 */
+export function IconTextExtract(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M15.6 3.8H7.4a1.6 1.6 0 0 0-1.6 1.6v13.2a1.6 1.6 0 0 0 1.6 1.6h4" fill="none" stroke="#107C41" strokeWidth="1.7" />
+      <path d="M8.4 4.2 11.4 13 14.4 4.2M9.4 9.6h4" fill="none" stroke="#107C41" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m15.8 12.6 3 3-3 3-3-3z" fill="#2CA36A" stroke="none" />
+      <path d="M17.4 19.4v1.8" stroke="#107C41" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** 查找录入：绿格子 + 一个放大镜 */
+export function IconFindEntry(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <g fill="none" stroke="#107C41" strokeWidth="1.7">
+        <rect x="2.8" y="4.4" width="13.2" height="13.2" rx="1" />
+        <path d="M2.8 9h13.2M7.4 4.4v13.2" />
+      </g>
+      <circle cx="15.4" cy="15.4" r="4" fill="none" stroke="#2CA36A" strokeWidth="1.8" />
+      <path d="m18.4 18.4 2.6 2.6" fill="none" stroke="#2CA36A" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** 拆分合并：两块格子，一个箭头从中间穿过去 */
+export function IconSplitMerge(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <g fill="none" stroke="#107C41" strokeWidth="1.7">
+        <rect x="2.8" y="3.6" width="8" height="7.6" rx="1" />
+        <rect x="13.2" y="12.8" width="8" height="7.6" rx="1" />
+      </g>
+      <path d="M13.4 4.6h5.2v5.2" fill="none" stroke="#2CA36A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10.6 19.4H5.4v-5.2" fill="none" stroke="#2CA36A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** 批量删除：绿格子 + 一个叉 */
+export function IconBatchDelete(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <g fill="none" stroke="#107C41" strokeWidth="1.7">
+        <rect x="2.8" y="4.4" width="13.2" height="13.2" rx="1" />
+        <path d="M2.8 9h13.2M7.4 4.4v13.2" />
+      </g>
+      <path d="m14.4 13.4 5.4 5.4M19.8 13.4l-5.4 5.4" fill="none" stroke="#D83B01" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** VLOOKUP：绿格子 + 一列往下找的箭头 */
+export function IconVlookup(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <g fill="none" stroke="#107C41" strokeWidth="1.7">
+        <rect x="2.6" y="4.4" width="13.6" height="13.2" rx="1" />
+        <path d="M2.6 8.8h13.6M2.6 13.2h13.6M7.2 4.4v13.2M11.8 4.4v13.2" />
+      </g>
+      <path d="m17.6 3.6 2.8 3.4-2.8 3.4" fill="none" stroke="#2CA36A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20.4 7h-6.6" fill="none" stroke="#2CA36A" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** 图片转文字：一张照片 + 一页写着字 */
+export function IconImageToText(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <g fill="none" stroke="#107C41" strokeWidth="1.7">
+        <rect x="2.4" y="3.6" width="11.4" height="9" rx="1" />
+        <path d="M2.4 10.2 5.6 7l2.6 2.8 2-1.8 3.6 4" />
+        <circle cx="6" cy="6" r="1" fill="#107C41" stroke="none" />
+      </g>
+      <rect x="12.6" y="11.6" width="9" height="9.4" rx="1" fill="none" stroke="#2CA36A" strokeWidth="1.7" />
+      <path d="M14.6 18.4 16.4 14l1.8 4.4M15.3 17h2.2M18.8 14h1.4" fill="none" stroke="#2CA36A" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}

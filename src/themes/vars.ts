@@ -1,4 +1,4 @@
-import type { ChatTokens, CodeTokens, PageTokens, ThemeTokens } from './types'
+import type { ChatTokens, CodeTokens, PageTokens, SheetTokens, ThemeTokens } from './types'
 
 /**
  * token 名 → CSS 自定义属性名。
@@ -66,3 +66,18 @@ export const PAGE_TOKEN_VARS = {
   control: '--mn-page-control',
   field: '--mn-page-field',
 } as const satisfies Record<keyof PageTokens, string>
+
+/**
+ * 表格形态多出来的那几个变量。同一套道理：只有 chrome: 'sheet' 的主题要写它们。
+ */
+export const SHEET_TOKEN_VARS = {
+  gridLine: '--mn-sheet-grid',
+  headerBg: '--mn-sheet-head-bg',
+  headerFg: '--mn-sheet-head-fg',
+  headerLine: '--mn-sheet-head-line',
+  headerSelBg: '--mn-sheet-head-sel',
+  select: '--mn-sheet-select',
+  chrome: '--mn-sheet-chrome',
+  field: '--mn-sheet-field',
+  control: '--mn-sheet-control',
+} as const satisfies Record<keyof SheetTokens, string>

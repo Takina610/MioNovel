@@ -845,10 +845,10 @@ export function WordApp(props: AppFrameProps) {
         <>
           {/* 本地文件的改动本来就落在这台设备上，没有要同步的云——所以这个开关
               是灰的，而且停在「关」：截图里的 Word 也是关着的 */}
-          <span className="mn-word__autosave" title="自动保存（本地文件不上云，没有要同步的东西）">
+          <span className="mn-office__autosave" title="自动保存（本地文件不上云，没有要同步的东西）">
             自动保存
-            <span className="mn-word__switch" aria-hidden>
-              <span className="mn-word__switch-knob" />
+            <span className="mn-office__switch" aria-hidden>
+              <span className="mn-office__switch-knob" />
               关
             </span>
           </span>
@@ -922,23 +922,23 @@ export function WordApp(props: AppFrameProps) {
         </div>
       }
       titleAlert={
-        <button type="button" className="mn-word__alert" disabled title="升级计划（本地文件用不上云服务）">
+        <button type="button" className="mn-office__alert" disabled title="升级计划（本地文件用不上云服务）">
           <span aria-hidden>◇</span>
           升级计划
         </button>
       }
       tabActions={
         <>
-          <button type="button" className="mn-word__tabbtn" disabled title="批注（这个外壳里没有）">
+          <button type="button" className="mn-office__tabbtn" disabled title="批注（这个外壳里没有）">
             <IconComment className="h-4 w-4" />
             批注
           </button>
-          <button type="button" className="mn-word__tabbtn" disabled title="编辑（只读文档，改不了）">
+          <button type="button" className="mn-office__tabbtn" disabled title="编辑（只读文档，改不了）">
             <IconEditPencil className="h-4 w-4" />
             编辑
             <IconChevron className="h-3 w-3" />
           </button>
-          <button type="button" className="mn-word__share" disabled title="本地文件没有分享这回事">
+          <button type="button" className="mn-office__share" disabled title="本地文件没有分享这回事">
             <IconShare className="h-4 w-4" />
             共享
             <IconChevron className="h-3 w-3" />

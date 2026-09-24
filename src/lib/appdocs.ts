@@ -349,7 +349,18 @@ export function wordHomeRows(
   options: { tab: WordHomeTab; query?: string },
 ): BookRecord[] {
   if (options.tab !== 'recent') return []
-  const needle = (options.query ?? '').trim().toLowerCase()
+  return recentRows(books, options.query)
+}
+
+/**
+ * 「最近」那一栏的数据：筛一遍、按最近动过的时间倒序。
+ *
+ * Word 与 Excel 两张开始屏幕**共用这一份**：它们都是「最近打开的文件」列表，
+ * 匹配的字段（书名 / 作者 / 磁盘上的原始文件名）和排序规则本来就该一样。
+ * 曾经想在两边各写一遍，想清楚之后发现那不是两个规矩，是一个规矩两个封面。
+ */
+function recentRows(books: BookRecord[], query?: string): BookRecord[] {
+  const needle = (query ?? '').trim().toLowerCase()
   const matched = needle
     ? books.filter(
         (book) =>
@@ -400,3 +411,72 @@ export const WORD_NAV_TABS: ReadonlyArray<WordNavTabSpec> = [
   { id: 'search', label: '查找' },
   { id: 'replace', label: '替换', disabled: true, why: '替换（只读文档改不了字）' },
 ]
+
+/* ==========================================================================
+   Excel 形态那一排页签与开始屏幕
+   --------------------------------------------------------------------------
+   2026-09-24 按 Excel 的截图一比一复刻外壳时从组件里搬出来的数据与判断。
+   和 Word 那份同一个道理：页签的顺序、哪几页是真的、开始屏幕上哪一栏是空的、
+   问候语按什么钟点换——这些对着屏幕扫一眼看不出对错（少一页、某一页悄悄变成
+   能点的、半夜说「下午好」），但它们是「这个外壳诚不诚实」的全部依据，
+   所以 verify:apps 逐条断言。
+
+   注意「文件」页签不在这张表里：它由 OfficeFrame 单独画，点了就是回开始屏幕。
+   ========================================================================== */
+
+/** Excel 的页签。顺序照截图：开始之后是 OfficePLUS，最后两页是 PDF工具箱与帮助 */
+export const EXCEL_TABS: ReadonlyArray<WordTab> = [
+  { id: 'home', label: '开始' },
+  { id: 'officeplus', label: 'OfficePLUS', disabled: true },
+  { id: 'insert', label: '插入', disabled: true },
+  { id: 'draw', label: '绘图', disabled: true },
+  { id: 'layout', label: '页面布局', disabled: true },
+  { id: 'formulas', label: '公式', disabled: true },
+  { id: 'data', label: '数据', disabled: true },
+  { id: 'review', label: '审阅', disabled: true },
+  { id: 'view', label: '视图' },
+  { id: 'pdf', label: 'PDF工具箱', disabled: true },
+  { id: 'help', label: '帮助', disabled: true },
+]
+
+export type ExcelHomeTab = WordHomeTab
+
+export interface ExcelHomeTabSpec {
+  id: ExcelHomeTab
+  label: string
+  /** 这一栏空着时的说法。和 Word 那边一样：没有内容就老实说 */
+  empty: string
+}
+
+export const EXCEL_HOME_TABS: ReadonlyArray<ExcelHomeTabSpec> = [
+  { id: 'recent', label: '最近', empty: '还没有工作簿' },
+  { id: 'starred', label: '收藏夹', empty: '还没有收藏的工作簿' },
+  { id: 'shared', label: '与我共享', empty: '本地文件没有共享这回事' },
+]
+
+/**
+ * Excel 开始屏幕上那份列表（最近 / 收藏夹 / 与我共享 + 搜索词）。
+ * 和 Word 的开始屏幕共用 `recentRows`：匹配字段与排序规则是一份。
+ */
+export function excelHomeRows(
+  books: BookRecord[],
+  options: { tab: ExcelHomeTab; query?: string },
+): BookRecord[] {
+  if (options.tab !== 'recent') return []
+  return recentRows(books, options.query)
+}
+
+/**
+ * 开始屏幕顶上那句问候（「下午好」）。
+ *
+ * 真 Excel 按钟点换这句话，我们照做——但这**不是编的**：它读的是这台设备
+ * 现在的钟点（AGENTS.md 第二节第 4 条：时间这类东西要么是真的，要么不要）。
+ * 分界在 5 点、12 点、18 点；`now` 是给断言留的。
+ */
+export function greetingText(now: number = Date.now()): string {
+  const hour = new Date(now).getHours()
+  if (hour < 5) return '晚上好'
+  if (hour < 12) return '早上好'
+  if (hour < 18) return '下午好'
+  return '晚上好'
+}

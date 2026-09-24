@@ -1,18 +1,394 @@
 /* ==========================================================================
-   Excel 形态（.mn-excel）
+   Excel 形态（.mn-excel / .mn-xhome）
    --------------------------------------------------------------------------
-   一章 = 一个工作表，一段 = 一行（见 lib/sheet.ts）。界面是：编辑栏（名称框 +
-   fx + 编辑栏本体）、网格（行号 + A/B/C 列）、底部的工作表标签、状态栏。
+   2026-09-24 按两张截图重做了一遍（1917×1006 的工作簿、1920×1079 的开始屏幕），
+   下面这些数都是从图上量的：
 
-   网格的排布用固定宽度的列：行号列窄、正文列吃掉剩下的宽度、字数列和类型列固定。
-   这四列的宽度只写在这一处（--mn-sheet-*），因为表头、正文行、页脚都要对齐。
+     标题栏         工作簿里 44（自动保存那一行），开始屏幕 58
+     页签行         34（页签左右各 9px 外边距，当前那页底下 2px 强调色短线）
+     功能面板       101 = 上边距 9 + 两行格子 + 组名那一行；组与组之间一条 1px 线
+                    十一组的宽度（量出来的）：117 / 280 / 205 / 162 / 160 / 203 /
+                    97 / 198 / 229 / 58 / 111
+     编辑栏         27（名称框 92 宽、✕ ✓ fx 三格、编辑栏本体吃掉剩下的、右端一个 ˅）
+     列标题行       18（A / B / C，底一条 1px 线；当前那一列垫浅灰 + 底下 2px 绿线）
+     行号列         34（截图里是 27：我们的行号可能到四位数，留宽一档）
+     网格线         1px；行高随字号，正文那一列左对齐
+     选中框         2px 绿框 + 右下角那个小方块（Excel 的填充柄）
+     标签条         28（当前那一张白底、上圆角、底下一条绿线，宽约半张标签）
+     开始屏幕       左栏 96、内容左起 144、问候 28px、绿按钮 153×35、
+                    药丸「最近」102×40（另外两个 36 高）、搜索框 585×37
+
+   **标题栏、页签行、工作表标签条、开始屏幕左栏是同一个色**（--mn-sheet-chrome
+   #E4EAEE），只有功能面板是白的——Excel 这两屏里它们本来就是连成一片的。
+   网格那一层的颜色是 --mn-sheet-* 那几个 token（见 themes/builtin.ts 的 sheet
+   那一层）；选中框用的是 Excel 的**选中绿** #217346，不是品牌绿 #107C41
+   （两个绿在一张截图里同时出现，量出来就是这样）。
    ========================================================================== */
 
-.mn-excel__body {
-  --mn-sheet-gutter: 52px;
-  --mn-sheet-num: 72px;
-  --mn-sheet-kind: 78px;
+/* ---- 标题栏与页签行 ---- */
 
+html[data-chrome='sheet'] {
+  --mn-office-title: 44px;
+  --mn-office-tab: 34px;
+  /* 行号列 / 字数列 / 类型列这三档宽度：表头、正文行、页脚都取它，改一处三处都对 */
+  --mn-sheet-gutter: 34px;
+  --mn-sheet-num: 64px;
+  --mn-sheet-kind: 72px;
+  /* 一格有多高：一行字的行盒 + 上下各 3px 的留白 + 一条网格线。
+     数据行、列标题行、补出来的空行都取这一个数——所以补空行的 JS 量一行就够，
+     量到哪一行都是同一个高（改字号时整张表一起变高变矮） */
+  --mn-sheet-row: calc(var(--mn-font-size, 14px) * var(--mn-line-height, 1.45) + 7px);
+}
+
+html[data-chrome='sheet'] .mn-office__title,
+html[data-chrome='sheet'] .mn-ribbon {
+  background: var(--mn-sheet-chrome);
+}
+
+html[data-chrome='sheet'] .mn-ribbon__panel {
+  background: var(--mn-surface);
+  border-top: 1px solid var(--mn-border);
+}
+
+/* 开始屏幕的标题栏高一档：Excel 的「文件」那一屏本来就是另一个高度 */
+html[data-chrome='sheet'] .mn-office--start .mn-office__title {
+  height: 58px;
+}
+
+/* 标题栏正中间那个搜索框（截图量的：368×32，圆角 3，描边用控件那一档） */
+.mn-xsearch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: min(368px, 26vw);
+  height: 32px;
+  padding: 0 6px 0 8px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-sheet-control);
+  border-radius: 3px;
+  transition: border-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-xsearch:focus-within {
+  border-color: var(--mn-accent);
+}
+
+.mn-xsearch__icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-xsearch input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  outline: none;
+}
+
+.mn-xsearch__count {
+  flex: 0 0 auto;
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mn-xsearch__btn {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-xsearch__btn:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-xsearch__btn:disabled {
+  opacity: 0.4;
+}
+
+/* ---- 功能区：Excel 的格子比 Word 紧一档 ---- */
+
+/* 小格子：图标 18、字 11.5、高 22。截图里「剪切 / 复制 / 格式刷」那一列
+   三格加起来正好 66，和左边那个大格（粘贴）一样高 */
+.mn-rb--dense {
+  height: 22px;
+  min-width: 0;
+  padding: 0 2px;
+  gap: 1px;
+  font-size: 11.5px;
+}
+
+.mn-rb--dense .mn-rb__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mn-rb--dense .mn-rb__label {
+  padding-right: 1px;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.mn-rb--dense .mn-rb__glyph {
+  font-size: 12.5px;
+}
+
+.mn-rb--dense.mn-rb--small {
+  min-width: 0;
+  padding-left: 1px;
+}
+
+.mn-rb--dense.mn-rb--icon {
+  min-width: 22px;
+}
+
+/* 竖着码的一摞（剪贴板右边那三个、单元格那三个、编辑那三个）：格子之间不留缝，
+   三格 22 加两条 0 = 66，和同一组里的大格一样高 */
+.mn-rb--dense.mn-rb--column,
+.mn-rb--column {
+  gap: 0;
+}
+
+/* 大格子（OfficePLUS / 样式 / 加载项那一排）：图标 30、字 11.5、宽 52 */
+.mn-rb--big.mn-rb--dense {
+  width: 52px;
+  height: 62px;
+  gap: 1px;
+  padding: 0 2px;
+  font-size: 11.5px;
+}
+
+.mn-rb--big.mn-rb--dense .mn-rb__icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.mn-rb--big.mn-rb--dense .mn-rb__label {
+  font-size: 11.5px;
+  line-height: 1.15;
+}
+
+/* 图标在上、字在下的一格（视图页签那一排）：比 Word 矮一档 */
+html[data-chrome='sheet'] .mn-rb--stack,
+html[data-chrome='sheet'] .mn-rb__static {
+  height: 58px;
+}
+
+html[data-chrome='sheet'] .mn-rb--stack .mn-rb__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* 功能区的组分隔线：Excel 的这一条从面板顶上一路到组名 */
+html[data-chrome='sheet'] .mn-ribbon__group {
+  padding: 0 10px;
+}
+
+html[data-chrome='sheet'] .mn-ribbon__panel {
+  padding-top: 9px;
+}
+
+/* ---- 功能区里的组合框（字体 / 字号 / 数字格式 / 缩放）---- */
+
+/* 截图里这些框是**描边的白框**：字体名那个 172 宽、字号 46、数字格式 112 */
+.mn-xc {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  height: 23px;
+  padding: 0 2px 0 7px;
+  background: var(--mn-sheet-field);
+  border: 1px solid var(--mn-sheet-control);
+  border-radius: 2px;
+  color: var(--mn-fg);
+  font-size: 12px;
+}
+
+.mn-xc--font {
+  width: 172px;
+}
+
+.mn-xc--size {
+  width: 46px;
+}
+
+.mn-xc--format {
+  width: 112px;
+}
+
+.mn-xc--zoom {
+  width: 62px;
+}
+
+.mn-xc__value {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mn-xc__caret {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  color: var(--mn-fg-muted);
+}
+
+/* ---- 编辑栏（名称框 + ✕ ✓ fx + 编辑栏本体 + 展开记号）---- */
+
+.mn-xbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  height: 27px;
+  padding: 0 8px;
+  background: var(--mn-surface);
+  border-bottom: 1px solid var(--mn-border);
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  user-select: none;
+}
+
+/* 名称框：92 宽的白框，里面是当前行的地址（A57），右边一个灰的小三角 */
+.mn-xbar__name {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 92px;
+  padding: 0 2px 0 8px;
+  background: var(--mn-sheet-field);
+  border: 1px solid var(--mn-sheet-control);
+  border-radius: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-xbar__name-value {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mn-xbar__name-caret {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 100%;
+  color: var(--mn-fg-muted);
+}
+
+.mn-xbar__name-caret:disabled {
+  opacity: 0.7;
+}
+
+.mn-xbar__icon {
+  width: 13px;
+  height: 13px;
+}
+
+/* ✕ / ✓ / fx：截图里这三格在一个描边的白框里，中间一条竖线把它和编辑栏本体分开 */
+.mn-xbar__tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 4px;
+  background: var(--mn-sheet-field);
+  border: 1px solid var(--mn-sheet-control);
+  border-radius: 2px;
+}
+
+.mn-xbar__tools button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 100%;
+  color: var(--mn-fg-muted);
+}
+
+.mn-xbar__tools button:disabled {
+  opacity: 0.55;
+}
+
+.mn-xbar__tick {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.mn-xbar__fx {
+  width: 22px;
+  color: var(--mn-fg-muted);
+  font-family: var(--mn-font-serif);
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+}
+
+/* 编辑栏本体：一行文字，不换行（真 Excel 里它也常常被拖窄）。展开时摊成三行 */
+.mn-xbar__box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--mn-sheet-field);
+  border: 1px solid var(--mn-sheet-control);
+  border-radius: 2px;
+  color: var(--mn-reader-fg);
+}
+
+.mn-xbar.is-tall {
+  height: 68px;
+}
+
+.mn-xbar.is-tall .mn-xbar__box {
+  align-items: flex-start;
+  padding: 4px 8px;
+  white-space: normal;
+  overflow-y: auto;
+  line-height: 1.55;
+}
+
+.mn-xbar__fold {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  color: var(--mn-fg-muted);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-xbar__fold:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-xbar__fold.is-open .mn-xbar__icon {
+  transform: rotate(180deg);
+}
+
+/* ---- 网格 ---- */
+
+.mn-excel__body {
   position: relative;
   flex: 1;
   min-height: 0;
@@ -24,58 +400,16 @@
   min-width: 0;
 }
 
-/* ---- 编辑栏 ---- */
-
-.mn-formula {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  height: 26px;
-  background: var(--mn-surface);
-  border-bottom: 1px solid var(--mn-border);
-  font-size: 12px;
-  user-select: none;
-}
-
-.mn-formula__name {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  width: 92px;
-  padding: 0 8px;
-  border-right: 1px solid var(--mn-border);
-  color: var(--mn-fg);
-  font-variant-numeric: tabular-nums;
-}
-
-.mn-formula__fx {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  border-right: 1px solid var(--mn-border);
-  color: var(--mn-fg-faint);
-  font-style: italic;
-}
-
-/* 编辑栏本体：一行文字，不换行（真 Excel 里它也常常被拖窄） */
-.mn-formula__box {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--mn-reader-fg);
-}
-
-/* ---- 网格 ---- */
-
 .mn-excel__body .mn-scroll {
   background: var(--mn-reader-bg);
+  padding: 0;
+}
+
+/* 网格是「一整张表」，不是一栏正文：阅读器的栏宽与居中在这一屏让位
+   （Word 那一屏同一条：`max-width: none` + 自己那套宽度） */
+.mn-excel__body .mn-content {
+  max-width: none;
+  margin: 0;
   padding: 0;
 }
 
@@ -95,32 +429,82 @@
     var(--mn-sheet-kind);
 }
 
-.mn-sheet__gutter {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 5px;
-  background: var(--mn-surface-2);
-  border-right: 1px solid var(--mn-border-strong);
-  border-bottom: 1px solid var(--mn-border);
-  color: var(--mn-fg-muted);
+/* 列标题（A / B / C）那一行：贴在网格顶上，一直看得见 */
+.mn-sheet__row--cols {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.mn-sheet__corner {
+  position: relative;
+  background: var(--mn-sheet-head-bg);
+  border-right: 1px solid var(--mn-sheet-head-line);
+  border-bottom: 1px solid var(--mn-sheet-head-line);
+}
+
+/* 左上角那个「全选」小三角：Excel 的角上一直是它 */
+.mn-sheet__corner::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 6px 6px;
+  border-color: transparent transparent var(--mn-sheet-head-fg) transparent;
+}
+
+.mn-sheet__colhead {
+  display: grid;
+  place-items: center;
+  height: 18px;
+  background: var(--mn-sheet-head-bg);
+  border-right: 1px solid var(--mn-sheet-head-line);
+  border-bottom: 1px solid var(--mn-sheet-head-line);
+  color: var(--mn-sheet-head-fg);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   user-select: none;
 }
 
-/* 当前行：行号也点亮（Excel 里选中的行，表头会跟着变色） */
-.mn-sheet__gutter[data-active='true'] {
-  background: var(--mn-accent-soft);
-  color: var(--mn-accent);
+/* 当前行所在的那一列：垫浅灰、字变绿加粗、底下一条 2px 绿线（截图量到的） */
+.mn-sheet__colhead[data-active='true'] {
+  background: var(--mn-sheet-head-sel);
+  color: var(--mn-sheet-select);
   font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--mn-sheet-select);
+}
+
+.mn-sheet__gutter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 3px;
+  background: var(--mn-sheet-head-bg);
+  border-right: 1px solid var(--mn-sheet-head-line);
+  border-bottom: 1px solid var(--mn-sheet-head-line);
+  color: var(--mn-sheet-head-fg);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+/* 当前行：行号也点亮（Excel 里选中的行，行号那一格跟着变色，右边一条 2px 绿线） */
+.mn-sheet__gutter[data-active='true'] {
+  background: var(--mn-sheet-head-sel);
+  color: var(--mn-sheet-select);
+  font-weight: 600;
+  box-shadow: inset -2px 0 0 var(--mn-sheet-select);
 }
 
 .mn-sheet__cell {
   min-width: 0;
-  padding: 5px 8px;
-  border-right: 1px solid var(--mn-border);
-  border-bottom: 1px solid var(--mn-border);
+  min-height: var(--mn-sheet-row);
+  padding: 3px 8px;
+  border-right: 1px solid var(--mn-sheet-grid);
+  border-bottom: 1px solid var(--mn-sheet-grid);
   overflow-wrap: break-word;
   white-space: pre-wrap;
 }
@@ -138,9 +522,9 @@
 
 /* 第 1 行：章标题。Excel 里这种标题行就是横着占满几格 */
 .mn-sheet__row--title .mn-sheet__cell--title {
-  padding: 9px 8px;
+  padding: 7px 8px;
   font-weight: 600;
-  border-bottom: 1px solid var(--mn-border-strong);
+  border-bottom: 1px solid var(--mn-sheet-head-line);
 }
 
 /* 第 2 行：字段名。冻结时贴着顶端（由外壳上的 data 属性决定，见 ExcelApp） */
@@ -149,26 +533,32 @@
   color: var(--mn-fg-muted);
   font-size: 0.92em;
   font-weight: 600;
-  border-bottom: 1px solid var(--mn-border-strong);
-}
-
-.mn-sheet__gutter--corner {
-  background: var(--mn-surface-2);
+  border-bottom: 1px solid var(--mn-sheet-head-line);
 }
 
 .mn-excel__body[data-frozen='true'] .mn-sheet__row--head {
   position: sticky;
-  top: 0;
+  top: 18px;
   z-index: 2;
 }
 
-/* 当前单元格：2px 强调色框（Excel 选中的格子就是一圈绿框）。
-   用 outline + 负偏移，不占布局，也不会让行高抖一下 */
+/* 当前单元格：2px 绿色框 + 右下角那个小方块（填充柄）。
+   outline + 负偏移不占布局，也不会让行高抖一下 */
 .mn-sheet__cell[data-active='true'] {
   position: relative;
   z-index: 1;
-  outline: 2px solid var(--mn-accent);
+  outline: 2px solid var(--mn-sheet-select);
   outline-offset: -2px;
+}
+
+.mn-sheet__cell[data-active='true']::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 6px;
+  height: 6px;
+  background: var(--mn-sheet-select);
 }
 
 /* 对话、标题、注释在正文列里只用字重区分（表格里不该有一套语法配色） */
@@ -198,30 +588,65 @@
   display: none;
 }
 
+/* 视图页签里那两个开关：网格线、行列标题。关掉只是不画线 / 不画那两列，
+   格子和行高都还在（Excel 也是这么做的） */
+.mn-excel__body[data-grid='false'] .mn-sheet__cell {
+  border-color: transparent;
+}
+
+.mn-excel__body[data-head='false'] .mn-sheet__row--cols,
+.mn-excel__body[data-head='false'] .mn-sheet__gutter {
+  display: none;
+}
+
+.mn-excel__body[data-head='false'] .mn-sheet__row {
+  grid-template-columns: 0 minmax(0, 1fr) var(--mn-sheet-num) var(--mn-sheet-kind);
+}
+
+.mn-excel__body[data-head='false'] .mn-sheet__row--title .mn-sheet__cell--title {
+  grid-column: 2 / -1;
+}
+
 .mn-sheet__foot {
   padding: 10px 12px 40px var(--mn-sheet-gutter);
   color: var(--mn-fg-faint);
   font-size: 11.5px;
 }
 
-/* ---- 工作表标签条 ---- */
+/* 数据后面补的那一片空格子：只有行号和格子线，一个字都没有。
+   上下的线由每一格自己的 border 画，所以和上面的数据行严丝合缝 */
+.mn-sheet__fill .mn-sheet__cell,
+.mn-sheet__fill .mn-sheet__gutter {
+  height: var(--mn-sheet-row);
+  border-bottom: 1px solid var(--mn-sheet-grid);
+  border-right: 1px solid var(--mn-sheet-grid);
+}
+
+.mn-sheet__fill .mn-sheet__gutter {
+  border-right-color: var(--mn-sheet-head-line);
+}
+
+/* ---- 工作表标签条 ----
+   截图：条本身是 28 高、和标题栏同一个底色，当前那一张是**白底 + 上圆角**，
+   底下一条 3px 的绿线（只有标签中间那一段宽，左右各留 8px）。 */
 
 .mn-tabsbar {
   flex: 0 0 auto;
   display: flex;
-  align-items: stretch;
-  height: 30px;
-  background: var(--mn-surface-2);
-  border-top: 1px solid var(--mn-border-strong);
+  align-items: flex-end;
+  height: 28px;
+  padding: 0 0 0 2px;
+  background: var(--mn-sheet-chrome);
+  border-top: 1px solid var(--mn-sheet-grid);
   user-select: none;
 }
 
 .mn-tabsbar__nav {
   display: flex;
   align-items: center;
-  gap: 0;
-  padding: 0 4px;
-  border-right: 1px solid var(--mn-border);
+  gap: 2px;
+  padding: 0 6px 0 2px;
+  height: 100%;
 }
 
 .mn-tabsbar__nav button {
@@ -247,7 +672,9 @@
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: stretch;
+  align-items: flex-end;
+  gap: 1px;
+  height: 100%;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -257,15 +684,16 @@
 }
 
 .mn-sheet-tab {
+  position: relative;
   flex: 0 0 auto;
   max-width: 190px;
-  padding: 0 12px;
+  height: 100%;
+  padding: 0 14px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  border-right: 1px solid var(--mn-border);
   color: var(--mn-fg-muted);
-  font-size: 12px;
+  font-size: 12.5px;
   transition: background-color var(--mn-dur-1) var(--mn-ease);
 }
 
@@ -273,24 +701,54 @@
   background: color-mix(in srgb, var(--mn-fg) 6%, transparent);
 }
 
-/* 当前工作表：底色回到纸张色、字用强调色、底部一条粗线——Excel 的标签就是这样 */
+/* 当前工作表：白底、上圆角、最后一行是那条绿线（Excel 的标签就是这样） */
 .mn-sheet-tab.is-active {
   background: var(--mn-reader-bg);
-  color: var(--mn-accent);
+  color: var(--mn-fg);
   font-weight: 600;
-  box-shadow: inset 0 2px 0 var(--mn-accent);
+  border-radius: 5px 5px 0 0;
+}
+
+.mn-sheet-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 3px;
+  height: 3px;
+  background: var(--mn-accent);
 }
 
 .mn-tabsbar__new {
   flex: 0 0 auto;
   width: 32px;
+  height: 22px;
+  align-self: center;
   color: var(--mn-fg-muted);
   font-size: 14px;
-  border-left: 1px solid var(--mn-border);
+}
+
+.mn-tabsbar__new:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-fg) 8%, transparent);
+  border-radius: 3px;
 }
 
 .mn-tabsbar__new:disabled {
   opacity: 0.4;
+}
+
+/* 全部工作表那个「⋮」：几百章的书里用它跳章 */
+.mn-tabsbar__all {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  padding: 0 4px;
+  border-left: 1px solid color-mix(in srgb, var(--mn-fg) 12%, transparent);
+}
+
+.mn-tabsbar__all .mn-appmenu-btn {
+  height: 22px;
 }
 
 .mn-tabsbar__empty {
@@ -299,4 +757,450 @@
   padding: 0 12px;
   color: var(--mn-fg-faint);
   font-size: 11.5px;
+}
+
+/* ==========================================================================
+   Excel 开始屏幕（这一套的书架，.mn-xhome）
+   --------------------------------------------------------------------------
+   2026-09-24 按桌面版 Excel 的「开始」屏幕截图一比一复刻。量的数：
+
+     左栏 96（一格 88 高：图标 26 + 13px 字在下；当前那格左边 4px 强调色）
+     内容左起 144（左栏右侧再留 48）、问候 28px 半粗、绿按钮 153×35
+     药丸「最近」102×40（选中那个是实心强调色 + 白字）、另两个 36 高、描边
+     搜索框 585×37（在右边）、列表一行 44、更多工作簿 → 在最下面右边
+
+   颜色：左栏与标题栏 = chrome（和上面那几条同一个 token）、内容区 = surface2、
+   列表与搜索框 = surface、绿按钮与选中药丸 = accent。
+   ========================================================================== */
+
+.mn-xhome {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: var(--mn-surface-2);
+}
+
+/* ---- 左边那条导航栏 ---- */
+
+.mn-xhome__rail {
+  flex: 0 0 96px;
+  display: flex;
+  flex-direction: column;
+  padding: 7px 0 8px;
+  background: var(--mn-sheet-chrome);
+}
+
+.mn-xhome__rail-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  height: 88px;
+  padding-top: 20px;
+  color: var(--mn-fg-muted);
+  font-size: 13px;
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-xhome__rail-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-fg) 6%, transparent);
+  color: var(--mn-fg);
+}
+
+/* 当前那一格：图标与字用强调色，左边一条 4px 的竖线 */
+.mn-xhome__rail-item.is-active {
+  color: var(--mn-accent);
+}
+
+.mn-xhome__rail-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 4px;
+  background: var(--mn-accent);
+}
+
+.mn-xhome__rail-item:disabled {
+  color: var(--mn-fg-faint);
+  cursor: default;
+}
+
+.mn-xhome__rail-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.mn-xhome__rail-gap {
+  flex: 1;
+}
+
+.mn-xhome__rail-sep {
+  height: 1px;
+  margin: 6px 12px;
+  background: color-mix(in srgb, var(--mn-fg) 12%, transparent);
+}
+
+/* ---- 右边：问候 + 新建 + 最近 ---- */
+
+.mn-xhome__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 6px 80px 32px 48px;
+}
+
+.mn-xhome__greeting {
+  color: var(--mn-fg);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* 新建那一行：左边一个描边方框（真 Excel 里是使用向导，我们灰着），
+   右边那颗绿按钮。方框比内容左沿还要往左 31px——截图里就是这样 */
+.mn-xhome__new {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 22px 0 0 -31px;
+}
+
+.mn-xhome__tour {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 29px;
+  height: 35px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-fg);
+  border-radius: 3px;
+  color: var(--mn-fg);
+}
+
+.mn-xhome__tour:disabled {
+  opacity: 0.55;
+}
+
+.mn-xhome__tour-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.mn-xhome__blank {
+  flex: 0 0 auto;
+  height: 35px;
+  padding: 0 20px;
+  background: var(--mn-accent);
+  border-radius: 3px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.mn-xhome__blank:hover {
+  background: color-mix(in srgb, var(--mn-accent) 88%, #000);
+}
+
+/* 药丸那一行 + 右边的搜索框：两者同一行 */
+.mn-xhome__filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 26px;
+}
+
+.mn-xhome__tabs {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.mn-xhome__tab {
+  height: 36px;
+  min-width: 102px;
+  padding: 0 22px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-sheet-control);
+  border-radius: 18px;
+  color: var(--mn-fg);
+  font-size: 14px;
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-xhome__tab:hover:not(.is-active) {
+  background: var(--mn-surface-2);
+}
+
+/* 当前那一栏：实心强调色、白字，比另外两个高 4px（截图里就是这样） */
+.mn-xhome__tab.is-active {
+  height: 40px;
+  background: var(--mn-accent);
+  border-color: var(--mn-accent);
+  color: #fff;
+}
+
+.mn-xhome__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 1 585px;
+  height: 37px;
+  padding: 0 12px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-sheet-control);
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-xhome__search:focus-within {
+  border-color: var(--mn-accent);
+}
+
+.mn-xhome__search-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+.mn-xhome__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 13px;
+  outline: none;
+}
+
+/* ---- 列表 ---- */
+
+.mn-xhome__list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.mn-xhome__row {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  border-bottom: 1px solid var(--mn-border);
+  font-size: 13px;
+}
+
+.mn-xhome__row--head {
+  height: 32px;
+  color: var(--mn-fg-muted);
+  border-bottom-color: var(--mn-border-strong);
+  font-size: 12.5px;
+}
+
+.mn-xhome__row:not(.mn-xhome__row--head):hover {
+  background: var(--mn-surface);
+}
+
+.mn-xhome__open {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  color: var(--mn-fg);
+  text-align: left;
+}
+
+.mn-xhome__name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-left: 2px;
+}
+
+.mn-xhome__file-icon {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-xhome__file {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.mn-xhome__file-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mn-xhome__file-path {
+  overflow: hidden;
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mn-xhome__when,
+.mn-xhome__kind,
+.mn-xhome__size {
+  flex: 0 0 auto;
+  color: var(--mn-fg-muted);
+}
+
+.mn-xhome__when {
+  width: 168px;
+}
+
+.mn-xhome__kind {
+  width: 132px;
+}
+
+.mn-xhome__size {
+  width: 88px;
+}
+
+.mn-xhome__row--head .mn-xhome__when,
+.mn-xhome__row--head .mn-xhome__kind,
+.mn-xhome__row--head .mn-xhome__size {
+  color: inherit;
+}
+
+/* 行尾那一格：只放一个「解析设置与删除」。宽度定死，日期列不会左右跳 */
+.mn-xhome__acts {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  width: 46px;
+}
+
+.mn-xhome__act {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+  opacity: 0;
+  transition: opacity var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-xhome__row:hover .mn-xhome__act,
+.mn-xhome__act:focus-visible {
+  opacity: 1;
+}
+
+.mn-xhome__act:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-fg) 10%, transparent);
+  color: var(--mn-fg);
+}
+
+.mn-xhome__act-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.mn-xhome__empty {
+  padding: 22px 2px;
+  color: var(--mn-fg-faint);
+  font-size: 13px;
+}
+
+.mn-xhome__more {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 0 0;
+}
+
+.mn-xhome__link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  color: var(--mn-accent);
+  font-size: 13.5px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-xhome__link:hover:not(:disabled) {
+  background: var(--mn-accent-soft);
+}
+
+.mn-xhome__link:disabled {
+  color: var(--mn-fg-faint);
+  cursor: default;
+}
+
+.mn-xhome__link-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* 标题栏右上角那片商标水印：截图里是淡灰的一圈圈条纹，只画不接事件 */
+.mn-xhome__watermark {
+  width: 620px;
+  height: 58px;
+  opacity: 0.5;
+}
+
+/* ---- 窄屏：列表收列、搜索框让位、左栏收窄 ---- */
+
+@media (max-width: 1100px) {
+  .mn-xhome__when,
+  .mn-xhome__kind {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .mn-xhome__main {
+    padding: 6px 20px 24px 24px;
+  }
+
+  .mn-xhome__search {
+    flex: 1 1 auto;
+  }
+
+  .mn-xhome__new {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .mn-xhome__kind,
+  .mn-xhome__size,
+  .mn-xhome__search {
+    display: none;
+  }
+
+  .mn-xhome__rail {
+    flex: 0 0 64px;
+  }
+
+  .mn-xhome__rail-item {
+    height: 74px;
+    padding-top: 14px;
+    font-size: 12px;
+  }
+
+  .mn-xhome__watermark {
+    display: none;
+  }
 }

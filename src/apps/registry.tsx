@@ -9,6 +9,7 @@ import { ChatApp, ChatHome } from './ChatApp'
 import { DocApp } from './DocApp'
 import { DocHome } from './DocHome'
 import { ExcelApp } from './ExcelApp'
+import { ExcelHome } from './ExcelHome'
 import { PptApp } from './PptApp'
 import { WordApp } from './WordApp'
 import { WordHome } from './WordHome'
@@ -141,11 +142,12 @@ export function AppShelf({
             return <ChatHome {...props} />
           case 'page':
             // Word 那一屏的开始屏幕是单独的组件：左边一条导航栏、新建三张卡、
-            // 页签行与一份两列列表（见 WordHome.tsx）。Excel / PPT 仍用共用的
-            // OfficeStart——它们那一屏的结构确实不一样
+            // 页签行与一份两列列表（见 WordHome.tsx）。Excel 也是自己的一屏
+            // （问候语、绿按钮、三个药丸、搜索文件——见 ExcelHome.tsx），
+            // PowerPoint 仍用共用的 OfficeStart
             return <WordHome {...props} />
           case 'sheet':
-            return <OfficeHome chrome="sheet" {...props} />
+            return <ExcelHome {...props} />
           case 'slide':
             return <OfficeHome chrome="slide" {...props} />
           default:
