@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { chapterBlocks } from '../lib/blocks'
-import { avatarHue, avatarInitial, chapterMessages, chatSender } from '../lib/chat'
+import { chapterMessages, chatSender } from '../lib/chat'
 import { activeRowOf, chapterRows, rowsTotal } from '../lib/sheet'
 import { chapterSlides } from '../lib/slide'
 import { ChatThread, SheetGrid, SlideCard } from './Content'
@@ -44,8 +44,9 @@ export function ChapterBody({
   const blocks = useMemo(
     () =>
       chapterBlocks(html, {
-        // 表格里装不下图：写成一行 `![](./路径)`（和编辑器形态同一条约定）
-        media: chrome === 'sheet' ? 'reference' : 'keep',
+        // 装不下图、或者那一屏就不该有图的形态：写成一行 `![](./路径)`
+        // （表格本来就装不下；聊天和编辑器、文档同一条约定——见 lib/blocks.ts）
+        media: chrome === 'sheet' || chrome === 'chat' ? 'reference' : 'keep',
         resolve,
       }),
     [html, chrome, resolve],
@@ -72,16 +73,7 @@ export function ChapterBody({
   )
 
   if (chrome === 'chat') {
-    const sender = chatSender(author)
-    return (
-      <ChatThread
-        messages={messages}
-        sender={sender}
-        initial={avatarInitial(sender)}
-        hue={avatarHue(sender)}
-        chapterLabel={label}
-      />
-    )
+    return <ChatThread messages={messages} sender={chatSender(author)} chapterLabel={label} />
   }
 
   if (chrome === 'sheet') {

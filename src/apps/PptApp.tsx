@@ -99,7 +99,7 @@ export function PptApp(props: AppFrameProps) {
           {
             id: 'spacing',
             icon: '行距',
-            title: `行距：${settings.lineHeight.toFixed(2)}（点一下换下一档）`,
+            title: `行距：${settings.lineHeight.toFixed(2)}`,
             onClick: () => {
               const steps = [1.15, 1.3, 1.5, 1.8]
               const next = steps.find((step) => step > settings.lineHeight + 0.01) ?? steps[0]

@@ -1,5 +1,4 @@
-import type { CSSProperties } from 'react'
-import type { ChatMessage } from '../lib/chat'
+import { messageSender, type ChatMessage } from '../lib/chat'
 import type { SheetRow } from '../lib/sheet'
 import { SHEET_HEAD } from '../lib/sheet'
 import type { Slide } from '../lib/slide'
@@ -30,14 +29,19 @@ export interface ChatThreadProps {
   messages: ChatMessage[]
   /** 发信人（书名里的作者，或「书友」） */
   sender: string
-  /** 头像上的字与色相（由 lib/chat.ts 算，同一个作者永远同一个颜色） */
-  initial: string
-  hue: number
   /** 这一段的分隔线文字：章名 */
   chapterLabel: string
 }
 
-export function ChatThread({ messages, sender, initial, hue, chapterLabel }: ChatThreadProps) {
+/**
+ * 消息流。
+ *
+ * 桌面版企业微信的群里，一条消息长这样：**发信人在气泡左上角、和气泡左沿对齐，
+ * 旁边没有头像**（截图里那个群就是这样，每条都写全名，连着的两条也写）。
+ * 所以这里不放头像；发信人是书的作者——**除了双语书的原文段**，那几行当「我发的消息」
+ * 显示在右边（见 lib/chat.ts 的 messageSender）。
+ */
+export function ChatThread({ messages, sender, chapterLabel }: ChatThreadProps) {
   return (
     <div className="mn-thread">
       <div className="mn-thread__divider">{chapterLabel}</div>
@@ -51,12 +55,8 @@ export function ChatThread({ messages, sender, initial, hue, chapterLabel }: Cha
             key={message.key}
             className="mn-thread__row"
             data-alt={message.alt ? 'true' : undefined}
-            style={{ ['--mn-avatar-hue' as string]: String(hue) } as CSSProperties}
           >
-            {/* 头像每一行都画：微信桌面版就是一气泡一头像，收起来反而不像 */}
-            <span className="mn-thread__avatar" title={sender}>
-              {initial}
-            </span>
+            <span className="mn-thread__sender">{messageSender(message, sender)}</span>
             <div className={cx('mn-thread__bubble', `mn-thread__bubble--${message.kind}`)}>
               <span
                 className="mn-thread__body"

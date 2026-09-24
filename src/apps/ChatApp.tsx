@@ -1,71 +1,128 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type { BookRecord } from '../db/db'
-import { avatarHue, avatarInitial, chatSender } from '../lib/chat'
+import {
+  CHAT_RAIL,
+  avatarHue,
+  avatarInitial,
+  sessionTag,
+  sessionUnread,
+  type ChatView,
+} from '../lib/chat'
 import { fileNameFor } from '../lib/appdocs'
 import { formatChars, formatPercent, formatRelativeTime } from '../lib/format'
 import { cx } from '../lib/cx'
 import {
+  IconBack,
   IconChevron,
+  IconChevronRight,
   IconImport,
-  IconMore,
+  IconList,
   IconSearch,
+  IconSidebar,
   IconSliders,
 } from '../components/ui/icons'
 import {
   IconCalendar,
   IconChatBubble,
+  IconChevronWide,
   IconCloud,
   IconContacts,
   IconDoc,
   IconFullscreen,
+  IconMail,
+  IconMeeting,
   IconPhone,
+  IconPlusThin,
+  IconSmartDoc,
+  IconSparkle,
+  IconTag,
+  IconTodo,
   IconVideo,
+  IconWorkbench,
 } from '../components/ui/app-icons'
 import { useHotkeyCombo } from '../store/hotkeys'
 import { toggleFullscreen } from '../lib/fullscreen'
-import { AppMenu, NavRow } from './OfficeFrame'
+import { AppMenu } from './OfficeFrame'
 import type { AppFrameProps } from './types'
 import type { ShelfProps } from './ShelfShell'
+import type { TocRow } from '../hooks/useToc'
 
-/** 功能栏上的四个视图。每一个都是真的：换的是左边那一栏列什么 */
-type RailView = 'msg' | 'contacts' | 'schedule' | 'drive'
-
-const RAIL: Array<{ id: RailView; label: string; icon: ReactNode }> = [
-  { id: 'msg', label: '消息', icon: <IconChatBubble className="h-5 w-5" /> },
-  { id: 'contacts', label: '通讯录', icon: <IconContacts className="h-5 w-5" /> },
-  { id: 'schedule', label: '日程', icon: <IconCalendar className="h-5 w-5" /> },
-  { id: 'drive', label: '微盘', icon: <IconCloud className="h-5 w-5" /> },
-]
+/**
+ * 功能栏那 13 格的图标。顺序和「哪几格是真的」在 lib/chat.ts 的 CHAT_RAIL 里
+ * （那是纯数据，verify:apps 断言的就是它）；这里只负责给每一格配一个记号。
+ *
+ * 图标盒子给 30px 而不是 24px：我们这批记号画在 24 格里、墨迹只占 60% 上下，
+ * 按 24 画出来看着比企业微信的小一圈（见 AGENTS.md 那条换算）。
+ */
+const RAIL_ICONS: Record<string, ReactNode> = {
+  msg: <IconChatBubble className="h-[30px] w-[30px]" />,
+  mail: <IconMail className="h-[30px] w-[30px]" />,
+  doc: <IconDoc className="h-[30px] w-[30px]" />,
+  schedule: <IconCalendar className="h-[30px] w-[30px]" />,
+  todo: <IconTodo className="h-[30px] w-[30px]" />,
+  meeting: <IconMeeting className="h-[30px] w-[30px]" />,
+  'smart-doc': <IconSmartDoc className="h-[30px] w-[30px]" />,
+  summary: <IconSparkle className="h-[30px] w-[30px]" />,
+  workbench: <IconWorkbench className="h-[30px] w-[30px]" />,
+  contacts: <IconContacts className="h-[30px] w-[30px]" />,
+  drive: <IconCloud className="h-[30px] w-[30px]" />,
+  advanced: <IconChevronWide className="h-[30px] w-[30px]" />,
+  group: <IconTag className="h-[30px] w-[30px]" />,
+}
 
 /**
  * 企业微信形态。
  *
- * 一本书 = 一个会话，一段正文 = 一条消息（见 lib/chat.ts）。界面照企业微信桌面版来：
- * 最左边一条深灰功能栏（消息 / 通讯录 / 日程 / 微盘 + 设置），中间会话列表，
- * 右边是会话（书名 + 章节 + 消息流 + 输入区）。
+ * 一本书 = 一个会话，一段正文 = 一条消息（见 lib/chat.ts）。界面照着桌面版企业微信
+ * 的截图重画（量到的尺寸写在 styles/chat.css 的开头）：最左边一条 58px 的功能栏
+ * （13 格「图标 + 小字」，选中的那一格垫一块浅蓝方块），中间 249px 的会话列表
+ * （搜索框 + 「＋」+ 会话行），右边是会话（群名 + 消息流 + 输入区），
+ * 最右边 158px 的群信息面板。
  *
- * 三处刻意的取舍：
+ * 四处刻意的取舍：
  *
- * 1. **功能栏那四个视图全是真的**：消息 = 按最近阅读排的会话，通讯录 = 按作者归的
- *    联系人，日程 = 按最后阅读日期分组，微盘 = 按文件列。点了真的换列表内容，
- *    不摆四个点了没反应的图标（见决定记录 27）。
- * 2. **输入区里没有假输入框**。真聊天的输入框能打字，我们的不能——所以那个位置放的
- *    是**这一章的位置**：一条能拖的进度条（长得像输入框），下面一排真的按钮
- *    （导入 / 聊天记录 / 上一章 / 下一章 / 阅读设置），右下角的「发送」位置是
- *    「下一章」——按下去真的翻章。
- * 3. **不编发信人和时间**。发信人是书里的作者（没有就写「书友」），头像色相由名字
- *    哈希出来；时间用的是真的「最近阅读」时间，不编「14:23」。
+ * 1. **功能栏那 13 格里只有 4 格真的会响**：消息 / 日程 / 通讯录 / 微盘换的是左边
+ *    那一栏列什么（按最近阅读、按最后阅读日期、按作者、按文件）。其余 9 格
+ *    （邮件、待办、会议、智能文档……）这个阅读器里没有对应物，照企业微信的样子
+ *    画出来、但是灰的，title 里说清为什么——见决定记录 27。
+ * 2. **输入区里没有假输入框**。真聊天的输入框能打字，我们的不能——所以那个白盒子里
+ *    放的是**这一章的位置**：一行真数据 + 一条能拖的进度条。右下角「发送(S)」的位置
+ *    是「下一章」，按下去真的翻章。
+ * 3. **右边那块面板 = 群信息的位置**：企业微信里放群公告、群名和成员名单，
+ *    我们放「本章」（当前章名）+「聊天记录」（目录）。卷/部这类目录分组
+ *    正好落在企业微信那些橙色分组标题的位置上。
+ * 4. **不编发信人和时间**。发信人是书里的作者（没有就写「书友」），会话行上的
+ *    标签只有两个真值：「在读」「已读完」；时间用的是真的「最近阅读」时间，
+ *    不编「9:51」。
  */
 export function ChatApp(props: AppFrameProps) {
   const { book } = props
-  const [recordsOpen, setRecordsOpen] = useState(() => window.innerWidth >= 1024)
-  const [view, setView] = useState<RailView>('msg')
+  const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 1024)
+  /**
+   * 输入区收起来。收的是那个白盒子（这一章的位置 + 进度条 + 「发送」那一行），
+   * 工具条留着——收起按钮就在工具条上，收完还得能放下来。
+   * 长章读到一半时会想收一下：消息区一次多出一屏。
+   */
+  const [composerOpen, setComposerOpen] = useState(true)
+  const [view, setView] = useState<ChatView>('msg')
   const settingsHotkey = useHotkeyCombo('settings')
   const fullscreenHotkey = useHotkeyCombo('fullscreen')
   const dimHotkey = useHotkeyCombo('dim')
 
-  const sender = chatSender(book.author)
-  const hue = avatarHue(sender)
+  const chapterLabel = props.chapterTitle || `第 ${props.chapterIndex + 1} 章`
+  const threadRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * 「本章」那一行：把消息区卷回本章开头。真动作，不是摆设。
+   *
+   * 用直接写 scrollTop 而不是 smooth：阅读器里所有「跳」都是这么做的
+   * （换章、恢复位置都是直接写），而且平滑滚动靠 rAF 逐帧推进——标签页在后台
+   * 时一帧都不来，按下去就真的什么都不发生了（这个坑在验收时量到过）。
+   */
+  const backToChapterTop = () => {
+    const scroller = threadRef.current?.querySelector('.mn-scroll')
+    if (scroller) scroller.scrollTop = 0
+  }
 
   return (
     <ChatFrame
@@ -80,7 +137,6 @@ export function ChatApp(props: AppFrameProps) {
       dim={props.dim}
       dimOn={props.dimOn}
       onToggleDim={props.onToggleDim}
-      onBack={props.onBack}
       main={
         <>
           <header className="mn-chat__head">
@@ -88,25 +144,27 @@ export function ChatApp(props: AppFrameProps) {
               <span className="mn-chat__peer-name" title={book.title}>
                 {book.title}
               </span>
+              {/* 副标题写这一屏此刻的真数据：多少章、多少字、读到哪 */}
               <span className="mn-chat__peer-sub">
-                第 {props.chapterIndex + 1}/{props.chapterCount} 章
+                共 {props.chapterCount} 章 · {formatChars(book.totalChars)} · 已读{' '}
+                {formatPercent(props.percent)}
               </span>
             </div>
             <div className="mn-chat__head-actions">
-              <button type="button" className="mn-chat__icon-btn" title="通话（这个外壳里没有）" disabled>
-                <IconPhone className="h-4 w-4" />
+              <button type="button" className="mn-chat__icon-btn" title="语音通话（这个外壳里没有）" disabled>
+                <IconPhone className="h-6 w-6" />
               </button>
-              <button type="button" className="mn-chat__icon-btn" title="视频（这个外壳里没有）" disabled>
-                <IconVideo className="h-4 w-4" />
+              <button type="button" className="mn-chat__icon-btn" title="视频通话（这个外壳里没有）" disabled>
+                <IconVideo className="h-6 w-6" />
               </button>
               <button
                 type="button"
-                className={cx('mn-chat__icon-btn', recordsOpen && 'is-active')}
-                title="聊天记录（= 目录）"
-                aria-pressed={recordsOpen}
-                onClick={() => setRecordsOpen((open) => !open)}
+                className={cx('mn-chat__icon-btn', panelOpen && 'is-active')}
+                title="聊天记录（目录）"
+                aria-pressed={panelOpen}
+                onClick={() => setPanelOpen((open) => !open)}
               >
-                <IconChatBubble className="h-4 w-4" />
+                <IconSidebar className="h-6 w-6" />
               </button>
               <button
                 type="button"
@@ -114,126 +172,139 @@ export function ChatApp(props: AppFrameProps) {
                 title="阅读设置"
                 onClick={props.onOpenSettings}
               >
-                <IconSliders className="h-4 w-4" />
+                <IconSliders className="h-6 w-6" />
               </button>
               <AppMenu
                 items={[
-                  { label: '阅读设置（主题也在这里）', hint: settingsHotkey, onSelect: props.onOpenSettings },
+                  { label: '阅读设置', hint: settingsHotkey, onSelect: props.onOpenSettings },
                   {
                     label: props.dimOn ? '退出摸鱼模式' : '摸鱼模式（调暗消息区）',
                     hint: dimHotkey,
                     onSelect: props.onToggleDim,
                   },
-                  {
-                    label: '全屏',
-                    hint: fullscreenHotkey,
-                    onSelect: toggleFullscreen,
-                  },
+                  { label: '全屏', hint: fullscreenHotkey, onSelect: toggleFullscreen },
                   { label: '回到会话列表', separatorBefore: true, onSelect: props.onBack },
                 ]}
               />
             </div>
           </header>
 
-          <div className="mn-chat__stage">
-            <div className="mn-chat__scroll mn-veil" style={{ ['--mn-avatar-hue' as string]: String(hue) }}>
-              {props.children}
+          <div className="mn-chat__body">
+            <div className="mn-chat__column">
+              <div className="mn-chat__stage">
+                <div ref={threadRef} className="mn-chat__scroll mn-veil">
+                  {props.children}
+                </div>
+              </div>
+
+              <footer className="mn-chat__compose">
+                <div className="mn-chat__box" data-collapsed={composerOpen ? undefined : 'true'}>
+                  <div className="mn-chat__tools">
+                    <button type="button" className="mn-chat__tool" title="导入文件" onClick={props.onImport}>
+                      <IconImport className="h-6 w-6" />
+                    </button>
+                    {/* 换章：左右箭头（带杆的那种，一眼看得出是「前一条 / 后一条」）。
+                        chevron 画的是「向下」，顺时针 90° 才是朝左——和飞书顶栏那个返回箭头同一条换算 */}
+                    <button
+                      type="button"
+                      className="mn-chat__tool"
+                      title="上一章"
+                      disabled={props.chapterIndex <= 0}
+                      onClick={() => props.onChapter(props.chapterIndex - 1)}
+                    >
+                      <IconBack className="h-6 w-6" />
+                    </button>
+                    <button
+                      type="button"
+                      className="mn-chat__tool"
+                      title="下一章"
+                      disabled={props.chapterIndex >= props.chapterCount - 1}
+                      onClick={() => props.onChapter(props.chapterIndex + 1)}
+                    >
+                      <IconBack className="h-6 w-6 rotate-180" />
+                    </button>
+                    {/* 回会话列表：用列表记号，不用箭头——左边那对箭头已经占了「前一条 / 后一条」的意思 */}
+                    <button type="button" className="mn-chat__tool" title="回到会话列表" onClick={props.onBack}>
+                      <IconList className="h-6 w-6" />
+                    </button>
+                    <div className="flex-1" />
+                    {/* 收起 / 展开输入区。收起之后只剩这一条工具条，按钮就在它上面 */}
+                    <button
+                      type="button"
+                      className="mn-chat__tool"
+                      title={composerOpen ? '收起输入区' : '展开输入区'}
+                      aria-pressed={!composerOpen}
+                      onClick={() => setComposerOpen((open) => !open)}
+                    >
+                      {/* 开着的箭头朝下（按下去收到底）、收着的朝上（按下去放回来） */}
+                      <IconChevron className={cx('h-6 w-6', !composerOpen && 'rotate-180')} />
+                    </button>
+                    <button
+                      type="button"
+                      className="mn-chat__tool"
+                      title="聊天记录（目录）"
+                      aria-pressed={panelOpen}
+                      onClick={() => setPanelOpen((open) => !open)}
+                    >
+                      {/* 和顶栏那个目录开关同一个记号（都是开合右边那块面板） */}
+                      <IconSidebar className="h-6 w-6" />
+                    </button>
+                  </div>
+                  {composerOpen ? (
+                    <div className="mn-chat__input">
+                      <span className="mn-chat__box-text">
+                        {chapterLabel}
+                        <span className="mn-chat__box-hint"> · 已读 {formatPercent(props.percent)}</span>
+                      </span>
+                      <input
+                        type="range"
+                        className="mn-chat__range"
+                        min={0}
+                        max={1000}
+                        step={1}
+                        value={Math.round(props.percent * 1000)}
+                        onChange={(event) => props.onSeek(Number(event.target.value) / 1000)}
+                        aria-label="全书进度"
+                        title="拖一下换位置（这个外壳里没有输入框：发不出去的框不如一个有用的滑条）"
+                      />
+                    </div>
+                  ) : null}
+                  {composerOpen ? (
+                    <div className="mn-chat__send-row">
+                      <button
+                        type="button"
+                        className="mn-chat__send"
+                        disabled={props.chapterIndex >= props.chapterCount - 1}
+                        title="下一章（发送）"
+                        onClick={() => props.onChapter(props.chapterIndex + 1)}
+                      >
+                        下一章
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </footer>
             </div>
-            {recordsOpen ? (
-              <aside className="mn-chat__records" aria-label="聊天记录">
-                <div className="mn-chat__records-head">
-                  <span>聊天记录</span>
-                  <span className="mn-chat__records-count">{props.chapterCount} 章</span>
-                </div>
-                <div className="mn-chat__records-list">
-                  {props.chapters === undefined ? (
-                    <p className="mn-office__side-hint">正在读目录…</p>
-                  ) : (
-                    props.chapters.map((row) =>
-                      row.type === 'group' ? (
-                        <div key={`g-${row.index}-${row.label}`} className="mn-nav-group">
-                          {row.label}
-                        </div>
-                      ) : (
-                        <NavRow
-                          key={row.index}
-                          label={row.label}
-                          active={row.index === props.chapterIndex}
-                          onClick={() => props.onChapter(row.index)}
-                        />
-                      ),
-                    )
-                  )}
-                </div>
-                <div className="mn-chat__records-foot">
-                  <div className="mn-doc__progress" aria-hidden>
-                    <span style={{ width: `${Math.max(0, Math.min(1, props.percent)) * 100}%` }} />
-                  </div>
-                  <div className="mn-chat__records-text">
-                    <span>本章 {formatChars(props.chapterChars ?? 0)}</span>
-                    <span>已读 {formatPercent(props.percent)}</span>
-                  </div>
-                </div>
-              </aside>
+
+            {panelOpen ? (
+              <ChatPanel
+                chapters={props.chapters}
+                chapterIndex={props.chapterIndex}
+                chapterCount={props.chapterCount}
+                chapterLabel={chapterLabel}
+                chapterChars={props.chapterChars}
+                percent={props.percent}
+                onChapter={props.onChapter}
+                onBackToChapterTop={backToChapterTop}
+                onOpenSettings={props.onOpenSettings}
+                onBack={props.onBack}
+                dimOn={props.dimOn}
+                onToggleDim={props.onToggleDim}
+                dimHotkey={dimHotkey}
+              />
             ) : null}
           </div>
 
-          <footer className="mn-chat__compose">
-            <div className="mn-chat__box">
-              <span className="mn-chat__box-text">
-                {props.chapterTitle || `第 ${props.chapterIndex + 1} 章`}
-                <span className="mn-chat__box-hint"> · 已读 {formatPercent(props.percent)}</span>
-              </span>
-              <input
-                type="range"
-                className="mn-chat__range"
-                min={0}
-                max={1000}
-                step={1}
-                value={Math.round(props.percent * 1000)}
-                onChange={(event) => props.onSeek(Number(event.target.value) / 1000)}
-                aria-label="全书进度"
-                title="拖一下换位置（这个外壳里没有输入框：发不出去的框不如一个有用的滑条）"
-              />
-            </div>
-            <div className="mn-chat__compose-foot">
-              <div className="mn-chat__tools">
-                <button type="button" className="mn-chat__tool" title="导入文件" onClick={props.onImport}>
-                  <IconImport className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  className="mn-chat__tool"
-                  title="上一章"
-                  disabled={props.chapterIndex <= 0}
-                  onClick={() => props.onChapter(props.chapterIndex - 1)}
-                >
-                  <IconChevron className="h-4 w-4 rotate-180" />
-                </button>
-                <button
-                  type="button"
-                  className="mn-chat__tool"
-                  title="下一章"
-                  disabled={props.chapterIndex >= props.chapterCount - 1}
-                  onClick={() => props.onChapter(props.chapterIndex + 1)}
-                >
-                  <IconChevron className="h-4 w-4" />
-                </button>
-                <button type="button" className="mn-chat__tool" title="回到会话列表" onClick={props.onBack}>
-                  <IconChatBubble className="h-4 w-4" />
-                </button>
-              </div>
-              <button
-                type="button"
-                className="mn-chat__send"
-                disabled={props.chapterIndex >= props.chapterCount - 1}
-                title="下一章（这里是「发送」的位置）"
-                onClick={() => props.onChapter(props.chapterIndex + 1)}
-              >
-                下一章
-              </button>
-            </div>
-          </footer>
         </>
       }
     />
@@ -241,9 +312,166 @@ export function ChatApp(props: AppFrameProps) {
 }
 
 /**
- * 会话窗口的框：功能栏 + 列表 + 主区。
+ * 右边那块面板——企业微信里这是群信息面板（群公告、群名、群成员）。
+ *
+ * 我们这一层放的是同一批位置上的真东西：
+ *
+ *   群公告      → 「本章 ›」：点一下把消息区卷回本章开头
+ *   群名卡片    → 当前这一章的章名（企业微信那里也是两行的大字）
+ *   群成员 · N  → 「聊天记录 · N 章」（目录）
+ *   成员分组    → 卷 / 部那类目录分组（企业微信的公司名也是橙色小字 + ›，
+ *                 点一下跳到那一组的第一章）
+ *   成员行      → 每一章一行；当前这一章带一个小标签（企业微信那里是「群主」）
+ *
+ * 所以这层没有一处编造：整块面板就是这本书的目录，只是摆在了企业微信摆成员的地方。
+ */
+function ChatPanel({
+  chapters,
+  chapterIndex,
+  chapterCount,
+  chapterLabel,
+  chapterChars,
+  percent,
+  onChapter,
+  onBackToChapterTop,
+  onOpenSettings,
+  onBack,
+  dimOn,
+  onToggleDim,
+  dimHotkey,
+}: {
+  chapters?: TocRow[]
+  chapterIndex: number
+  chapterCount: number
+  chapterLabel: string
+  chapterChars?: number
+  percent: number
+  onChapter: (index: number) => void
+  onBackToChapterTop: () => void
+  onOpenSettings: () => void
+  onBack?: () => void
+  dimOn: boolean
+  onToggleDim: () => void
+  dimHotkey: string
+}) {
+  /** 分组那一行点了跳到它下面的第一章：从分组往后找第一个章节行 */
+  const firstChapterOf = (rows: TocRow[], position: number): number | null => {
+    for (let i = position + 1; i < rows.length; i++) {
+      if (rows[i].type === 'chapter') return rows[i].index
+    }
+    return null
+  }
+
+  return (
+    <aside className="mn-chat__panel" aria-label="聊天记录">
+      <button
+        type="button"
+        className="mn-chat__panel-top"
+        title="回到本章开头"
+        onClick={onBackToChapterTop}
+      >
+        <span className="mn-chat__panel-top-label">本章</span>
+        <IconChevronRight className="h-4 w-4" />
+      </button>
+      <div className="mn-chat__panel-card" title={chapterLabel}>
+        {chapterLabel}
+      </div>
+
+      <div className="mn-chat__panel-sec">
+        <span>
+          聊天记录 · {chapterCount} 章
+        </span>
+        <div className="flex-1" />
+        <AppMenu
+          items={[
+            { label: '阅读设置', onSelect: onOpenSettings },
+            {
+              label: dimOn ? '退出摸鱼模式' : '摸鱼模式（调暗消息区）',
+              hint: dimHotkey,
+              onSelect: onToggleDim,
+            },
+            { label: '回到会话列表', separatorBefore: true, onSelect: onBack ?? (() => undefined) },
+          ]}
+        />
+      </div>
+
+      <div className="mn-chat__panel-list">
+        {chapters === undefined ? (
+          <p className="mn-office__side-hint">正在读目录…</p>
+        ) : (
+          chapters.map((row, position) =>
+            row.type === 'group' ? (
+              <button
+                key={`g-${position}`}
+                type="button"
+                className="mn-chat__panel-group"
+                title={`跳到「${row.label}」的第一章`}
+                onClick={() => {
+                  const first = firstChapterOf(chapters, position)
+                  if (first !== null) onChapter(first)
+                }}
+              >
+                {row.label} ›
+              </button>
+            ) : (
+              <PanelRow
+                key={row.index}
+                label={row.label}
+                active={row.index === chapterIndex}
+                onClick={() => onChapter(row.index)}
+              />
+            ),
+          )
+        )}
+      </div>
+
+      <div className="mn-chat__panel-foot">
+        <div className="mn-chat__panel-text">
+          <span>本章 {formatChars(chapterChars ?? 0)}</span>
+          <span>已读 {formatPercent(percent)}</span>
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+/** 目录里的一章。当前那一章滚进视野——企业微信里选中的成员也这么浮上来 */
+function PanelRow({
+  label,
+  active,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  const ref = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: 'nearest' })
+  }, [active])
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className={cx('mn-chat__panel-row', active && 'is-active')}
+      aria-current={active}
+      title={label}
+      onClick={onClick}
+    >
+      <span className="mn-chat__panel-glyph">
+        <IconChatBubble className="h-[18px] w-[18px]" />
+      </span>
+      <span className="mn-chat__panel-name">{label}</span>
+      {active ? <span className="mn-chat__panel-mark">本章</span> : null}
+    </button>
+  )
+}
+
+/**
+ * 会话窗口的框：功能栏 + 会话列表 + 主区。
  * 阅读器和首页共用它——首页只是主区里没有人被选中。
  */
+
 function ChatFrame({
   view,
   onView,
@@ -256,11 +484,10 @@ function ChatFrame({
   dim,
   dimOn,
   onToggleDim,
-  onBack,
   main,
 }: {
-  view: RailView
-  onView: (view: RailView) => void
+  view: ChatView
+  onView: (view: ChatView) => void
   books?: BookRecord[]
   currentBookId?: string
   chapterIndex?: number
@@ -270,26 +497,25 @@ function ChatFrame({
   dim: number
   dimOn: boolean
   onToggleDim: () => void
-  onBack?: () => void
   main: ReactNode
 }) {
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()
-  const list = useMemo(() => {
-    const all = books ?? []
-    if (!needle) return all
-    return all.filter(
-      (book) =>
-        book.title.toLowerCase().includes(needle) || book.author.toLowerCase().includes(needle),
-    )
-  }, [books, needle])
+  const list = (books ?? []).filter(
+    (book) =>
+      !needle ||
+      book.title.toLowerCase().includes(needle) ||
+      book.author.toLowerCase().includes(needle),
+  )
 
   /**
-   * 窄屏上会话列表是浮层：390px 的宽度里，功能栏 46 + 列表 200 只剩 144 给消息，
+   * 窄屏上会话列表是浮层：390px 的宽度里，功能栏 52 + 列表 249 只剩 89 给消息，
    * 那不是聊天窗口，是一条竖着的缝。和编辑器形态的侧栏同一个做法：
    * 窄屏收起来、按钮切换，宽屏一直是常驻的一列。
    */
   const [narrowList, setNarrowList] = useState(false)
+  /** 「消息」那一格的角标：还有几个会话没读完（真的数得出来的东西） */
+  const unreadSessions = (books ?? []).filter((book) => sessionUnread(book) > 0).length
 
   return (
     <div
@@ -310,19 +536,31 @@ function ChatFrame({
         <span className="mn-chat__me" title="我">
           我
         </span>
-        {RAIL.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="mn-chat__rail-btn"
-            title={item.label}
-            aria-label={item.label}
-            aria-pressed={view === item.id}
-            onClick={() => onView(item.id)}
-          >
-            {item.icon}
-          </button>
-        ))}
+        {CHAT_RAIL.map((item) => {
+          const real = item.view !== undefined
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className="mn-chat__rail-btn"
+              title={real ? item.label : (item.why ?? item.label)}
+              aria-label={item.label}
+              aria-pressed={real ? view === item.view : undefined}
+              disabled={!real}
+              onClick={real ? () => onView(item.view as ChatView) : undefined}
+            >
+              <span className="mn-chat__rail-icon">
+                {RAIL_ICONS[item.id]}
+                {item.id === 'msg' && unreadSessions > 0 ? (
+                  <span className="mn-chat__rail-badge" title={`${unreadSessions} 个会话还没读完`}>
+                    {unreadSessions > 99 ? '99+' : unreadSessions}
+                  </span>
+                ) : null}
+              </span>
+              <span className="mn-chat__rail-label">{item.label}</span>
+            </button>
+          )
+        })}
         <div className="flex-1" />
         <button
           type="button"
@@ -331,7 +569,10 @@ function ChatFrame({
           aria-pressed={dimOn}
           onClick={onToggleDim}
         >
-          <span className="mn-chat__rail-glyph">◐</span>
+          <span className="mn-chat__rail-icon">
+            <span className="text-[19px] leading-none">◐</span>
+          </span>
+          <span className="mn-chat__rail-label">摸鱼</span>
         </button>
         <button
           type="button"
@@ -342,23 +583,34 @@ function ChatFrame({
             else void document.documentElement.requestFullscreen()
           }}
         >
-          <IconFullscreen className="h-5 w-5" />
+          <span className="mn-chat__rail-icon">
+            <IconFullscreen className="h-[26px] w-[26px]" />
+          </span>
+          <span className="mn-chat__rail-label">全屏</span>
         </button>
         <button type="button" className="mn-chat__rail-btn" title="阅读设置" onClick={onOpenSettings}>
-          <IconSliders className="h-5 w-5" />
+          <span className="mn-chat__rail-icon">
+            <IconSliders className="h-[26px] w-[26px]" />
+          </span>
+          <span className="mn-chat__rail-label">设置</span>
         </button>
       </nav>
 
-      <aside className="mn-chat__list" aria-label={RAIL.find((item) => item.id === view)?.label}>
-        <label className="mn-chat__search">
-          <IconSearch className="h-3.5 w-3.5" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={view === 'contacts' ? '搜索联系人' : '搜索'}
-            aria-label="搜索"
-          />
-        </label>
+      <aside className="mn-chat__list" aria-label={CHAT_RAIL.find((item) => item.view === view)?.label}>
+        <div className="mn-chat__list-top">
+          <label className="mn-chat__search">
+            <IconSearch className="h-4 w-4" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={view === 'contacts' ? '搜索联系人' : '搜索'}
+              aria-label="搜索"
+            />
+          </label>
+          <button type="button" className="mn-chat__add" title="导入文件" onClick={onImport}>
+            <IconPlusThin className="h-5 w-5" />
+          </button>
+        </div>
         <div className="mn-chat__list-body">
           {books === undefined ? (
             <p className="mn-office__side-hint">正在打开书架…</p>
@@ -378,25 +630,6 @@ function ChatFrame({
             />
           )}
         </div>
-        <div className="mn-chat__list-foot">
-          <button type="button" className="mn-chat__list-btn" onClick={onImport}>
-            <IconImport className="h-4 w-4" />
-            导入文件
-          </button>
-          {onBack ? (
-            <button
-              type="button"
-              className="mn-chat__list-btn"
-              onClick={() => {
-                setNarrowList(false)
-                onBack()
-              }}
-            >
-              <IconChatBubble className="h-4 w-4" />
-              回书架
-            </button>
-          ) : null}
-        </div>
       </aside>
 
       <main className="mn-chat__main">{main}</main>
@@ -414,7 +647,7 @@ function ChatListView({
   chapterIndex,
   onOpenBook,
 }: {
-  view: RailView
+  view: ChatView
   books: BookRecord[]
   total: number
   query: string
@@ -528,12 +761,12 @@ function ChatListView({
     )
   }
 
-  // 消息（会话列表）：和微信一样排——头像、名字、最后一条的摘要、时间、未读数
+  // 消息（会话列表）：和真企业微信一样排——头像、名字、标签、时间、摘要、未读角标
   return (
     <div className="mn-chat__sessions">
       {books.map((book) => {
-        const read = book.progress ? book.progress.chapterIndex + 1 : 0
-        const unread = Math.max(0, book.chapterCount - read)
+        const unread = sessionUnread(book)
+        const tag = sessionTag(book, currentBookId)
         return (
           <button
             key={book.id}
@@ -551,10 +784,16 @@ function ChatListView({
               }
             >
               {avatarInitial(book.author || book.title)}
+              {unread > 0 ? (
+                <span className="mn-chat__avatar-badge" title={`还有 ${unread} 章没读`}>
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              ) : null}
             </span>
             <span className="mn-chat__session-body">
               <span className="mn-chat__session-top">
                 <span className="mn-chat__session-name truncate">{book.title}</span>
+                {tag ? <span className="mn-chat__tag">{tag}</span> : null}
                 <span className="mn-chat__session-time">
                   {formatRelativeTime(book.lastReadAt || book.addedAt)}
                 </span>
@@ -569,11 +808,6 @@ function ChatListView({
                       : '没能解析成功'}
               </span>
             </span>
-            {unread > 0 && book.state === 'ready' ? (
-              <span className="mn-chat__badge" title={`还有 ${unread} 章没读`}>
-                {unread > 99 ? '99+' : unread}
-              </span>
-            ) : null}
           </button>
         )
       })}
@@ -584,12 +818,21 @@ function ChatListView({
 /**
  * 企业微信首页（书架）。
  *
- * 和阅读器共用那副窗口，只是主区里没有人被选中：一条灰底上的「选择一个会话」，
- * 底下写清怎么把书弄进来。不自动打开某本书——理由和编辑器形态的首页一样
+ * 和阅读器共用那副窗口，只是主区里没有人被选中：一句状态 + 最近几个会话，
+ * 底下是真的导入按钮。不自动打开某本书——理由和编辑器形态的首页一样
  * （见 docs/SPEC.md 五 5.4 第 5 条）。
  */
-export function ChatHome({ books, onOpen, onMenu, onImport, onOpenSettings, dropping, dim, dimOn, onToggleDim }: ShelfProps) {
-  const [view, setView] = useState<RailView>('msg')
+export function ChatHome({
+  books,
+  onOpen,
+  onImport,
+  onOpenSettings,
+  dropping,
+  dim,
+  dimOn,
+  onToggleDim,
+}: ShelfProps) {
+  const [view, setView] = useState<ChatView>('msg')
   return (
     <div className={cx(dropping && 'mn-drop-active')}>
       <ChatFrame
@@ -611,7 +854,7 @@ export function ChatHome({ books, onOpen, onMenu, onImport, onOpenSettings, drop
                   ? '正在打开书架…'
                   : books.length === 0
                     ? '还没有会话'
-                    : '左边是全部会话（= 全部书）。点一个就开始读。'}
+                    : `共 ${books.length} 个会话`}
               </p>
               {books && books.length > 0 ? (
                 <div className="mn-chat__empty-recent">
@@ -635,16 +878,6 @@ export function ChatHome({ books, onOpen, onMenu, onImport, onOpenSettings, drop
                   <IconImport className="h-4 w-4" />
                   导入文件
                 </button>
-                {books && books.length > 0 ? (
-                  <button
-                    type="button"
-                    className="mn-chat__empty-btn"
-                    onClick={() => onMenu(books[0])}
-                  >
-                    <IconMore className="h-4 w-4" />
-                    第一本的解析设置
-                  </button>
-                ) : null}
               </div>
             </div>
           </div>

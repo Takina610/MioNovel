@@ -85,8 +85,8 @@ export function DocApp(props: AppFrameProps) {
     { id: 'color', title: '字体颜色（只读）', disabled: true },
     { id: 'align-left', title: '左对齐', active: settings.align === 'left', onClick: () => onSettingsChange({ align: 'left' }) },
     { id: 'align-justify', title: '两端对齐', active: settings.align === 'justify', onClick: () => onSettingsChange({ align: 'justify' }) },
-    { id: 'spacing', title: `行距：${settings.lineHeight.toFixed(2)}（点一下换下一档）`, icon: '≡', onClick: cycleSpacing },
-    { id: 'indent', title: `首行缩进：${settings.indent} 字符（点一下加半格）`, icon: '⇥', disabled: settings.indent >= 6, onClick: () => nudgeIndent(0.5) },
+    { id: 'spacing', title: `行距：${settings.lineHeight.toFixed(2)}`, icon: '≡', onClick: cycleSpacing },
+    { id: 'indent', title: `首行缩进：${settings.indent} 字符`, icon: '⇥', disabled: settings.indent >= 6, onClick: () => nudgeIndent(0.5) },
     { id: 'outdent', title: '取消首行缩进', icon: '⇤', disabled: settings.indent <= 0, onClick: () => onSettingsChange({ indent: 0 }) },
     { id: 'bullets', title: '项目符号（只读）', disabled: true },
     { id: 'todo', title: '待办（只读）', disabled: true },
@@ -151,7 +151,7 @@ export function DocApp(props: AppFrameProps) {
           </span>
           <AppMenu
             items={[
-              { label: '阅读设置（主题也在这里）', hint: settingsHotkey, onSelect: props.onOpenSettings },
+              { label: '阅读设置', hint: settingsHotkey, onSelect: props.onOpenSettings },
               {
                 label: props.dimOn ? '退出摸鱼模式' : '摸鱼模式（调暗正文）',
                 hint: dimHotkey,

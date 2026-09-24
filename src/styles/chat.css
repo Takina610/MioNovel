@@ -1,12 +1,18 @@
 /* ==========================================================================
    企业微信形态（.mn-chat）
    --------------------------------------------------------------------------
-   一本书 = 一个会话，一段正文 = 一条消息（见 lib/chat.ts）。界面是微信系那副样子：
-   最左边一条深灰功能栏、中间会话列表、右边会话。
+   一本书 = 一个会话，一段正文 = 一条消息（见 lib/chat.ts）。这一版是照着真桌面版
+   企业微信的截图量下来重画的（做法见 docs/SPEC.md 决定记录 31）：1920×1034 的
+   截图上，最左那条功能栏 58 宽（底 #DBE9F7，选中那一格垫 44×50 的方块），
+   会话列表 249 宽（底 #F0F3F7，搜索框 32 高、左边距 16，"+ " 32×32 在右边，
+   会话行 63 高、头像 40×40 圆角 8、左边距 16），右边那块面板 158 宽
+   （左边一条 #E5E8EC 的线），会话区底色 #F5F7FA、收到的气泡 #E4E7EB、
+   气泡内边距 8/12、圆角 4，输入区是一个白盒子（1 边框、圆角 4）：
+   工具条 18 高的图标排在盒内顶部，右下角是「发送(S)」。
+   改一个数之前先看相邻的几个：列表左边距和头像尺寸是同一个 16。
 
-   三个颜色不跟界面明暗走，单独给（见 themes/types.ts 的 ChatTokens）：
-   功能栏在亮色和暗色下都是深灰——桌面版微信就是这样，它不是「面板」，是「边框」；
-   消息气泡既不是面板色也不是阅读底，它是「别人发来的消息」这一层。
+   几个颜色不跟界面明暗走，单独在主题里给（见 themes/types.ts 的 ChatTokens）：
+   功能栏、选中态方块、选中那一格的墨色、选中会话行的底色、气泡。其余全部走主 token。
    ========================================================================== */
 
 .mn-chat {
@@ -18,78 +24,133 @@
   font-family: var(--mn-font-sans);
 }
 
-/* ---- 功能栏 ---- */
+/* ---- 功能栏：13 格「图标 + 小字」 ---- */
 
 .mn-chat__rail {
-  flex: 0 0 56px;
-  width: 56px;
+  flex: 0 0 58px;
+  width: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 0 12px;
+  background: var(--mn-chat-rail);
+  user-select: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mn-chat__me {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--mn-chat-rail-fg) 22%, transparent);
+  color: var(--mn-chat-rail-fg);
+  font-size: 13px;
+}
+
+/* 一格：垫一块 44×50 的方块（选中时才是 #C9DEF7 那种蓝），里面是图标和小字 */
+.mn-chat__rail-btn {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 16px 0 12px;
-  background: var(--mn-chat-rail);
-  user-select: none;
-}
-
-.mn-chat__me {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-bottom: 14px;
-  border-radius: 6px;
-  background: rgb(255 255 255 / 14%);
-  color: #ededed;
-  font-size: 13px;
-}
-
-.mn-chat__rail-btn {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 6px;
+  width: 44px;
+  height: 50px;
+  margin-bottom: 6px;
+  padding-top: 4px;
+  border-radius: 8px;
   color: var(--mn-chat-rail-fg);
   transition:
     background-color var(--mn-dur-1) var(--mn-ease),
     color var(--mn-dur-1) var(--mn-ease);
 }
 
-.mn-chat__rail-btn:hover {
-  color: #fff;
-  background: rgb(255 255 255 / 8%);
+.mn-chat__rail-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-chat-rail-fg) 14%, transparent);
+  color: var(--mn-fg);
 }
 
 .mn-chat__rail-btn[aria-pressed='true'] {
-  color: #fff;
+  background: var(--mn-chat-rail-tile);
+  color: var(--mn-chat-rail-active);
 }
 
-.mn-chat__rail-glyph {
-  font-size: 16px;
+.mn-chat__rail-btn:disabled {
+  opacity: 0.55;
+}
+
+.mn-chat__rail-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 24px;
+}
+
+/* 角标：钉在图标右上角，像企业微信那样压住图标（未读会话数 / 未读章数） */
+.mn-chat__rail-badge {
+  position: absolute;
+  top: -5px;
+  left: 15px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--mn-danger);
+  color: #fff;
+  font-size: 9.5px;
+  line-height: 15px;
+  text-align: center;
+}
+
+.mn-chat__rail-badge--dot {
+  left: 17px;
+  min-width: 7px;
+  width: 7px;
+  height: 7px;
+  padding: 0;
+}
+
+.mn-chat__rail-label {
+  font-size: 11px;
+  line-height: 11px;
+  white-space: nowrap;
 }
 
 /* ---- 会话列表 ---- */
 
 .mn-chat__list {
-  flex: 0 0 268px;
-  width: 268px;
+  flex: 0 0 249px;
+  width: 249px;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--mn-surface);
+  background: var(--mn-surface-2);
   border-right: 1px solid var(--mn-border);
+}
+
+.mn-chat__list-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 20px 16px 14px;
 }
 
 .mn-chat__search {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
-  margin: 12px 10px 8px;
-  padding: 0 8px;
-  border-radius: 4px;
-  background: var(--mn-bg);
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 9px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--mn-fg) 6%, transparent);
   color: var(--mn-fg-faint);
 }
 
@@ -99,8 +160,29 @@
   border: 0;
   background: transparent;
   color: var(--mn-fg);
-  font-size: 12.5px;
+  font-size: 13px;
   outline: none;
+}
+
+.mn-chat__search input::placeholder {
+  color: var(--mn-fg-faint);
+}
+
+/* 搜索框右边那个 ＋：企业微信里是「发起会话」，在这个阅读器里就是导入文件 */
+.mn-chat__add {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--mn-fg) 6%, transparent);
+  color: var(--mn-fg-muted);
+}
+
+.mn-chat__add:hover {
+  background: color-mix(in srgb, var(--mn-fg) 11%, transparent);
+  color: var(--mn-fg);
 }
 
 .mn-chat__list-body {
@@ -110,99 +192,58 @@
   overscroll-behavior: contain;
 }
 
-.mn-chat__list-foot {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 6px;
-  border-top: 1px solid var(--mn-border);
-}
-
-.mn-chat__list-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 8px;
-  border-radius: 4px;
-  color: var(--mn-fg-muted);
-  font-size: 12.5px;
-  text-align: left;
-}
-
-.mn-chat__list-btn:hover {
-  background: var(--mn-surface-2);
-  color: var(--mn-fg);
-}
-
-/* 会话行：头像 + 名字 + 摘要 + 时间 + 未读角标 */
+/* 会话行：头像 + 名字 + 标签 + 时间 + 摘要 + 未读角标 */
 .mn-chat__session {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 10px 10px 12px;
+  height: 63px;
+  padding: 0 16px;
   text-align: left;
+  border-top: 1px solid var(--mn-border);
   transition: background-color var(--mn-dur-1) var(--mn-ease);
 }
 
 .mn-chat__session:hover {
-  background: var(--mn-surface-2);
+  background: color-mix(in srgb, var(--mn-fg) 4%, transparent);
 }
 
+/* 选中的那一行整行铺蓝，里面的字全变白——企业微信就是这么选的 */
 .mn-chat__session.is-current {
-  background: var(--mn-surface-2);
+  background: var(--mn-chat-select);
+  border-color: transparent;
+}
+
+.mn-chat__session.is-current:hover {
+  background: var(--mn-chat-select);
+}
+
+.mn-chat__session.is-current + .mn-chat__session {
+  border-top-color: transparent;
 }
 
 .mn-chat__avatar {
+  position: relative;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 5px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   /* 头像底色：色相由名字哈希决定（lib/chat.ts），饱和度和明度固定——于是同一个
      作者永远是同一个颜色，而且亮暗两种主题下都是企业微信那种色块 */
   background: hsl(var(--mn-avatar-hue, 250) 58% 52%);
   color: #fff;
-  font-size: 14px;
+  font-size: 15px;
 }
 
-.mn-chat__session-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.mn-chat__session-top {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.mn-chat__session-name {
-  flex: 1;
-  min-width: 0;
-  color: var(--mn-fg);
-  font-size: 13px;
-}
-
-.mn-chat__session-time {
-  flex: 0 0 auto;
-  color: var(--mn-fg-faint);
-  font-size: 10.5px;
-}
-
-.mn-chat__session-preview {
-  color: var(--mn-fg-muted);
-  font-size: 11.5px;
-}
-
-.mn-chat__badge {
-  flex: 0 0 auto;
+/* 会话头像右下角那个小角标位（群头像上叠一块小图，这里是未读数的位置） */
+.mn-chat__avatar-badge {
+  position: absolute;
+  top: -6px;
+  left: 28px;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
@@ -214,7 +255,65 @@
   text-align: center;
 }
 
-/* 通讯录 / 日程 / 微盘：功能栏上那三个视图的列表 */
+.mn-chat__session-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mn-chat__session-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mn-chat__session-name {
+  min-width: 0;
+  color: var(--mn-fg);
+  font-size: 14px;
+}
+
+.mn-chat__session-time {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+}
+
+.mn-chat__session-preview {
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+}
+
+/* 会话名旁边那个小标签（在读 / 已读完）。选中行上是半透明白底 + 白字 */
+.mn-chat__tag {
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.mn-chat__session.is-current .mn-chat__session-name,
+.mn-chat__session.is-current .mn-chat__session-preview,
+.mn-chat__session.is-current .mn-chat__session-time {
+  color: #fff;
+}
+
+.mn-chat__session.is-current .mn-chat__session-preview {
+  color: rgb(255 255 255 / 78%);
+}
+
+.mn-chat__session.is-current .mn-chat__tag {
+  background: rgb(255 255 255 / 22%);
+  color: #fff;
+}
+
+/* 通讯录 / 日程 / 微盘：功能栏上那三格换的就是左边这一栏列什么 */
 .mn-chat__contacts,
 .mn-chat__schedule,
 .mn-chat__drive {
@@ -231,7 +330,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 12px 6px;
+  padding: 4px 16px 6px;
 }
 
 .mn-chat__contact-name {
@@ -241,7 +340,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--mn-fg);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .mn-chat__contact-count {
@@ -252,17 +351,17 @@
 .mn-chat__contact-book {
   display: block;
   width: 100%;
-  padding: 5px 12px 5px 54px;
+  padding: 6px 16px 6px 58px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--mn-fg-muted);
-  font-size: 12px;
+  font-size: 12.5px;
   text-align: left;
 }
 
 .mn-chat__contact-book:hover {
-  background: var(--mn-surface-2);
+  background: color-mix(in srgb, var(--mn-fg) 4%, transparent);
   color: var(--mn-fg);
 }
 
@@ -271,7 +370,7 @@
 }
 
 .mn-chat__schedule-head {
-  padding: 4px 12px;
+  padding: 4px 16px;
   color: var(--mn-fg-faint);
   font-size: 11px;
 }
@@ -281,19 +380,20 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 6px 12px;
+  padding: 7px 16px;
   color: var(--mn-fg-muted);
   font-size: 12.5px;
   text-align: left;
 }
 
 .mn-chat__schedule-row:hover {
-  background: var(--mn-surface-2);
+  background: color-mix(in srgb, var(--mn-fg) 4%, transparent);
   color: var(--mn-fg);
 }
 
 .mn-chat__schedule-time {
   flex: 0 0 auto;
+  margin-left: auto;
   color: var(--mn-fg-faint);
   font-size: 11px;
 }
@@ -303,19 +403,21 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 9px 16px;
   color: var(--mn-fg-muted);
   font-size: 12.5px;
   text-align: left;
+  border-bottom: 1px solid var(--mn-border);
 }
 
 .mn-chat__drive-row:hover {
-  background: var(--mn-surface-2);
+  background: color-mix(in srgb, var(--mn-fg) 4%, transparent);
   color: var(--mn-fg);
 }
 
 .mn-chat__drive-size {
   flex: 0 0 auto;
+  margin-left: auto;
   color: var(--mn-fg-faint);
   font-size: 11px;
 }
@@ -334,11 +436,10 @@
 .mn-chat__head {
   flex: 0 0 auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  height: 52px;
-  padding: 0 14px;
-  background: var(--mn-surface);
+  height: 66px;
+  padding: 11px 16px 11px 17px;
   border-bottom: 1px solid var(--mn-border);
   user-select: none;
 }
@@ -348,6 +449,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 3px;
 }
 
 .mn-chat__peer-name {
@@ -355,31 +457,47 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--mn-fg);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .mn-chat__peer-sub {
-  color: var(--mn-fg-faint);
-  font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--mn-fg-muted);
+  font-size: 12px;
 }
 
 .mn-chat__head-actions {
   display: flex;
   align-items: center;
   gap: 2px;
+  margin-top: -4px;
 }
 
+/* ⋯ 那个触发器（共用的 .mn-appmenu-btn 是 28×26 / 15px）：会话区顶栏里按 36 的格子
+   和上面几个图标对齐，字也放大到 20px——参考图里那三个点的墨迹就有 19px 宽 */
+.mn-chat__head .mn-appmenu-btn {
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+  border-radius: 6px;
+}
+
+/* 顶栏那几个按钮。盒子 36 配 24 的图标：照截图量出来的——参考图右上角那两个图标
+   （⋯ 与人＋）的墨迹约 19×17.5px，而我们 h-4 的图标墨迹只有 9-11px（这批记号墨迹
+   只占 24 格的 60% 上下），所以看着小一圈。24 的盒子让墨迹回到 14-17px。 */
 .mn-chat__icon-btn {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 4px;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
   color: var(--mn-fg-muted);
 }
 
 .mn-chat__icon-btn:hover:not(:disabled) {
-  background: var(--mn-surface-2);
+  background: color-mix(in srgb, var(--mn-fg) 6%, transparent);
   color: var(--mn-fg);
 }
 
@@ -396,6 +514,23 @@
   min-height: 0;
   display: flex;
   align-items: stretch;
+}
+
+/* 头部横贯整窗（企业微信里右边那块面板的顶上也是它——截图上的 ⋯ 与加人就在那儿），
+   下面才是并排的两列：左边是消息列（消息区 + 输入区），右边是群信息面板。
+   所以面板是一条通到底的列，输入区只到面板左沿为止（截图里那道分界在 1760）。 */
+.mn-chat__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.mn-chat__column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 消息区：滚动容器（ReaderView）在里面，黑纱也盖在这一层 */
@@ -416,6 +551,14 @@
   padding: 0;
 }
 
+/* 消息流不是「一栏正文」：它铺满整个会话区，宽度由气泡自己收（68%）。
+   所以要撤掉 content.css 给正文栏写的那两条（阅读栏宽 + 居中）——不然整片消息区
+   会被挤成屏幕中间一条、两边全是空白（这是照截图逐行比出来的一处）。 */
+.mn-chat .mn-scroll .mn-content {
+  max-width: none;
+  margin: 0;
+}
+
 /* ---- 消息流 ---- */
 
 .mn-thread {
@@ -423,60 +566,41 @@
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  max-width: var(--mn-content-width);
-  margin: 0 auto;
-  padding: 18px clamp(14px, 3vw, 32px) 40px;
+  padding: 18px 17px 28px;
 }
 
+/* 分隔线：章名、章内小标题。企业微信里的日期分隔就是一行小灰字，没有底 */
 .mn-thread__divider {
   align-self: center;
-  padding: 2px 10px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--mn-fg) 8%, transparent);
-  color: var(--mn-reader-fg-muted);
-  font-size: 11.5px;
+  margin: 14px 0;
+  color: var(--mn-fg-faint);
+  font-size: 12px;
 }
 
 .mn-thread__row {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: 7px;
 }
 
-.mn-thread__avatar {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 5px;
-  background: hsl(var(--mn-avatar-hue, 250) 58% 52%);
-  color: #fff;
-  font-size: 13px;
+/* 发信人：企业微信的群里，名字在气泡左上角、和气泡左沿对齐（没有头像） */
+.mn-thread__sender {
+  padding-left: 2px;
+  color: var(--mn-fg-muted);
+  font-size: 12px;
 }
 
-/* 气泡：左上角收一点圆角、旁边一个小尖角——微信系的气泡长这样 */
+/* 气泡：左上角也是圆角，没有小尖角——桌面版企业微信就是这样。
+   宽度收到 56%：截图里最宽的那条（「尊敬的客户…」）是 805px，会话区 1453px。 */
 .mn-thread__bubble {
-  position: relative;
-  max-width: min(100%, 76%);
-  padding: 9px 13px;
-  border-radius: 3px 8px 8px 8px;
+  max-width: min(100%, 56%);
+  padding: 8px 12px;
+  border-radius: 4px;
   background: var(--mn-chat-bubble);
   color: var(--mn-reader-fg);
   font-size: var(--mn-font-size);
   line-height: var(--mn-line-height);
-}
-
-.mn-thread__bubble::before {
-  content: '';
-  position: absolute;
-  left: -5px;
-  top: 10px;
-  width: 10px;
-  height: 10px;
-  border-radius: 1px;
-  background: var(--mn-chat-bubble);
-  transform: rotate(45deg);
 }
 
 .mn-thread__body {
@@ -493,36 +617,12 @@
   margin-bottom: 0;
 }
 
-.mn-thread__body img,
-.mn-thread__body svg {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  margin: 4px 0;
-  border-radius: 4px;
-}
+/* 气泡里不放图：整章的图在进正文之前就换成了一行 `![](./路径)`
+   （ChapterBody 里 media: 'reference'，见 lib/blocks.ts）。这条是提醒，
+   不是漏了——别在气泡里再补一套 img 的样式。 */
 
 .mn-thread__body a {
   color: var(--mn-reader-link);
-}
-
-/* 图片消息：真聊天里它就是一张图，没有气泡那层白底和边距 */
-.mn-thread__bubble--image {
-  padding: 0;
-  background: transparent;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.mn-thread__bubble--image::before {
-  display: none;
-}
-
-.mn-thread__bubble--image .mn-thread__body img {
-  display: block;
-  max-width: min(100%, 420px);
-  margin: 0;
-  border-radius: 4px;
 }
 
 /* 图注、引用这类在气泡里收一下 */
@@ -539,64 +639,154 @@
   color: var(--mn-reader-fg-muted);
 }
 
-/* 双语书的次要语言：显示与否跟着阅读设置。
-   只改 display（消息行是弹性行，用 block 的话头像和气泡会上下叠起来），
+/* 双语书的次要语言（原文）：显示与否跟着阅读设置。
+   只改 display（消息行是弹性列，用 block 的话名字和气泡会叠起来），
    状态读阅读器根上的 data-bilingual */
 [data-bilingual='primary'] .mn-thread__row[data-alt='true'],
 [data-bilingual='secondary'] .mn-thread__row:not([data-alt]) {
   display: none;
 }
 
-.mn-thread__row[data-alt='true'] .mn-thread__bubble {
-  color: var(--mn-alt-color, var(--mn-reader-fg-muted));
+/* ---- 双语书的原文段 = 「我发的消息」 ----
+   左边是这本书（主语言），右边是我（原文对照）：靠右、用强调色浅底那个气泡，
+   发信人写「我」（lib/chat.ts 的 messageSender）。真聊天里「自己发的」就是这一副样子，
+   所以不用另画一套记号——靠右加上自己的气泡色，谁都读得出来。
+
+   气泡底色没有截图可量（参考图里全是别人发的），所以按主题自己的强调色**算**出来：
+   20% 的 accent 铺在会话底上。这是「抄」不了时的退路——从注册表的颜色里派生，
+   不是另调一个色号。 */
+.mn-thread__row[data-alt='true'] {
+  align-items: flex-end;
 }
 
-/* ---- 聊天记录（= 目录） ---- */
+.mn-thread__row[data-alt='true'] .mn-thread__bubble {
+  background: color-mix(in srgb, var(--mn-accent) 20%, var(--mn-reader-bg));
+  color: var(--mn-alt-color, var(--mn-reader-fg));
+}
 
-.mn-chat__records {
-  flex: 0 0 224px;
-  width: 224px;
+/* ---- 右边那块面板（群信息的位置：本章 + 聊天记录） ---- */
+
+.mn-chat__panel {
+  flex: 0 0 158px;
+  width: 158px;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--mn-surface);
   border-left: 1px solid var(--mn-border);
-}
-
-.mn-chat__records-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 34px;
-  padding: 0 12px;
-  color: var(--mn-fg-muted);
-  font-size: 12px;
   user-select: none;
 }
 
-.mn-chat__records-count {
-  color: var(--mn-fg-faint);
-  font-size: 11px;
+.mn-chat__panel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 12px;
+  color: var(--mn-fg-muted);
+  font-size: 12px;
 }
 
-.mn-chat__records-list {
+.mn-chat__panel-top:hover .mn-chat__panel-top-label {
+  color: var(--mn-fg);
+}
+
+.mn-chat__panel-card {
+  padding: 2px 12px 14px;
+  border-bottom: 1px solid var(--mn-border);
+  color: var(--mn-fg);
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+.mn-chat__panel-sec {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 8px 0 12px;
+  color: var(--mn-fg-muted);
+  font-size: 12px;
+}
+
+.mn-chat__panel-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding-bottom: 10px;
 }
 
-.mn-chat__records-foot {
+/* 卷/部分组那一行：企业微信里是橙色的小字 + › */
+.mn-chat__panel-group {
+  display: block;
+  width: 100%;
+  padding: 7px 12px 5px;
+  color: var(--mn-warn, var(--mn-accent));
+  font-size: 12px;
+  text-align: left;
+}
+
+/* 没有分组的书不画那一行 */
+.mn-chat__panel-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 28px;
+  padding: 3px 10px 3px 12px;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  text-align: left;
+  border-radius: 4px;
+}
+
+.mn-chat__panel-row:hover {
+  background: color-mix(in srgb, var(--mn-fg) 5%, transparent);
+}
+
+.mn-chat__panel-row.is-active {
+  background: color-mix(in srgb, var(--mn-accent) 12%, transparent);
+}
+
+.mn-chat__panel-glyph {
   flex: 0 0 auto;
-  padding: 8px 12px 12px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: var(--mn-accent);
+}
+
+.mn-chat__panel-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 当前这一章上的小标签（企业微信里那个位置写的是「群主」） */
+.mn-chat__panel-mark {
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--mn-fg) 8%, transparent);
+  color: var(--mn-fg-muted);
+  font-size: 10.5px;
+  line-height: 14px;
+}
+
+.mn-chat__panel-foot {
+  flex: 0 0 auto;
+  padding: 8px 12px 10px;
   border-top: 1px solid var(--mn-border);
 }
 
-.mn-chat__records-text {
+.mn-chat__panel-text {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 6px;
   color: var(--mn-fg-faint);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
@@ -604,28 +794,72 @@
 
 /* ---- 输入区 ----
    这里**没有假输入框**：真聊天的输入框能打字，我们的不能。
-   那个位置放的是这一章的位置（一条能拖的进度条，长得像输入框），
-   下面一排是真的按钮，右下角「发送」的位置是「下一章」。 */
+   那个位置放的是这一章的位置（一条能拖的进度条，长得像输入框的盒子），
+   左下角一排是真的按钮，右下角「发送(S)」的位置是「下一章」（按下去真的翻章）。 */
 
 .mn-chat__compose {
   flex: 0 0 auto;
-  padding: 8px 14px 12px;
-  background: var(--mn-surface);
-  border-top: 1px solid var(--mn-border);
+  padding: 0 16px 15px 17px;
+  background: var(--mn-bg);
 }
 
 .mn-chat__box {
-  position: relative;
-  padding: 8px 12px 12px;
-  border: 1px solid var(--mn-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 137px;
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 4px;
+  background: var(--mn-surface);
+}
+
+/* 收起来：白盒子只剩那条工具条（收起按钮就在上面，随时能放下来） */
+.mn-chat__box[data-collapsed='true'] {
+  min-height: 0;
+}
+
+/* 工具条。按钮 32 配 24 的图标（原来是 28 配 16）：照截图量出来，参考图这一排
+   图标的墨迹有 15-19px，而我们 h-4 的图标墨迹只有 7-11px——那排按钮一直是偏小的，
+   目录开关那个记号尤其小（它的墨迹只占 24 格里的 11 格，16px 的盒子里只剩 7px）。
+   换算是 AGENTS.md 那条：盒子 = 目标视觉大小 × 24 ÷ 墨迹格数。 */
+.mn-chat__tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 38px;
+  padding: 0 8px;
+}
+
+.mn-chat__tool {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
-  background: var(--mn-bg);
+  color: var(--mn-fg-muted);
+}
+
+.mn-chat__tool:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-fg) 6%, transparent);
+  color: var(--mn-fg);
+}
+
+.mn-chat__tool:disabled {
+  opacity: 0.4;
+}
+
+.mn-chat__input {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 12px 12px;
 }
 
 .mn-chat__box-text {
   display: block;
   color: var(--mn-fg);
-  font-size: 12.5px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .mn-chat__box-hint {
@@ -636,53 +870,32 @@
   display: block;
   width: 100%;
   height: 4px;
-  margin-top: 8px;
+  margin-top: auto;
 }
 
-.mn-chat__compose-foot {
+.mn-chat__send-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 8px;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 30px;
+  padding: 0 11px;
 }
 
-.mn-chat__tools {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 1;
-}
-
-.mn-chat__tool {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  color: var(--mn-fg-muted);
-}
-
-.mn-chat__tool:hover:not(:disabled) {
-  background: var(--mn-surface-2);
-  color: var(--mn-fg);
-}
-
-.mn-chat__tool:disabled {
-  opacity: 0.4;
-}
-
-/* 主按钮（真聊天里这是「发送」）：按下去真的翻到下一章 */
+/* 主按钮（真聊天里这是「发送(S)」）：按下去真的翻到下一章 */
 .mn-chat__send {
-  height: 28px;
-  padding: 0 16px;
-  border-radius: 4px;
-  background: var(--mn-accent);
-  color: #fff;
+  padding: 2px 4px;
+  border-radius: 3px;
+  color: var(--mn-accent);
   font-size: 12.5px;
 }
 
+.mn-chat__send:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-accent) 10%, transparent);
+}
+
 .mn-chat__send:disabled {
-  opacity: 0.45;
+  color: var(--mn-fg-faint);
 }
 
 /* ---- 首页（没有人被选中时） ---- */
@@ -726,7 +939,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 9px 12px;
   background: var(--mn-surface);
   color: var(--mn-fg-muted);
   font-size: 12.5px;
@@ -739,12 +952,13 @@
 }
 
 .mn-chat__empty-row:hover {
-  background: var(--mn-surface-2);
+  background: color-mix(in srgb, var(--mn-fg) 4%, transparent);
   color: var(--mn-fg);
 }
 
 .mn-chat__empty-meta {
   flex: 0 0 auto;
+  margin-left: auto;
   color: var(--mn-fg-faint);
   font-size: 11px;
 }
@@ -768,26 +982,64 @@
 }
 
 .mn-chat__empty-btn:hover {
-  background: var(--mn-surface-2);
+  background: color-mix(in srgb, var(--mn-fg) 5%, transparent);
   color: var(--mn-fg);
 }
 
 /* 空壳：功能栏 + 空列表 + 空主区，形状和真窗口一致 */
-.mn-chat--skeleton .mn-chat__list {
-  background: var(--mn-surface);
+.mn-chat--skeleton .mn-chat__rail-btn,
+.mn-chat--skeleton .mn-chat__me {
+  background: color-mix(in srgb, var(--mn-chat-rail-fg) 16%, transparent);
 }
 
 @media (max-width: 1023px) {
-  .mn-chat__records {
+  .mn-chat__panel {
     position: absolute;
-    top: 52px;
+    top: 66px;
     right: 0;
     bottom: 0;
     z-index: 30;
-    width: min(70vw, 240px);
+    width: min(70vw, 200px);
     flex-basis: auto;
-    border-left: 1px solid var(--mn-border-strong);
+    background: var(--mn-bg);
     box-shadow: var(--mn-shadow-panel);
+  }
+}
+
+/* 矮屏：功能栏有 13 格 + 底部三个真按钮，照 1034px 高的截图排下来（56 一格）
+   在 900px 的屏上会把「设置」顶出可视区。企业微信自己也是这么变的：
+   窗口矮了，格子跟着矮。所以这里收的是格子的高与字，不是砍掉哪一格。 */
+@media (max-height: 940px) {
+  .mn-chat__rail {
+    padding-top: 12px;
+  }
+
+  .mn-chat__rail-btn {
+    height: 44px;
+    margin-bottom: 4px;
+    gap: 2px;
+    padding-top: 3px;
+  }
+
+  .mn-chat__rail-icon {
+    height: 24px;
+  }
+
+  .mn-chat__rail-icon > svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .mn-chat__rail-label {
+    font-size: 10px;
+    line-height: 10px;
+  }
+
+  .mn-chat__me {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 8px;
+    font-size: 12px;
   }
 }
 
@@ -798,14 +1050,14 @@
 
 @media (max-width: 767px) {
   .mn-chat__rail {
-    width: 46px;
-    flex-basis: 46px;
+    width: 52px;
+    flex-basis: 52px;
   }
 
   .mn-chat__list-toggle {
     position: absolute;
-    top: 11px;
-    left: 54px;
+    top: 16px;
+    left: 58px;
     z-index: 40;
     display: grid;
     place-items: center;
@@ -816,7 +1068,7 @@
   }
 
   .mn-chat__list-toggle:hover {
-    background: var(--mn-surface-2);
+    background: color-mix(in srgb, var(--mn-fg) 6%, transparent);
     color: var(--mn-fg);
   }
 
@@ -828,7 +1080,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    left: 46px;
+    left: 52px;
     z-index: 35;
     width: min(78vw, 280px);
     flex-basis: auto;
@@ -839,5 +1091,17 @@
   /* 会话名让开那个浮层开关 */
   .mn-chat__peer {
     padding-left: 26px;
+  }
+
+  /* 窄屏上把那两个灰着的通话按钮收掉：36 的格子 × 5 个按钮要吃掉 188px，
+     390px 的宽度里会话名只剩 105px（「样例书：风起」都放不下）。
+     留着的是三个真能按的：目录、设置、⋯——真企业微信的手机端也不摆这一对。 */
+  .mn-chat__icon-btn:disabled {
+    display: none;
+  }
+
+  /* 窄屏上气泡宽一点：一屏就这么宽，再收 68% 就看不清了 */
+  .mn-thread__bubble {
+    max-width: 92%;
   }
 }

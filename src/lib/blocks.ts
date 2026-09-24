@@ -127,10 +127,10 @@ export function mediaPath(src: string, resolve?: (src: string) => string | undef
 /**
  * 正文里的图片全部换成一行引用：`![](./figure.png)`。
  *
- * 表格和编辑器这两种形态里不渲染任何图——封面、卷首插图、正文插图都不例外。
+ * 编辑器、文档、聊天、表格这四种形态里不渲染任何图——封面、卷首插图、正文插图都不例外。
  * 这不是「加载失败」，而是**这份文本里确实有一张图，这行是它的地址**：
  * 一句话说明这里原本是什么，同时把原图路径留给人查。
- * （文档、幻灯片、聊天能正常放图，它们不走这一条。）
+ * （页面（Word）与幻灯片放得下图，它们不走这一条。）
  */
 export function replaceMedia(root: Element, resolve?: (src: string) => string | undefined): void {
   const media = Array.from(root.querySelectorAll('img, svg'))
@@ -156,8 +156,8 @@ export function replaceMedia(root: Element, resolve?: (src: string) => string | 
  * 1. **拆掉 `<figure>`。** 图与图注本来就是两块（一行图、一行说明），套在 figure
  *    里会让「最深的块才是行」的判定把它们粘成一块；而 figure 自己又不在块级选择器
  *    里，于是**整张图会被丢掉**——聊天和幻灯片里就表现为「说明文字在、图没了」。
- * 2. **给还不在任何块里的图自己包一块。** `![](./路径)` 占位（编辑器 / 表格用）
- *    和原样的 `<img>`（文档 / 幻灯片 / 聊天用）都要包，否则它落在行的外面，
+ * 2. **给还不在任何块里的图自己包一块。** `![](./路径)` 占位（编辑器 / 文档 / 聊天 /
+ *    表格用）和原样的 `<img>`（页面 / 幻灯片用）都要包，否则它落在行的外面，
  *    谁都渲染不到它。
  */
 export function normalizeMediaLines(body: Element): void {
@@ -183,8 +183,8 @@ export function normalizeMediaLines(body: Element): void {
  * 编辑器形态和块状形态（表格 / 幻灯片 / 聊天）都从这里起步：它们的分块规则
  * 必须一致，不然同一章在四个形态里会切出不同的段数。
  *
- * media 决定图片怎么处理：'reference' 换成 `![](./路径)`（编辑器、表格），
- * 'keep' 原样留着（幻灯片、聊天——它们放得下图）。
+ * media 决定图片怎么处理：'reference' 换成 `![](./路径)`（编辑器、文档、聊天、表格），
+ * 'keep' 原样留着（页面、幻灯片——它们放得下图）。
  * resolve 用来把渲染时的 blob 地址还原成书里的原始路径（见 hooks/useChapterHtml）。
  */
 export function prepareBody(
@@ -193,7 +193,7 @@ export function prepareBody(
 ): { body: Element; elements: Element[] } {
   const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
   const body = doc.body
-  // 图片引用（`![](./路径)`）只属于编辑器与表格；其余形态留着原图。
+  // 图片引用（`![](./路径)`）属于编辑器、文档、聊天与表格；页面与幻灯片留着原图。
   // 不管哪种模式，都要把图整理成「一块」——否则它渲染不到（见 normalizeMediaLines）
   if (options.media === 'reference') replaceMedia(body, options.resolve)
   normalizeMediaLines(body)

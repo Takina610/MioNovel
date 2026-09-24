@@ -133,7 +133,7 @@ export function ExcelApp(props: AppFrameProps) {
           {
             id: 'spacing',
             icon: <IconLineSpacing className="h-5 w-5" />,
-            title: `行距：${settings.lineHeight.toFixed(2)}（点一下换下一档）`,
+            title: `行距：${settings.lineHeight.toFixed(2)}`,
             onClick: () => {
               const steps = [1.0, 1.15, 1.3, 1.45, 1.7]
               const next = steps.find((step) => step > settings.lineHeight + 0.01) ?? steps[0]

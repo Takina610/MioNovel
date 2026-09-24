@@ -146,7 +146,7 @@ export function WordApp(props: AppFrameProps) {
           {
             id: 'spacing',
             icon: <IconLineSpacing className="h-5 w-5" />,
-            title: `行距：${settings.lineHeight.toFixed(2)}（点一下换下一档）`,
+            title: `行距：${settings.lineHeight.toFixed(2)}`,
             onClick: cycleSpacing,
           },
           {

@@ -28,7 +28,7 @@ globals.HTMLElement = testWindow.HTMLElement
 globals.NodeFilter = testWindow.NodeFilter
 
 const { chapterBlocks, looksLikeDialogue, prepareBody, mediaLinesHtml } = await import('../src/lib/blocks.ts')
-const { chapterMessages, avatarInitial } = await import('../src/lib/chat.ts')
+const { chapterMessages, avatarInitial, chatSender, messageSender, CHAT_ME, CHAT_RAIL, sessionTag, sessionUnread } = await import('../src/lib/chat.ts')
 const { chapterRows, activeRowOf, rowsTotal } = await import('../src/lib/sheet.ts')
 const { chapterSlides } = await import('../src/lib/slide.ts')
 const { chapterFileName } = await import('../src/lib/code.ts')
@@ -146,7 +146,7 @@ console.log('\n块切分')
   check('双语书的次要语言段被标记', blocks.some((b) => b.alt && b.text.startsWith('少年は')))
   check('<figure> 被拆开：图自己占一块、图注自己占一块', blocks.some((b) => b.kind === 'image') && blocks.some((b) => b.text === '插图说明'))
   check(
-    '图片块里留的是 <img>（文档 / 幻灯片 / 聊天要显示图）',
+    'keep 模式下图片块里留的是 <img>（页面 / 幻灯片放图）',
     blocks.find((b) => b.kind === 'image')?.html.includes('<img') === true,
   )
   check(
@@ -200,12 +200,85 @@ console.log('\n聊天（企业微信）')
   const blocks = chapterBlocks(CHAPTER_HTML)
   const messages = chapterMessages(blocks, '第3章 少年与灯')
   check('空行不变成空气泡', messages.every((m) => m.text !== '' || m.kind === 'image'), JSON.stringify(messages.map((m) => m.text.slice(0, 6))))
+  check('发信人写书里的作者，没作者才写「书友」', chatSender('川端康成') === '川端康成' && chatSender('  ') === '书友' && chatSender(undefined) === '书友')
+
+  // 聊天形态（chrome: 'chat'）也不显示图：整章图片换成一行引用，和编辑器、飞书同一条约定。
+  // 三条断言和飞书那三条一一对应——「替换」最容易顺手吃掉东西，所以原文一个字都不能少
+  const chatRef = chapterMessages(chapterBlocks(CHAPTER_HTML, { media: 'reference' }), '第3章 少年与灯')
+  check('聊天形态的消息里没有 <img> / <svg> 了', !chatRef.some((m) => /<img|<svg/i.test(m.html)))
+  check(
+    '图片写成一条引用消息，路径是书里的原始路径',
+    chatRef.some((m) => m.text === '![插图](./OEBPS/Images/pic.png)'),
+    chatRef.find((m) => m.text.startsWith('!['))?.text,
+  )
+  check(
+    '标题、对话、双语段、引文一个都没丢',
+    ['他合上书', '少年は振り返らなかった', '引文一段'].every((piece) => chatRef.some((m) => m.text.includes(piece))) &&
+      chatRef.some((m) => m.divider && m.text === '三、灯'),
+  )
   check('开头的章标题不再重复出现', !messages.some((m) => m.divider && m.text === '第3章 少年与灯'))
   check('章内的小标题当分隔线', messages.some((m) => m.divider && m.text === '三、灯'))
-  check('图片消息带得动内容', messages.some((m) => m.kind === 'image' && m.html.includes('<img')))
+  check('给它的图片块原样带过来（chapterMessages 自己不动 html）', messages.some((m) => m.kind === 'image' && m.html.includes('<img')))
   check('次要语言段保留标记（双语模式要用）', messages.some((m) => m.alt))
   check('消息顺序和正文一致', messages[0].text.startsWith('他合上书'))
+  // 双语书的原文段当「我发的消息」：发信人写「我」，其余写书的作者。
+  // 「哪几行算我发的」不看屏幕发现不了（少写一行、多写一行都只是看着不对），所以断言它
+  const altMessages = chatRef.filter((m) => m.alt)
+  check('有次要语言段可供断言（样例里那一行日文）', altMessages.length > 0)
+  check(
+    '原文段写「我」，其余写作者',
+    altMessages.every((m) => messageSender(m, '川端康成') === CHAT_ME) &&
+      chatRef.filter((m) => !m.alt).every((m) => messageSender(m, '川端康成') === '川端康成'),
+  )
   check('头像取名字首字', avatarInitial('猫') === '猫' && avatarInitial('Cat') === 'C' && avatarInitial('  ') === '友')
+
+  // 功能栏那 13 格：顺序、哪几格是真的、灰着的有没有说清为什么。
+  // 这几件事对着屏幕扫一眼都未必看得出来（少一格、某一格悄悄变成能点的），
+  // 但它们是「这个外壳诚不诚实」的全部依据，所以逐条断言。
+  check('功能栏 13 格，顺序照桌面版企业微信', CHAT_RAIL.length === 13 && CHAT_RAIL.map((item) => item.label).join(' ') === '消息 邮件 文档 日程 待办 会议 智能文档 智能总结 工作台 通讯录 微盘 高级功能 分组')
+  const real = CHAT_RAIL.filter((item) => item.view)
+  check('真的只有 4 格（消息 / 日程 / 通讯录 / 微盘）', real.length === 4 && real.map((item) => item.view).join(',') === 'msg,schedule,contacts,drive')
+  check(
+    '真的那 4 格站在企业微信的位置上（0 / 3 / 9 / 10）',
+    CHAT_RAIL.findIndex((item) => item.view === 'msg') === 0 &&
+      CHAT_RAIL.findIndex((item) => item.view === 'schedule') === 3 &&
+      CHAT_RAIL.findIndex((item) => item.view === 'contacts') === 9 &&
+      CHAT_RAIL.findIndex((item) => item.view === 'drive') === 10,
+  )
+  check(
+    '其余 9 格全是灰的，而且每一格都说清了为什么',
+    CHAT_RAIL.filter((item) => !item.view).length === 9 &&
+      CHAT_RAIL.every((item) => (item.view ? !item.why : !!item.why)),
+  )
+
+  /** 四章、共 1000 字的假会话：标签和角标都只看进度，不看正文 */
+  const chatBook = (over: Partial<BookRecord>): BookRecord => ({
+    id: 'c',
+    state: 'ready',
+    title: '会话',
+    author: '',
+    format: 'txt',
+    addedAt: 0,
+    lastReadAt: 0,
+    totalChars: 1000,
+    chapterCount: 4,
+    charOffsets: [],
+    groups: [],
+    progress: null,
+    fileName: 'a.txt',
+    fileSize: 1,
+    signature: 's',
+    ...over,
+  })
+  check('会话标签：正开着的那本写「在读」', sessionTag(chatBook({ progress: { chapterIndex: 1, ratio: 0.5, updatedAt: 0 } }), 'c') === '在读')
+  check('会话标签：正开着但已经读完的那本写「已读完」（读完了更准）', sessionTag(chatBook({ progress: { chapterIndex: 3, ratio: 1, updatedAt: 0 } }), 'c') === '已读完')
+  check('会话标签：读完了写「已读完」', sessionTag(chatBook({ id: 'y', progress: { chapterIndex: 3, ratio: 1, updatedAt: 0 } })) === '已读完')
+  check('会话标签：没打开过的不写标签（不编一个「未读」出来）', sessionTag(chatBook({ id: 'z', progress: null })) === '')
+  check('会话标签：导入中 / 解析失败的也不写', sessionTag(chatBook({ id: 'i', state: 'importing' })) === '' && sessionTag(chatBook({ id: 'e', state: 'error' })) === '')
+  check('角标：没读过的等于总章数', sessionUnread(chatBook({ progress: null })) === 4)
+  check('角标：读掉两章就少两个', sessionUnread(chatBook({ progress: { chapterIndex: 1, ratio: 0.5, updatedAt: 0 } })) === 2)
+  check('角标：读完了不显示角标', sessionUnread(chatBook({ progress: { chapterIndex: 3, ratio: 1, updatedAt: 0 } })) === 0)
+  check('角标：还没解析出来的不显示（章数还不算数）', sessionUnread(chatBook({ state: 'importing' })) === 0)
 }
 
 /* ==========================================================================

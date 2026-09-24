@@ -51,5 +51,8 @@ export const CODE_TOKEN_VARS = {
 export const CHAT_TOKEN_VARS = {
   rail: '--mn-chat-rail',
   railFg: '--mn-chat-rail-fg',
+  railTile: '--mn-chat-rail-tile',
+  railActive: '--mn-chat-rail-active',
+  select: '--mn-chat-select',
   bubble: '--mn-chat-bubble',
 } as const satisfies Record<keyof ChatTokens, string>

@@ -870,3 +870,120 @@ export function IconSortDown(props: IconProps) {
     </Svg>
   )
 }
+
+/* ==========================================================================
+   企业微信功能栏那 13 格（第一卷：真有功能的四格在 ChatApp 里另有映射）
+   --------------------------------------------------------------------------
+   桌面版企业微信最左一列是「图标 + 一行小字」，13 格挨着排。这里画的是其中
+   9 格**这个阅读器里没有的**：它们照原样画出来（那一列本来就该有这些东西），
+   但按钮是灰的、title 里说清为什么——见 apps/ChatApp.tsx 的 CHAT_RAIL。
+   ========================================================================== */
+
+/** 邮件：信封 */
+export function IconMail(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="5.6" width="17.2" height="12.8" rx="1.6" />
+      <path d="m4.6 7.4 7.4 5.4 7.4-5.4" />
+    </Svg>
+  )
+}
+
+/** 待办：勾选框里一个勾 */
+export function IconTodo(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.8" y="5.4" width="16.4" height="13.2" rx="2.2" />
+      <path d="m8.2 12 2.6 2.6 5-5.4" />
+    </Svg>
+  )
+}
+
+/** 会议：一块屏幕 + 麦克风 */
+export function IconMeeting(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.6" width="12.2" height="9" rx="1.8" />
+      <path d="m15.6 9 5-2.6v6.2l-5-2.6z" />
+      <path d="M8.4 17.4h4.4M10.6 13.6v3.8" />
+    </Svg>
+  )
+}
+
+/** 智能文档：一页纸 + 右上角一颗星 */
+export function IconSmartDoc(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5.6 5.4h7.2L17 9.6v9a1 1 0 0 1-1 1H5.6a1 1 0 0 1-1-1V6.4a1 1 0 0 1 1-1z" />
+      <path d="M12.6 5.5v4.2h4.3" />
+      <path d="M18.8 3.2l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 智能总结：四角星的闪光 */
+export function IconSparkle(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path
+        d="M12 3.4c.5 3.4 1.6 5.4 2.7 6.5 1.1 1.1 3.1 2.2 6.5 2.7-3.4.5-5.4 1.6-6.5 2.7-1.1 1.1-2.2 3.1-2.7 6.5-.5-3.4-1.6-5.4-2.7-6.5-1.1-1.1-3.1-2.2-6.5-2.7 3.4-.5 5.4-1.6 6.5-2.7 1.1-1.1 2.2-3.1 2.7-6.5z"
+        fill="currentColor"
+        stroke="none"
+      />
+    </Svg>
+  )
+}
+
+/** 工作台：四块方块（企业微信的工作台是一块一块的应用） */
+export function IconWorkbench(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4" y="4" width="6.4" height="6.4" rx="1.6" />
+      <rect x="13.6" y="4" width="6.4" height="6.4" rx="1.6" />
+      <rect x="4" y="13.6" width="6.4" height="6.4" rx="1.6" />
+      <rect x="13.6" y="13.6" width="6.4" height="6.4" rx="1.6" />
+    </Svg>
+  )
+}
+
+/** 高级功能：一个「V」形的入口记号 */
+export function IconChevronWide(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.8 5.2 12 18.8l8.2-13.6" strokeWidth="2.6" />
+    </Svg>
+  )
+}
+
+/** 分组：一个标签牌 */
+export function IconTag(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M11.2 3.6H19a1.4 1.4 0 0 1 1.4 1.4v7.8L12.6 20a1.4 1.4 0 0 1-2 0L3.9 13.4a1.4 1.4 0 0 1 0-2z" />
+      <circle cx="16.2" cy="7.8" r="1.4" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 红包 / 转账（企业微信输入区那一排里的钱袋位置） */
+export function IconWallet(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.6 8.4h16.8v9.8a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6z" />
+      <path d="M6.6 8.4c0-2.6 2.4-4.6 5.4-4.6s5.4 2 5.4 4.6" />
+      <circle cx="15.6" cy="13.2" r="1.1" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 联系人卡片（输入区里那个「把人拉进来」的记号） */
+export function IconContactCard(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="5.2" width="13.2" height="13.6" rx="2" />
+      <circle cx="10" cy="10.6" r="2.2" />
+      <path d="M6.6 16.2c.6-1.6 1.9-2.5 3.4-2.5s2.8.9 3.4 2.5" />
+      <path d="M19.4 8.6v6.8" />
+    </Svg>
+  )
+}

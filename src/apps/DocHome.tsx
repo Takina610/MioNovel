@@ -269,7 +269,7 @@ export function DocHome({
               <button type="button" title="导入本地文件（新建一篇云文档）" onClick={onImport}>
                 <IconPlusThin className="h-4 w-4" />
               </button>
-              <button type="button" title="阅读设置（主题也在这里）" onClick={onOpenSettings}>
+              <button type="button" title="阅读设置" onClick={onOpenSettings}>
                 <IconListDots className="h-4 w-4" />
               </button>
             </span>
@@ -337,7 +337,7 @@ export function DocHome({
                 </span>
               }
               items={[
-                { label: '阅读设置（主题也在这里）', hint: settingsHotkey, onSelect: onOpenSettings },
+                { label: '阅读设置', hint: settingsHotkey, onSelect: onOpenSettings },
                 { label: '导入本地文件', onSelect: onImport },
                 {
                   label: dimOn ? '退出摸鱼模式' : '摸鱼模式（调暗文档列表）',

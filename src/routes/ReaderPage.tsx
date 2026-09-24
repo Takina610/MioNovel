@@ -385,21 +385,25 @@ export function ReaderPage() {
     return shellFallback('')
   }
 
+  // 报错文案也跟着形态走：演示模式只在编辑器形态下存在（见决定记录 30），
+  // 别的外壳里就算开关还开着（它是存下来的），也不该冒出「文件不存在。」这种假文案
+  const decoyCopy = decoy && chrome === 'code'
+
   if (book === null) {
-    return shellFallback(decoy ? '文件不存在。' : '这本书找不到了', {
-      label: decoy ? 'Workspace' : '回书架',
+    return shellFallback(decoyCopy ? '文件不存在。' : '这本书找不到了', {
+      label: decoyCopy ? 'Workspace' : '回书架',
       run: backToShelf,
     })
   }
 
   if (book.state !== 'ready') {
     return shellFallback(
-      decoy
+      decoyCopy
         ? '这个文件暂时打不开。'
         : book.state === 'importing'
           ? '这本书还在导入，等一会儿再打开'
           : '这本书没能解析成功',
-      { label: decoy ? 'Workspace' : '回书架处理', run: backToShelf },
+      { label: decoyCopy ? 'Workspace' : '回书架处理', run: backToShelf },
     )
   }
 

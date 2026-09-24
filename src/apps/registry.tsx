@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { avatarOf, appName, fileKindLabel, fileNameFor } from '../lib/appdocs'
 import { formatBytes, formatDateTime, formatPercent } from '../lib/format'
+import { CHAT_RAIL } from '../lib/chat'
 import type { BookRecord } from '../db/db'
 import { OfficeFrame, OfficeStart } from './OfficeFrame'
 import { IconBookBlank, IconDoc, IconSlide } from '../components/ui/app-icons'
@@ -59,7 +60,14 @@ export function AppFrameSkeleton({
   if (chrome === 'chat') {
     return (
       <div className="mn-chat mn-chat--skeleton">
-        <nav className="mn-chat__rail" aria-hidden />
+        <nav className="mn-chat__rail" aria-hidden>
+          <span className="mn-chat__me" />
+          {CHAT_RAIL.map((item) => (
+            <span key={item.id} className="mn-chat__rail-btn">
+              <span className="mn-chat__rail-icon" />
+            </span>
+          ))}
+        </nav>
         <aside className="mn-chat__list" aria-hidden />
         <main className="mn-chat__main">{body}</main>
       </div>

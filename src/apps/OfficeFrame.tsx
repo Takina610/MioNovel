@@ -167,7 +167,7 @@ export function OfficeFrame({
           <button
             type="button"
             className="mn-office__title-btn"
-            title="阅读设置（主题也在这里）"
+            title="阅读设置"
             onClick={onOpenSettings}
           >
             <IconSliders className="h-4 w-4" />
