@@ -105,7 +105,12 @@ export function ReaderPage() {
   const chrome = chromeOf(getTheme(settings.themeId))
   /** 五套办公外壳（doc / chat / page / sheet / slide）。code 与 plain 走各自的分支 */
   const appChrome =
-    chrome === 'doc' || chrome === 'chat' || chrome === 'page' || chrome === 'sheet' || chrome === 'slide'
+    chrome === 'doc' ||
+    chrome === 'chat' ||
+    chrome === 'page' ||
+    chrome === 'sheet' ||
+    chrome === 'slide' ||
+    chrome === 'desk'
       ? chrome
       : null
   /** 要不要读目录：编辑器形态和办公外壳都要（左边那些大纲 / 标签 / 节就是它） */
@@ -410,6 +415,8 @@ export function ReaderPage() {
   const percent =
     chapterIndex === null ? 0 : bookPercent(book, chapterIndex, ratio)
 
+  // readStamp 是给客服工作台那一屏的：消息行上那行小字写的是这本书真实的
+  // 最近阅读时间（只有读者正读到的那一条上写它）
   const readerView =
     chapterIndex === null ? null : (
       <ReaderView
@@ -423,6 +430,7 @@ export function ReaderPage() {
         label={chapter?.title ?? ''}
         bookTitle={book.title}
         author={book.author}
+        readStamp={book.lastReadAt}
         entryRatio={entryRatio}
         hasPrev={chapterIndex > 0}
         hasNext={chapterIndex < book.chapterCount - 1}

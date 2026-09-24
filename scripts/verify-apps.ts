@@ -3,7 +3,7 @@
  *
  * 这一轮的代码分两层，验收也分两层：
  *
- * 1. **主题注册表**：五套应用 × 亮暗 = 10 套主题，每一套的 token 都得补全
+ * 1. **主题注册表**：六套应用 × 亮暗 = 12 套主题，每一套的 token 都得补全
  *    （缺一个值就是屏幕上某处没颜色），chrome 声明了 code / chat 的还必须带上
  *    那一层多出来的 token。形态和明暗的搭配也要齐：每个新形态都有亮色和暗色各一套。
  * 2. **正文形状**：块切分、聊天消息、表格行、幻灯片——都是纯函数（输入一段 HTML，
@@ -16,6 +16,9 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { Window } from 'happy-dom'
 import type { BookRecord } from '../src/db/db'
+// 类型导入（编译期就擦掉了，不影响下面那串「先顶 happy-dom 再动态 import」的顺序）
+import type { ChatMessage } from '../src/lib/chat'
+import type { TocRow } from '../src/hooks/useToc'
 
 const testWindow = new Window({ url: 'http://localhost/' })
 const globals = globalThis as unknown as Record<string, unknown>
@@ -34,8 +37,10 @@ const { chapterSlides, slideBudget } = await import('../src/lib/slide.ts')
 const { chapterFileName } = await import('../src/lib/code.ts')
 const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeText, homeRows, pinnedBook, docOwnerOf, DOC_TABS, DOC_FILTERS, WORD_TABS, WORD_STYLES, WORD_HOME_TABS, WORD_NAV_TABS, wordHomeRows, wordDateText, EXCEL_TABS, EXCEL_HOME_TABS, excelHomeRows, greetingText, PPT_TABS, PPT_HOME_TABS, PPT_TEMPLATES, pptHomeRows, slideStatusText } = await import('../src/lib/appdocs.ts')
 const { markFinds, clearFinds, countFinds, FIND_MARK } = await import('../src/lib/find.ts')
+
 const { getTheme, listThemes, buildThemeSheet, chromeOf } = await import('../src/themes/apply.ts')
-const { CODE_TOKEN_VARS, CHAT_TOKEN_VARS, PAGE_TOKEN_VARS, SHEET_TOKEN_VARS, SLIDE_TOKEN_VARS, TOKEN_VARS } = await import('../src/themes/vars.ts')
+const { DESK_RAIL, DESK_FILTERS, DESK_PANEL_TABS, deskStats, deskUnreadTotal, deskRows, deskViewTitle, deskReceipts, deskChapterRows, deskChapterSummary, deskChapterStateText, deskChapterPayText, deskListTime, deskStampText, deskPeerText, deskIdleDays, deskAuthorOf } = await import('../src/lib/desk.ts')
+const { CODE_TOKEN_VARS, CHAT_TOKEN_VARS, DESK_TOKEN_VARS, PAGE_TOKEN_VARS, SHEET_TOKEN_VARS, SLIDE_TOKEN_VARS, TOKEN_VARS } = await import('../src/themes/vars.ts')
 
 let failures = 0
 let checks = 0
@@ -59,10 +64,10 @@ console.log('\n主题注册表')
   const ids = themes.map((theme) => theme.id)
   check('id 不重复', new Set(ids).size === ids.length, ids.join(','))
   check('旧主题还在（日间 / 夜间 / 两套 VS Code）', ['day', 'night', 'vscode', 'vscode-light'].every((id) => ids.includes(id)))
-  check('十套新主题都在', ['feishu', 'feishu-dark', 'wecom', 'wecom-dark', 'word', 'word-dark', 'excel', 'excel-dark', 'ppt', 'ppt-dark'].every((id) => ids.includes(id)))
+  check('十二套新主题都在', ['feishu', 'feishu-dark', 'wecom', 'wecom-dark', 'word', 'word-dark', 'excel', 'excel-dark', 'ppt', 'ppt-dark', 'desk', 'desk-dark'].every((id) => ids.includes(id)))
 
   // 每个形态都要有亮有暗：只给一种的形态等于「这个主题只有半套」
-  for (const chrome of ['doc', 'chat', 'page', 'sheet', 'slide']) {
+  for (const chrome of ['doc', 'chat', 'page', 'sheet', 'slide', 'desk']) {
     const list = themes.filter((theme) => chromeOf(theme) === chrome)
     check(
       `${chrome} 形态有亮色和暗色各一套`,
@@ -77,6 +82,7 @@ console.log('\n主题注册表')
   const chatKeys = Object.keys(CHAT_TOKEN_VARS)
   const sheetKeys = Object.keys(SHEET_TOKEN_VARS)
   const slideKeys = Object.keys(SLIDE_TOKEN_VARS)
+  const deskKeys = Object.keys(DESK_TOKEN_VARS)
 
   let missingTokens = 0
   let emptyTokens = 0
@@ -118,6 +124,12 @@ console.log('\n主题注册表')
         if (!theme.slide[key as keyof typeof theme.slide]) badChromeTokens++
       }
     }
+    if (theme.chrome === 'desk' && !theme.desk) badChromeTokens++
+    if (theme.desk) {
+      for (const key of deskKeys) {
+        if (!theme.desk[key as keyof typeof theme.desk]) badChromeTokens++
+      }
+    }
     if (theme.preset) {
       const { fontSize, lineHeight, contentWidth, indent, paragraphGap } = theme.preset
       if (fontSize !== undefined && (fontSize < 10 || fontSize > 40)) badPreset++
@@ -129,7 +141,7 @@ console.log('\n主题注册表')
   }
   check('每套主题的 18 个主 token 一个不缺', missingTokens === 0, `缺 ${missingTokens} 个`)
   check('没有空值 token', emptyTokens === 0, `空 ${emptyTokens} 个`)
-  check('声明了 code / chat / page / sheet / slide 的主题把那一层的 token 也补全了', badChromeTokens === 0, `缺 ${badChromeTokens} 个`)
+  check('声明了 code / chat / page / sheet / slide / desk 的主题把那一层的 token 也补全了', badChromeTokens === 0, `缺 ${badChromeTokens} 个`)
   check('每套主题自带的排版参数都在合理范围内', badPreset === 0, `越界 ${badPreset} 个`)
 
   const sheet = buildThemeSheet()
@@ -141,6 +153,12 @@ console.log('\n主题注册表')
   check(
     '演示文稿主题的工作区 / 选中橙进了样式表',
     sheet.includes('--mn-ppt-canvas') && sheet.includes('--mn-ppt-select'),
+  )
+  check(
+    '客服工作台主题的功能栏 / 会话选中行 / 右下气泡进了样式表',
+    sheet.includes('--mn-desk-rail') &&
+      sheet.includes('--mn-desk-select') &&
+      sheet.includes('--mn-desk-bubble-me'),
   )
 }
 
@@ -895,10 +913,10 @@ console.log('\n放真图的形态')
   // 这条规矩踩过三次：先是企业微信、再是 Word、最后是幻灯片还在放图，
   // 而改动只落到一个调用点。所以直接断言那张表：
   // **放真图的只有普通阅读器一个**，其余六个形态一律写引用行。
-  const shells = ['plain', 'code', 'doc', 'chat', 'page', 'sheet', 'slide'] as const
+  const shells = ['plain', 'code', 'doc', 'chat', 'page', 'sheet', 'slide', 'desk'] as const
   const keeping = shells.filter((shell) => mediaModeFor(shell) === 'keep')
   check(
-    '只有普通阅读器放真图，其余六个形态一律写 ![](./路径)',
+    '只有普通阅读器放真图，其余七个形态一律写 ![](./路径)',
     keeping.length === 1 && keeping.join(',') === 'plain',
     keeping.join(','),
   )
@@ -908,6 +926,7 @@ console.log('\n放真图的形态')
       mediaModeFor('page') === 'reference' &&
       mediaModeFor('slide') === 'reference',
   )
+  check('客服工作台也不放图（一张封面会把「这是一条消息」冲掉）', mediaModeFor('desk') === 'reference')
   check(
     '编辑器、文档、表格也写引用行',
     mediaModeFor('code') === 'reference' &&
@@ -932,6 +951,292 @@ console.log('\n放真图的形态')
     texts.some((text) => text.includes('](./OEBPS/Images/pic.png)')) &&
       !deck.some((slide) => slide.body.some((part) => /<img|<figure/i.test(part.html))),
     texts.filter((text) => text.includes('![')).join(' | '),
+  )
+}
+
+
+/* ==========================================================================
+   八、客服工作台：功能栏、指标、会话分组、已读回执、目录
+   --------------------------------------------------------------------------
+   2026-09-24 按用户的 1688 工作台截图做的第八副外壳（决定记录 39）。
+   这一节断言的全是「不看屏幕发现不了」的东西：功能栏哪几格是真的、
+   顶上四个指标怎么算、会话列表按什么分组筛选、右边那一列「已读 / 未读」
+   标在哪一条上、目录里每一行读到哪了。这些数错了、标错行了，扫一眼屏幕看不出来。
+   ========================================================================== */
+
+console.log('\n客服工作台（1688）')
+{
+  // 功能栏八格：上面五格是真的（换列表怎么列），底下一组三格
+  check(
+    '功能栏八格，顺序照截图（接待 / 客户 / 客服 / 通知 / 商机 + 工作台 / 应用 / 设置）',
+    DESK_RAIL.map((item) => item.label).join(' ') === '接待 客户 客服 通知 商机 工作台 应用 设置',
+    DESK_RAIL.map((item) => item.label).join(' '),
+  )
+  const views = DESK_RAIL.filter((item) => item.view)
+  check(
+    '上面五格全是真的（各换一种列法）',
+    views.length === 5 &&
+      views.map((item) => item.view).join(',') === 'reception,customer,service,notice,leads',
+    views.map((item) => item.view).join(','),
+  )
+  check(
+    '底下三格是 工作台 / 应用 / 设置（回首页、没有的东西、阅读设置）',
+    DESK_RAIL.filter((item) => item.bottom).map((item) => item.label).join(' ') === '工作台 应用 设置' &&
+      DESK_RAIL.find((item) => item.id === 'workbench')?.action === 'home' &&
+      DESK_RAIL.find((item) => item.id === 'settings')?.action === 'settings',
+  )
+  check(
+    '灰着的那几格都说清了为什么（有 view / action 的不许有 why）',
+    DESK_RAIL.every((item) => (item.view || item.action ? !item.why : !!item.why)),
+    DESK_RAIL.filter((item) => !item.view && !item.action).map((item) => item.id).join(','),
+  )
+
+  // 会话列表上面那五个筛选：每一个都得是一条真判据
+  check(
+    '列表上五个页签，顺序与名字照截图',
+    DESK_FILTERS.map((item) => item.label).join(' ') === '当前 最近 好友 团队 群聊',
+    DESK_FILTERS.map((item) => item.label).join(' '),
+  )
+  check(
+    '五个页签每一格都有说明（真筛得说得出筛什么）',
+    DESK_FILTERS.every((item) => item.title.length > 0),
+  )
+
+  // 右边那四个页签：客户详情 / 客户订单 / 店铺商品 / 物流报价
+  check(
+    '右侧四个页签，顺序照截图',
+    DESK_PANEL_TABS.map((item) => item.label).join(' ') === '客户详情 客户订单 店铺商品 物流报价',
+    DESK_PANEL_TABS.map((item) => item.label).join(' '),
+  )
+  check(
+    '「物流报价」老实空着（本地的书没有运费可报）',
+    (DESK_PANEL_TABS.find((item) => item.id === 'quote')?.why?.length ?? 0) > 0,
+  )
+
+  // ---- 指标：四个数都得算得出来，而且对得上 ----
+  const DAY = 86_400_000
+  const now = new Date(2026, 8, 24, 15, 0, 0).getTime() // 2026-09-24 15:00
+  const book = (over: Partial<BookRecord>): BookRecord => ({
+    id: 'b',
+    state: 'ready',
+    title: '未命名',
+    author: '',
+    format: 'txt',
+    addedAt: now - 5 * DAY,
+    lastReadAt: now,
+    totalChars: 1000,
+    chapterCount: 4,
+    charOffsets: [0, 250, 500, 750, 1000],
+    groups: [],
+    progress: null,
+    fileName: 'x.txt',
+    fileSize: 1,
+    signature: 's',
+    ...over,
+  })
+  // 三本：今天读的（读到 50%）、读完的（100%）、没读过的（0%）
+  const shelf = [
+    book({ id: 'today', title: '今天读的', lastReadAt: now - 3600_000, progress: { chapterIndex: 1, ratio: 0.5, updatedAt: now } }),
+    book({ id: 'done', title: '读完的', lastReadAt: now - 2 * DAY, progress: { chapterIndex: 3, ratio: 1, updatedAt: now } }),
+    book({ id: 'new', title: '没读过的', lastReadAt: 0, addedAt: now - DAY, progress: null }),
+  ]
+  {
+    const stats = deskStats(shelf, 0.42, now)
+    check(
+      '指标一：今日读过 = 今天动过的会话数',
+      stats[0].label === '今日读过' && stats[0].value === '1',
+      `${stats[0].label}=${stats[0].value}`,
+    )
+    check(
+      '指标二：已读完 = 读完的会话数',
+      stats[1].label === '已读完' && stats[1].value === '1',
+      `${stats[1].label}=${stats[1].value}`,
+    )
+    // 平均进度 =（第 1 章读到一半 = 全书 37.5% + 读完 = 100% + 没读过 = 0）/ 3 = 45.8%
+    const avg = ((0.375 + 1 + 0) / 3) * 100
+    check(
+      '指标三：平均进度（三位会话的平均，一位小数）',
+      stats[2].value === `${avg.toFixed(1)}%`,
+      `${stats[2].value}（应为 ${avg.toFixed(1)}%）`,
+    )
+    check(
+      '指标四：本章已读（没有正在读的书时写一个短横）',
+      stats[3].value === '42.0' && deskStats(shelf, undefined, now)[3].value === '-',
+      stats[3].value,
+    )
+    check('每格指标都带一句说明（鼠标放上去能看懂这个数是什么）', stats.every((stat) => stat.title.length > 0))
+  }
+  check(
+    '角标是全部会话还没读完的章数合计（第 1 章读过一半 = 还有 2 章，没读过的 4 章）',
+    deskUnreadTotal(shelf) === 2 + 0 + 4,
+    String(deskUnreadTotal(shelf)),
+  )
+
+  // ---- 会话列表：五种列法 × 五个筛选 ----
+  const many = [
+    book({ id: 'a', title: '甲', author: '张三', lastReadAt: now - 3600_000, progress: { chapterIndex: 0, ratio: 0.2, updatedAt: now } }),
+    book({ id: 'b', title: '乙', author: '张三', lastReadAt: now - 40 * DAY, progress: { chapterIndex: 3, ratio: 1, updatedAt: now } }),
+    book({ id: 'c', title: '丙', author: '', lastReadAt: 0, addedAt: now - 1000, progress: null }),
+    book({ id: 'd', title: '丁', author: '李四', lastReadAt: now - 2 * DAY, progress: { chapterIndex: 1, ratio: 0.5, updatedAt: now } }),
+  ]
+  {
+    const reception = deskRows(many, 'reception', { now })
+    check(
+      // 没读过的按导入时间算——刚拖进来的那本排最上面（和 Word / Excel 的开始屏幕同一条规则）
+      '接待：一条平铺的列表，按最近阅读倒序（没读过的按导入时间排）',
+      reception.length === 1 && reception[0].books.map((item) => item.id).join(',') === 'c,a,d,b',
+      reception[0].books.map((item) => item.id).join(','),
+    )
+    const customer = deskRows(many, 'customer', { now })
+    check(
+      // 分组标题按拼音排：李(li) < 佚(yi) < 张(zhang)
+      '客户：按作者分组（没写作者的归到「佚名」）',
+      customer.map((group) => group.label).join(' ') === '李四 佚名 张三' &&
+        customer.find((group) => group.label === '张三')?.books.length === 2,
+      customer.map((group) => `${group.label}(${group.books.length})`).join(' '),
+    )
+    const service = deskRows(many, 'service', { now })
+    check(
+      '客服：按读到的进度分三档（在读 / 未读 / 已读完）',
+      service.map((group) => group.label).join(' ') === '在读 未读 已读完',
+      service.map((group) => `${group.label}(${group.books.length})`).join(' '),
+    )
+    const notice = deskRows(many, 'notice', { now })
+    check(
+      '通知：只列还有没读完的章的会话（角标数的就是它）',
+      notice[0].books.every((item) => item.progress === null || item.progress.ratio < 1) &&
+        notice[0].books.length === 3,
+      notice[0].books.map((item) => item.id).join(','),
+    )
+    const leads = deskRows(many, 'leads', { now })
+    check(
+      '商机：只列还没打开过的书',
+      leads[0].books.map((item) => item.id).join(',') === 'c',
+      leads[0].books.map((item) => item.id).join(','),
+    )
+    check(
+      '筛选「好友」只留有作者的',
+      deskRows(many, 'reception', { filter: 'friend', now })[0].books.map((item) => item.id).join(',') === 'a,d,b',
+    )
+    check(
+      '筛选「团队」只留同一个作者名下有 2 本以上的',
+      deskRows(many, 'reception', { filter: 'team', now })[0].books.map((item) => item.id).join(',') === 'a,b',
+    )
+    check(
+      '筛选「群聊」只留还有没读完的章的',
+      deskRows(many, 'reception', { filter: 'group', now })[0].books.map((item) => item.id).join(',') === 'c,a,d',
+    )
+    check(
+      '筛选「最近」只留 7 天内动过的',
+      deskRows(many, 'reception', { filter: 'recent', now })[0].books.map((item) => item.id).join(',') === 'a,d',
+    )
+    check(
+      '搜索按书名 / 作者 / 原文件名三样匹配',
+      deskRows(many, 'reception', { query: '张三', now })[0].books.length === 2 &&
+        deskRows(many, 'reception', { query: '丙', now })[0].books.length === 1 &&
+        deskRows(many, 'reception', { query: 'x.txt', now })[0].books.length === 4 &&
+        deskRows(many, 'reception', { query: '不存在的书', now })[0].books.length === 0,
+    )
+    check(
+      '「团队」按筛选前的整个书架数作者（筛完再数会让这一档自己变来变去）',
+      deskRows(many, 'reception', { filter: 'team', query: '乙', now })[0].books.map((item) => item.id).join(',') === 'b',
+    )
+    check('没写作者的书显示成「佚名」，不是编一个名字', deskAuthorOf(many[2]) === '佚名')
+    check(
+      '列表上那行说明跟着视图与筛选走',
+      deskViewTitle('service', 'now') === '按读到的进度分组' &&
+        deskViewTitle('service', 'group') === '按读到的进度分组 · 群聊',
+    )
+  }
+
+  // ---- 已读 / 未读：按阅读位置回执 ----
+  {
+    const messages = [
+      { key: 'm0', kind: 'text', html: '', text: '一', chars: 10, alt: false, divider: false },
+      { key: 'm1', kind: 'text', html: '', text: '二', chars: 10, alt: true, divider: false },
+      { key: 'm2', kind: 'text', html: '', text: '三', chars: 10, alt: true, divider: false },
+      { key: 'm3', kind: 'text', html: '', text: '四', chars: 10, alt: false, divider: false },
+    ] as never as ChatMessage[]
+    const at0 = deskReceipts(messages, 0)
+    check(
+      '一条都没读到时：全「未读」，读者停在第一条上',
+      at0.every((receipt) => !receipt.read) && at0[0].at && !at0[1].at,
+    )
+    const half = deskReceipts(messages, 0.5)
+    check(
+      '读到一半：前两条「已读」、后两条「未读」，停在第 3 条上',
+      half.map((receipt) => (receipt.read ? 1 : 0)).join('') === '1100' && half[2].at && !half[1].at,
+      half.map((receipt) => (receipt.read ? 'R' : 'u')).join(''),
+    )
+    const done = deskReceipts(messages, 1)
+    check(
+      '整章读完：四条都「已读」，最后一条上挂着时间（它是读者停下的地方）',
+      done.every((receipt) => receipt.read) && done[3].at,
+    )
+    check('空消息列表不会炸（返回空回执）', deskReceipts([], 0.5).length === 0)
+  }
+
+  // ---- 目录：一行一章 ----
+  {
+    const chapters = [
+      { type: 'chapter', label: '第一章', index: 0, depth: 0, charCount: 800 },
+      { type: 'chapter', label: '第二章', index: 1, depth: 0, charCount: 1200 },
+      { type: 'chapter', label: '第三章', index: 2, depth: 0, charCount: 2000 },
+    ] as never as TocRow[]
+    const rows = deskChapterRows(chapters, { chapterIndex: 1, ratio: 0.25 }, 3)
+    check(
+      '目录里的状态按书里的进度给：之前的读完、当前在读、之后未读',
+      rows.map((row) => row.state).join(',') === 'read,reading,unread',
+      rows.map((row) => row.state).join(','),
+    )
+    check(
+      '读过的那几章是 100%，当前这一章按章内比例',
+      rows[0].percent === 1 && rows[1].percent === 0.25 && rows[2].percent === undefined,
+    )
+    check(
+      '右边那一格写「已读 X%」/「未读」',
+      deskChapterPayText(rows[0]) === '已读 100%' &&
+        deskChapterPayText(rows[1]) === '已读 25%' &&
+        deskChapterPayText(rows[2]) === '未读',
+    )
+    check(
+      '状态字是中文标签',
+      deskChapterStateText('reading') === '在读' && deskChapterStateText('unread') === '未读',
+    )
+    const summary = deskChapterSummary(rows)
+    check(
+      '章节汇总：读完几章、平均 / 最长 / 最短字数都是数出来的',
+      summary.total === 3 &&
+        summary.done === 1 &&
+        summary.avg === Math.round((800 + 1200 + 2000) / 3) &&
+        summary.longest === 2000 &&
+        summary.shortest === 800,
+      `${summary.avg}/${summary.longest}/${summary.shortest}`,
+    )
+    check(
+      '目录还没读出来时（chapters 是 undefined）至少按章数给出一份',
+      deskChapterRows(undefined, null, 3).length === 3,
+    )
+  }
+
+  // ---- 时间与那两行小字 ----
+  check('会话列表时间：今天写时刻', deskListTime(new Date(2026, 8, 24, 11, 9).getTime(), now) === '11:09')
+  check('会话列表时间：昨天写「昨天」', deskListTime(new Date(2026, 8, 23, 20, 0).getTime(), now) === '昨天')
+  check('会话列表时间：今年写月日', deskListTime(new Date(2026, 3, 15, 9, 0).getTime(), now) === '4月15日')
+  check('会话列表时间：跨年补年份', deskListTime(new Date(2025, 11, 31, 9, 0).getTime(), now) === '2025/12/31')
+  check(
+    '消息行那一行小字的时间带秒（截图里就是 `2026-9-23 19:02:09`）',
+    deskStampText(new Date(2026, 8, 23, 19, 2, 9).getTime()) === '2026-9-23 19:02:09',
+    deskStampText(new Date(2026, 8, 23, 19, 2, 9).getTime()),
+  )
+  check(
+    '「店名 : 客服」那一半写的是这本书的来源（书名 : 作者）',
+    deskPeerText('雪国', '川端康成') === '雪国:川端康成' && deskPeerText('无名', '  ') === '无名:我',
+  )
+  check(
+    '「未读天数」读上次阅读到现在的天数；没读过的书不给这个数',
+    deskIdleDays(book({ lastReadAt: now - 4 * DAY }), now) === 4 &&
+      deskIdleDays(book({ lastReadAt: 0 }), now) === undefined,
   )
 }
 

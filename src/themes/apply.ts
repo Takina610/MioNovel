@@ -1,7 +1,7 @@
 import { BUILTIN_THEMES } from './builtin'
 import type { ReaderTheme, ThemeChrome } from './types'
 import type { ReaderSettings } from '../store/settings'
-import { CHAT_TOKEN_VARS, CODE_TOKEN_VARS, PAGE_TOKEN_VARS, SHEET_TOKEN_VARS, SLIDE_TOKEN_VARS, TOKEN_VARS } from './vars'
+import { CHAT_TOKEN_VARS, CODE_TOKEN_VARS, DESK_TOKEN_VARS, PAGE_TOKEN_VARS, SHEET_TOKEN_VARS, SLIDE_TOKEN_VARS, TOKEN_VARS } from './vars'
 
 const STYLE_ID = 'mn-theme'
 const TOKEN_KEYS = Object.keys(TOKEN_VARS) as (keyof typeof TOKEN_VARS)[]
@@ -10,6 +10,7 @@ const CHAT_TOKEN_KEYS = Object.keys(CHAT_TOKEN_VARS) as (keyof typeof CHAT_TOKEN
 const PAGE_TOKEN_KEYS = Object.keys(PAGE_TOKEN_VARS) as (keyof typeof PAGE_TOKEN_VARS)[]
 const SHEET_TOKEN_KEYS = Object.keys(SHEET_TOKEN_VARS) as (keyof typeof SHEET_TOKEN_VARS)[]
 const SLIDE_TOKEN_KEYS = Object.keys(SLIDE_TOKEN_VARS) as (keyof typeof SLIDE_TOKEN_VARS)[]
+const DESK_TOKEN_KEYS = Object.keys(DESK_TOKEN_VARS) as (keyof typeof DESK_TOKEN_VARS)[]
 
 /**
  * 主题注册表——唯一事实来源。
@@ -79,9 +80,14 @@ function themeBlock(theme: ReaderTheme): string {
         (key) => `  ${SLIDE_TOKEN_VARS[key]}: ${theme.slide![key]};`,
       ).join('\n')}`
     : ''
+  const deskDeclarations = theme.desk
+    ? `\n${DESK_TOKEN_KEYS.map(
+        (key) => `  ${DESK_TOKEN_VARS[key]}: ${theme.desk![key]};`,
+      ).join('\n')}`
+    : ''
   // color-scheme 交给主题声明：滚动条、<select> 这些原生控件才会跟着明暗走，
   // 而不是靠我们逐个去画。
-  return `:root[data-theme='${theme.id}'] {\n  color-scheme: ${theme.scheme};\n${declarations}${codeDeclarations}${chatDeclarations}${pageDeclarations}${sheetDeclarations}${slideDeclarations}\n}`
+  return `:root[data-theme='${theme.id}'] {\n  color-scheme: ${theme.scheme};\n${declarations}${codeDeclarations}${chatDeclarations}${pageDeclarations}${sheetDeclarations}${slideDeclarations}${deskDeclarations}\n}`
 }
 
 /** 主题声明的界面形态。组件用它决定外壳长什么样（见 hooks/useTheme.ts）。 */

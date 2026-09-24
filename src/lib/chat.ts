@@ -95,12 +95,15 @@ export function messageSender(message: ChatMessage, sender: string): string {
 /**
  * 头像色相。企业微信里每个人一个颜色方块 + 姓名字首，
  * 我们只有一个发信人，所以取名字的哈希——同一个作者永远同一个颜色。
+ *
+ * 色域默认是蓝到紫（200-320），那是企业微信默认头像的色域；
+ * 客服工作台那一屏（1688）的默认头像是橙色的，所以那边传一个橙色区间进来
+ * （见 apps/DeskApp.tsx）。同一支函数、两个区间，不各写一遍取哈希的算法。
  */
-export function avatarHue(seed: string): number {
+export function avatarHue(seed: string, from = 200, span = 120): number {
   let hash = 0
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0
-  // 只取 200-320 这一段色相：蓝到紫，正好是企业微信默认头像的色域
-  return 200 + (Math.abs(hash) % 120)
+  return from + (Math.abs(hash) % span)
 }
 
 /** 头像上的那个字：中文取首字，英文取首字母 */

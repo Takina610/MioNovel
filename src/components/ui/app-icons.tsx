@@ -2271,3 +2271,252 @@ export function IconFontTile(props: IconProps) {
     </svg>
   )
 }
+
+/* ==========================================================================
+   1688 客户工作台（2026-09-24，决定记录 39）
+   --------------------------------------------------------------------------
+   规格同上一批（24 格、1.75 描边、圆头、currentColor）。这一批只服务 chrome: 'desk'
+   那一屏：最左那条功能栏的八格、聊天头部那几个按钮、客服工具条那一排。
+
+   两个例外写在下面，都在注释里说明了：
+   - `IconDeskReception` 的对话气泡是**实心**的（用 evenodd 把三个点掏成洞），
+     因为 1688 那一格就是一块白气泡；其余各格仍是描边。
+   - 「译」那个记号不是画出来的：它是一个字（见 DeskApp.tsx 里的圆框），
+     24 格里塞一个汉字画不准，写出来反而对。
+   ========================================================================== */
+
+/** 折下去：一个朝下的尖角 + 底下一条横杠（聊天框收起来的那一格，也用在底部那条上） */
+export function IconDeskFold(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m7.6 10.4 4.4 4.4 4.4-4.4" />
+      <path d="M4.6 18.4h14.8" />
+    </Svg>
+  )
+}
+
+/** 在线：绿圆里一个白勾（1688 身份行上那个记号，圆跟 currentColor 走） */
+export function IconDeskOnline(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <circle cx="12" cy="12" r="11" fill="currentColor" />
+      <path
+        d="m6.8 12.4 3.4 3.4 7-7.2"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/** 接待：实心的对话气泡 + 掏空的三个点（功能栏第一格，就是这条最显眼） */
+export function IconDeskReception(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        fill="currentColor"
+        stroke="none"
+        d="M12 4.2a8.4 8.4 0 0 1 8.4 8.4c0 4.7-3.8 8.4-8.4 8.4a8.7 8.7 0 0 1-3.7-.8l-4.2 1.5 1.1-4.2A8.4 8.4 0 0 1 12 4.2Zm-3.3 6.5a1.05 1.05 0 1 0 0 2.1 1.05 1.05 0 0 0 0-2.1Zm3.3 0a1.05 1.05 0 1 0 0 2.1 1.05 1.05 0 0 0 0-2.1Zm3.3 0a1.05 1.05 0 1 0 0 2.1 1.05 1.05 0 0 0 0-2.1Z"
+      />
+    </Svg>
+  )
+}
+
+/** 客户：一大一小两个人（1688 那一格是「客户档案」） */
+export function IconDeskCustomer(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="9.8" cy="8.2" r="3.4" />
+      <path d="M4 19.8c0-3.2 2.6-5.8 5.8-5.8s5.8 2.6 5.8 5.8" />
+      <path d="M16.2 5.2a3.1 3.1 0 0 1 0 6" />
+      <path d="M17.4 13.4c1.7.8 2.8 2.5 2.8 4.4" />
+    </Svg>
+  )
+}
+
+/** 客服：三根柱子（那一格在 1688 里是绩效，我们是「按读到的进度分组」） */
+export function IconDeskService(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <g fill="currentColor" stroke="none">
+        <rect x="3.8" y="12.6" width="3.8" height="7.6" rx="1.5" />
+        <rect x="10.1" y="8.6" width="3.8" height="11.6" rx="1.5" />
+        <rect x="16.4" y="4.4" width="3.8" height="15.8" rx="1.5" />
+      </g>
+    </Svg>
+  )
+}
+
+/** 通知：信封（那一格带未读角标） */
+export function IconDeskNotice(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.2" y="5.8" width="17.6" height="12.4" rx="1.8" />
+      <path d="m4.6 7.8 6.2 4.7a2 2 0 0 0 2.4 0l6.2-4.7" />
+    </Svg>
+  )
+}
+
+/** 商机：一枚硬币（¥）+ 右上角一支上扬的箭头 */
+export function IconDeskOpportunity(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="10.8" cy="13.4" r="7.4" />
+      <path d="M10.8 10.2v6.6M8 11.6l2.8 2.8 2.8-2.8M8 16.8h5.6" />
+      <path d="M15.4 4.4h4.4v4.4" />
+      <path d="M19.8 4.6 14.8 9.6" />
+    </Svg>
+  )
+}
+
+/** 工作台：四格方块（1688 功能栏底下那一格） */
+export function IconDeskGrid(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4" y="4" width="6.6" height="6.6" rx="1.4" />
+      <rect x="13.4" y="4" width="6.6" height="6.6" rx="1.4" />
+      <rect x="4" y="13.4" width="6.6" height="6.6" rx="1.4" />
+      <rect x="13.4" y="13.4" width="6.6" height="6.6" rx="1.4" />
+    </Svg>
+  )
+}
+
+/** 应用中心：一个窗口（标题栏 + 右上角三个点）。这一格在这个外壳里是灰的 */
+export function IconDeskApps(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.2" y="4.8" width="17.6" height="14.4" rx="2" />
+      <path d="M3.2 9.2h17.6" />
+      <path d="M15.2 7h.01M17.4 7h.01M19.6 7h.01" strokeWidth="2" />
+      <path d="M6 7h.01" strokeWidth="2" />
+    </Svg>
+  )
+}
+
+/** 设置：六角螺母里一个圆（1688 那一格不是齿轮） */
+export function IconDeskNut(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3.4 19.6 7.8v8.4L12 20.6 4.4 16.2V7.8z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </Svg>
+  )
+}
+
+/** 刷新：一个缺口在上方的圆 + 一个转角箭头（聊天头部与右侧面板各一个） */
+export function IconDeskRefresh(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M19.4 5.6v4.2h-4.2" />
+      <path d="M18.9 10.2a7.2 7.2 0 1 0-.5 3.9" />
+    </Svg>
+  )
+}
+
+/** 快捷回复：气泡里一个回环箭头 */
+export function IconDeskQuick(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M20 10.4c0 4.2-3.6 7.6-8 7.6-1 0-2-.2-2.8-.5L5 19.4l1-3.3c-1.3-1.3-2-3-2-4.9 0-4.2 3.6-7.6 8-7.6s8 3.4 8 7.5z" />
+      <path d="M10.2 10.6a2.3 2.3 0 1 1 1.5 3.5" />
+      <path d="M11.7 14.1 9.9 14l.6-1.7" />
+    </Svg>
+  )
+}
+
+/** 定时消息：气泡右下角挂一个闹钟 */
+export function IconDeskTimer(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M19.6 8.4c0 3.7-3.1 6.6-6.9 6.6-.8 0-1.5-.1-2.2-.3l-3.1 1.1.8-2.7a6.4 6.4 0 0 1-2.4-4.7c0-3.7 3.1-6.6 6.9-6.6s6.9 2.9 6.9 6.6z" />
+      <circle cx="16.8" cy="16.8" r="3.6" />
+      <path d="M16.8 15v1.9l1.3.9" />
+    </Svg>
+  )
+}
+
+/** 字号：一个加号 + 一个等号（1688 客服工具条那一格的位置） */
+export function IconDeskAdjust(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5.2 8.6h6.4M8.4 5.4v6.4" />
+      <path d="M13.6 15.4h5.4M13.6 18.4h5.4" />
+    </Svg>
+  )
+}
+
+/** 皮肤：一件 T 恤（真 1688 里那一格是换肤，我们换成阅读设置入口） */
+export function IconDeskSkin(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9.4 4 5.8 5.6 4 9.4l3 1.1v8.3h10V10.5l3-1.1-1.8-3.8L14.6 4a2.8 2.8 0 0 1-5.2 0z" />
+    </Svg>
+  )
+}
+
+/** 标记：一支旗子 */
+export function IconDeskFlag(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6.2 20.6V4.4" />
+      <path d="M6.2 5.2h11.6l-2.6 3.7 2.6 3.7H6.2z" />
+    </Svg>
+  )
+}
+
+/** 加好友：人 + 一个加号 */
+export function IconDeskPersonAdd(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="10" cy="8.4" r="3.4" />
+      <path d="M3.6 19.6c0-3.2 2.7-5.8 6.4-5.8 1.4 0 2.7.4 3.7 1.2" />
+      <path d="M17.4 14.4v5.8M14.5 17.3h5.8" />
+    </Svg>
+  )
+}
+
+/** 已解决：打了勾的方框 + 一个小加号（1688 头部那一格） */
+export function IconDeskSolved(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M20.2 11.6V6.6a2 2 0 0 0-2-2H6.2a2 2 0 0 0-2 2v10.8a2 2 0 0 0 2 2h5" />
+      <path d="m7.2 11.6 3.4 3.4 6.4-6.8" />
+      <path d="M17.6 14.8v5.6M14.8 17.6h5.6" />
+    </Svg>
+  )
+}
+
+/** 窗口最小化：一条横杠 */
+export function IconDeskDash(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5.6 12.4h12.8" />
+    </Svg>
+  )
+}
+
+/** 外链：一个方框 + 一支朝右上出去的箭头（「查看客户公司信息」那一格） */
+export function IconDeskExternal(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M14.4 4.6h5v5" />
+      <path d="M19.4 4.6 12.6 11.4" />
+      <path d="M17.2 14.4v4a1.8 1.8 0 0 1-1.8 1.8H5.8A1.8 1.8 0 0 1 4 18.4V8.6a1.8 1.8 0 0 1 1.8-1.8h4" />
+    </Svg>
+  )
+}
+
+/** 搜索：放大镜 + 一个向下的角（1688 那个搜索框右边带下拉） */
+export function IconDeskSearch(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="10.6" cy="10.6" r="6" />
+      <path d="m14.8 14.8 4.4 4.4" />
+    </Svg>
+  )
+}

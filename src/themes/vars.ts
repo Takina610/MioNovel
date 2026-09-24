@@ -1,4 +1,4 @@
-import type { ChatTokens, CodeTokens, PageTokens, SheetTokens, SlideTokens, ThemeTokens } from './types'
+import type { ChatTokens, CodeTokens, DeskTokens, PageTokens, SheetTokens, SlideTokens, ThemeTokens } from './types'
 
 /**
  * token 名 → CSS 自定义属性名。
@@ -95,3 +95,18 @@ export const SLIDE_TOKEN_VARS = {
   field: '--mn-ppt-field',
   control: '--mn-ppt-control',
 } as const satisfies Record<keyof SlideTokens, string>
+
+/**
+ * 客服工作台形态多出来的那几个变量。同一套道理：只有 chrome: 'desk' 的主题要写它们。
+ * 前缀用 --mn-desk-*，和 styles/desk.css 里的名字一一对应。
+ */
+export const DESK_TOKEN_VARS = {
+  rail: '--mn-desk-rail',
+  railTile: '--mn-desk-rail-tile',
+  railFg: '--mn-desk-rail-fg',
+  badge: '--mn-desk-badge',
+  select: '--mn-desk-select',
+  bubbleMe: '--mn-desk-bubble-me',
+  unread: '--mn-desk-unread',
+  ok: '--mn-desk-ok',
+} as const satisfies Record<keyof DeskTokens, string>

@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { messageSender, type ChatMessage } from '../lib/chat'
+import type { DeskReceipt } from '../lib/desk'
 import type { SheetRow } from '../lib/sheet'
 import { SHEET_COLUMNS, SHEET_FIRST_ROW, SHEET_HEAD } from '../lib/sheet'
 import type { Slide } from '../lib/slide'
@@ -73,6 +74,113 @@ export function ChatThread({ messages, sender, chapterLabel }: ChatThreadProps) 
 }
 
 /** 聊天气泡里那张图的容器：真聊天里图片消息就是一张图（样式在 apps.css 的 .mn-thread__body img） */
+
+/* ==========================================================================
+   客服工作台：一段 = 一条消息，右边那一侧带「已读 / 未读」
+   ========================================================================== */
+
+export interface DeskThreadProps {
+  messages: ChatMessage[]
+  /** 发信人（书名里的作者，或「书友」） */
+  sender: string
+  /** 头像里的那个字（和会话列表上的是同一个） */
+  avatar: string
+  /** 头像色相 */
+  hue: number
+  /** 右边那一行小字：「书名 : 作者」 */
+  peer: string
+  /**
+   * 读者正读到的那一条上写的时间（真实的最近阅读时间）。
+   * **只有这一条有**——一条消息一个编出来的时刻是最容易露馅的东西（见决定记录 27），
+   * 所以别的地方一律不写时间。空串表示这一章还没读过，那就不写。
+   */
+  stamp: string
+  /** 每一条读没读过（按阅读位置算，见 lib/desk.ts 的 deskReceipts） */
+  receipts: DeskReceipt[]
+  /** 这一段的分隔线文字：章名 */
+  chapterLabel: string
+}
+
+/**
+ * 客服工作台的消息流。
+ *
+ * 和企业微信那一份（ChatThread）是两副样子，所以是两个组件：
+ *
+ * 1. **有头像**。1688 里两边各有一个头像（左边是买家、右边是客服），而且收到的
+ *    那几条在气泡上面还有一行「名字」；企业微信那个群里没有头像，发信人写在气泡上方。
+ * 2. **右边那一侧底下有「已读 / 未读」**。那是这一屏最像客服工具的一处，也是唯一
+ *    需要按阅读位置算的地方（见 lib/desk.ts）。
+ *
+ * 「哪几行算我发的」沿用企业微信那条读法：双语书的原文段靠右（见 lib/chat.ts 的
+ * messageSender）。所以一本书里两种语言对照着读时，屏幕上正好是截图里那副
+ * 一问一答的样子。
+ */
+export function DeskThread({
+  messages,
+  sender,
+  avatar,
+  hue,
+  peer,
+  stamp,
+  receipts,
+  chapterLabel,
+}: DeskThreadProps) {
+  return (
+    <div className="mn-dthread">
+      <div className="mn-dthread__divider">{chapterLabel}</div>
+      {messages.map((message, index) => {
+        if (message.divider) {
+          return (
+            <div key={message.key} className="mn-dthread__divider">
+              {message.text}
+            </div>
+          )
+        }
+        const receipt = receipts[index]
+        // 双语书的原文段 = 我发的（右边）；其余 = 书里发来的（左边）
+        const mine = message.alt
+        return (
+          <div
+            key={message.key}
+            className={cx('mn-dthread__row', mine && 'mn-dthread__row--me')}
+          >
+            <span
+              className="mn-dthread__avatar"
+              style={{ ['--mn-dhue' as string]: String(hue) } as CSSProperties}
+              aria-hidden
+            >
+              {mine ? '我' : avatar}
+            </span>
+            <div className="mn-dthread__col">
+              <span className="mn-dthread__meta">
+                {mine ? (
+                  <>
+                    {receipt.at && stamp ? (
+                      <span className="mn-dthread__stamp">{stamp}</span>
+                    ) : null}
+                    {peer}
+                  </>
+                ) : (
+                  sender
+                )}
+              </span>
+              <div className={cx('mn-dthread__bubble', mine && 'mn-dthread__bubble--me')}>
+                <span
+                  className="mn-dthread__body"
+                  // 和阅读器同一条契约：内容是解析时净化过的
+                  dangerouslySetInnerHTML={{ __html: message.html }}
+                />
+              </div>
+              {mine ? (
+                <span className="mn-dthread__receipt">{receipt.read ? '已读' : '未读'}</span>
+              ) : null}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 /* ==========================================================================
    表格：一段 = 一行

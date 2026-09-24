@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { appName } from '../lib/appdocs'
 import { CHAT_RAIL } from '../lib/chat'
 import type { BookRecord } from '../db/db'
+import { DeskApp, DeskHome } from './DeskApp'
 import { OfficeFrame } from './OfficeFrame'
 import { ChatApp, ChatHome } from './ChatApp'
 import { DocApp } from './DocApp'
@@ -75,6 +76,31 @@ export function AppFrameSkeleton({
     )
   }
 
+  if (chrome === 'desk') {
+    // 客服工作台的骨架：功能栏 + 会话列表 + 聊天区，形状和真窗口一样，里面空着
+    return (
+      <div className="mn-desk mn-desk--skeleton">
+        <nav className="mn-desk__rail" aria-hidden>
+          {Array.from({ length: 5 }, (_, index) => (
+            <span key={index} className="mn-desk__rail-btn">
+              <span className="mn-desk__rail-icon" />
+              <span className="mn-desk__rail-label" />
+            </span>
+          ))}
+        </nav>
+        <div className="mn-desk__work">
+          <header className="mn-desk__top" aria-hidden>
+            <div className="mn-desk__ident" />
+          </header>
+          <div className="mn-desk__body">
+            <aside className="mn-desk__list" aria-hidden />
+            <main className="mn-desk__main">{body}</main>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <OfficeFrame
       fileName={appName(chrome)}
@@ -103,9 +129,10 @@ export function AppFrameSkeleton({
  * 这里按 chrome 找到外壳。和编辑器形态同一条约束：**组件不认主题 id**，
  * 所以同一副 Word 外壳给亮色和暗色两套主题用，一行都不用改。
  *
- * 形态名说的是形状（page / sheet / slide / doc / chat），不是品牌——
+ * 形态名说的是形状（page / sheet / slide / doc / chat / desk），不是品牌——
  * 以后想加「金山文档」或「腾讯文档」，只要它的形状落在 doc 这一档，
- * 加一条主题数据就够了。
+ * 加一条主题数据就够了；想加「拼多多商家工作台」，形状落在 desk 这一档，
+ * 同样只加一条主题数据（那一屏的分栏、客户档案、客服工具区都是共用的）。
  */
 export function AppReader(props: AppFrameProps) {
   switch (props.chrome) {
@@ -119,10 +146,12 @@ export function AppReader(props: AppFrameProps) {
       return <ExcelApp {...props} />
     case 'slide':
       return <PptApp {...props} />
+    case 'desk':
+      return <DeskApp {...props} />
   }
 }
 
-/** 外壳书架：五套首页共用 ShelfShell 那层底座（导入、拖拽、面板、提示条） */
+/** 外壳书架：六套首页共用 ShelfShell 那层底座（导入、拖拽、面板、提示条） */
 export function AppShelf({
   chrome,
   navigateToBook,
@@ -149,6 +178,9 @@ export function AppShelf({
             return <ExcelHome {...props} />
           case 'slide':
             return <PptHome {...props} />
+          case 'desk':
+            // 客服工作台的首页就是「还没选中会话」的那一屏（见 DeskApp.tsx 的 DeskHome）
+            return <DeskHome {...props} />
           default:
             return null
         }

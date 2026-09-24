@@ -14,6 +14,7 @@ import './styles/excel.css'
 import './styles/ppt.css'
 import './styles/doc.css'
 import './styles/chat.css'
+import './styles/desk.css'
 
 const container = document.getElementById('root')
 if (!container) throw new Error('index.html 里缺少 #root')

@@ -274,7 +274,7 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
     },
   },
   /**
-   * 下面十套是「伪装成别的办公软件」的主题，和 VS Code 那两套同一个路子：
+   * 下面十二套是「伪装成别的办公软件」的主题，和 VS Code 那两套同一个路子：
    * 颜色是抄的，不是调的。
    *
    *   doc   飞书文档   主蓝 #3370FF，中性色 #1F2329 / #646A73 / #8F959E / #F5F6F7
@@ -286,6 +286,10 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
    *                    但**网格里的选中框是另一个绿** #217346——Excel 从 2007 起
    *                    就用它画选中的行列标题和单元格框，见下面 sheet 那一层
    *   slide PowerPoint Office 品牌橙 #C43E1C
+   *   desk  1688 客户工作台  品牌蓝 #3D7FFF（功能栏、页签、发送按钮）；
+   *                    会话列表 #F7F8FA、聊天区 #F0F2F5、选中的会话行 #D8DDE4、
+   *                    收到的消息是白气泡、我发的那一侧 #E8F0FF、[未读] #FA6E1C、
+   *                    通知角标那个纯红 #FF0000、状态字的绿 #13B900
    *
    * Office 那三套的中性色不是挑的，是 Fluent 2 的官方 token（桌面版 Word / Excel /
    * PowerPoint 与 Office 网页版共用这一套）：亮色 #FFFFFF / #F5F5F5 / #F0F0F0 /
@@ -293,9 +297,14 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
    * #3D3D3D / #525252 / #FFFFFF / #D6D6D6 / #ADADAD；品牌的暗色版本是同一个色相
    * 抬到 60% 亮度（见 docs/SPEC.md 决定记录 26）。
    *
+   * 1688 那一套的中性色与品牌色是 2026-09-24 从用户的 1920×1033 截图上一条条量出来的
+   * （做法同决定记录 28/35/37：先量再画，量到的数写进 styles/desk.css 的注释）。
+   *
    * 每套亮色都配一套暗色，配色不是把亮色反过来，而是照着各家自己的深色模式来：
    * 「飞书 暗」是文档页比外壳略亮，「Word 暗」的页面是深灰的纸（不是白纸），
    * 「PPT 暗」连幻灯片一起压暗——不然暗色主题里会有一块刺眼的白板。
+   * 1688 工作台没有官方深色模式（桌面版只有亮色），所以那一套是同色系推出来的：
+   * 那条品牌蓝压一档留着（它得让人一眼认出是 1688），中性与亮色反过来排。
    */
   {
     id: 'feishu',
@@ -775,6 +784,115 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
       select: '#D97359',
       field: '#292929',
       control: '#6E6E6E',
+    },
+  },
+  /*
+   * 1688 客户工作台那一屏：2026-09-24 按用户给的 1920×1033 截图一比一复刻
+   * （量到的尺寸写在 styles/desk.css 开头的注释里）。
+   *
+   * 一屏里有四列：最左一条 64 的功能栏（品牌蓝，图标与文字都是白的），
+   * 一条 240 的会话列表，中间的聊天窗口，右边 450 的客户档案；
+   * 顶上还有一条 96 的白条（左边是身份、中间四个指标、右边窗口按钮与页签）。
+   *
+   * 那几个量出来的色号里有两个值得单说：**收到的消息是白气泡**（靠边框和灰底分开，
+   * 有底色的是「我发的」那一侧），以及**通知角标是纯红 #FF0000**（1688 的角标不掺色，
+   * 量出来就是它）。其余中性色：#F7F8FA 会话列表、#F0F2F5 聊天区、
+   * #D8DDE4 选中的会话行、#DBDBDB 那几条分隔线。
+   */
+  {
+    id: 'desk',
+    name: '1688 亮',
+    scheme: 'light',
+    builtin: true,
+    chrome: 'desk',
+    preset: {
+      fontFamily: 'sans',
+      fontSize: 15,
+      lineHeight: 1.7,
+      letterSpacing: 0,
+      paragraphGap: 0.6,
+      indent: 0,
+      contentWidth: 48,
+      align: 'left',
+    },
+    tokens: {
+      bg: '#F0F2F5',
+      surface: '#FFFFFF',
+      surface2: '#F7F8FA',
+      border: '#E4E7EA',
+      borderStrong: '#DBDBDB',
+      fg: '#222222',
+      fgMuted: '#666666',
+      fgFaint: '#999999',
+      accent: '#3D7FFF',
+      accentSoft: '#E8F0FF',
+      danger: '#F5222D',
+      overlay: 'rgba(0, 0, 0, 0.45)',
+      readerBg: '#F0F2F5',
+      readerFg: '#1F1F1F',
+      readerFgMuted: '#999999',
+      readerLink: '#3D7FFF',
+      readerSelection: '#C8DEFF',
+      readerRule: '#DBDBDB',
+    },
+    desk: {
+      rail: '#3D7FFF',
+      railTile: '#83ADFF',
+      railFg: '#FFFFFF',
+      badge: '#FF0000',
+      select: '#D8DDE4',
+      bubbleMe: '#E8F0FF',
+      unread: '#FA6E1C',
+      ok: '#13B900',
+    },
+  },
+  {
+    id: 'desk-dark',
+    name: '1688 暗',
+    scheme: 'dark',
+    builtin: true,
+    chrome: 'desk',
+    preset: {
+      fontFamily: 'sans',
+      fontSize: 15,
+      lineHeight: 1.7,
+      letterSpacing: 0,
+      paragraphGap: 0.6,
+      indent: 0,
+      contentWidth: 48,
+      align: 'left',
+    },
+    tokens: {
+      bg: '#17181B',
+      surface: '#1F2126',
+      surface2: '#1A1C20',
+      border: '#2C2F36',
+      borderStrong: '#3A3E46',
+      fg: '#E8EAED',
+      fgMuted: '#A6ABB4',
+      fgFaint: '#767C86',
+      accent: '#5C93FF',
+      accentSoft: '#23304A',
+      danger: '#FF6B6B',
+      overlay: 'rgba(0, 0, 0, 0.6)',
+      readerBg: '#17181B',
+      readerFg: '#DDE0E4',
+      readerFgMuted: '#9AA0A8',
+      readerLink: '#7FA9FF',
+      readerSelection: '#2A3D66',
+      readerRule: '#2C2F36',
+    },
+    // 工作台没有官方深色模式，这一层是同色系推的：那条品牌蓝压一档（认得出是 1688），
+    // 角标与「[未读]」往亮里抬一档（暗底上的红与橙要能读），我发的那侧换成深蓝底
+    desk: {
+      rail: '#2B5FD9',
+      railTile: '#3F76E8',
+      railFg: '#FFFFFF',
+      badge: '#FF4D4D',
+      select: '#333842',
+      bubbleMe: '#243A5C',
+      unread: '#FF8A45',
+      ok: '#4CD137',
     },
   },
 ]

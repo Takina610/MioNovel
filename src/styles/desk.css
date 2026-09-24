@@ -1,0 +1,1669 @@
+/* ==========================================================================
+   1688 客户工作台形态（.mn-desk）
+   --------------------------------------------------------------------------
+   2026-09-24 按用户给的 1920×1033 截图一比一复刻，尺寸是从像素里量出来的
+   （做法同决定记录 28 / 35 / 37：先量再画）。量到的数：
+
+     功能栏      64 宽，底 #3D7FFF（--mn-desk-rail）。选中那一格垫一块 48×46 的
+                 浅蓝方块（#83ADFF），方格里是 22 的图标 + 12 的白字；格与格之间 28，
+                 第一条的顶边在 y=40。底下那三格 60 一档，只有图标没有字
+     顶上那条    96 高、白底（--mn-surface），横跨列表、聊天、面板三列：
+                 左边身份（会话列表那一列里，底边对齐在 y=85 附近）、
+                 中间四个指标（数字 26 / 标签 12，四组间距 40）、
+                 右边 450 那一栏上面是六个窗口按钮（22 的图标、间距 33、
+                 右边缘离窗口 24），下面 40 高的页签行
+     会话列表    240 宽，底 #F7F8FA（--mn-surface-2）。搜索框 194×30、圆角 15、
+                 左右各缩进 23；页签条 200 宽（五个 40 宽的页签，选中的那块铺
+                 #3D7FFF、白字），底下一条 #DBDBDB；会话行 52 高（头像 40 圆形、
+                 名字 15、时间 15、摘要 12）。选中的那一行铺 #D8DDE4、
+                 左右各缩进 8、圆角 6
+     聊天区      底 #F0F2F5（--mn-bg）。头部 50 高（头像 28、名字 16、[状态] 15，
+                 右边四个 22 的按钮、间距 36、离右边 22），底下一条 #DBDBDB；
+                 消息流左右各 17 的缩进、上下 20 的间隔；头像 36 圆形；
+                 气泡圆角 6、内边距 10/12、字号 14.5；收到的白底描边，
+                 我发的那一侧铺 #E8F0FF、底下写「已读 / 未读」
+     客服工具区  顶边一条 2px #DBDBDB，底同聊天区。药丸 26 高、圆角 13、
+                 白底描边 #E0E0E0、间距 12；蓝渐变那颗（135°，#2CB8FF → #7979FF）
+                 写的是这一章的位置；图标行 22 的图标、间距 30；
+                 白盒子里是进度条与右下角「关闭 / 发送」（发送是 #3D7FFF 的
+                 圆角药丸、76×30）
+     右侧面板    450 宽、白底（含右边一条系统滚动条槽）。页签行 40 高
+                 （选中的那块 89 宽铺 #3D7FFF、白字）；下面两张卡片
+                 （圆角 8、边 #E8EAED）；卡片左边一条 46 宽的标签列，
+                 行距 25，字号 14/15；「订单追踪」一行 74 高
+                 （左边 62 的章号方块 + 中间两行字 + 右边「实付」那一位）
+
+   改一个数之前先看相邻的几个：会话行的 52 = 头像 40 + 上下各 6；
+   面板里的 46 与 25 是一对（标签列宽度与行距）。
+
+   颜色全部走 token（--mn-desk-* 那八个 + 主 token），只有两个地方写死：
+   「1688」那个产品记号，以及客服头像那圈橙色（它按名字哈希取色相，见
+   apps/DeskApp.tsx 的 sessionHue）——两处都在注释里说明了。
+   ========================================================================== */
+
+.mn-desk {
+  height: 100dvh;
+  display: flex;
+  overflow: hidden;
+  background: var(--mn-bg);
+  color: var(--mn-fg);
+  font-family: var(--mn-font-sans);
+}
+
+/* ---- 最左边那条功能栏：五格「图标 + 小字」+ 底下一组 ---- */
+
+.mn-desk__rail {
+  flex: 0 0 auto;
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0 18px;
+  background: var(--mn-desk-rail);
+  /* 白图标 + 白字：这条栏在 1688 里就是一块蓝，不跟界面明暗走 */
+  color: var(--mn-desk-rail-fg);
+  user-select: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mn-desk__rail-btn {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 48px;
+  min-height: 46px;
+  margin-bottom: 28px;
+  padding: 6px 0 4px;
+  border-radius: 8px;
+  color: var(--mn-desk-rail-fg);
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__rail-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-desk-rail-tile) 55%, transparent);
+}
+
+.mn-desk__rail-btn[aria-pressed='true'] {
+  background: var(--mn-desk-rail-tile);
+}
+
+.mn-desk__rail-btn:disabled {
+  opacity: 0.5;
+}
+
+/* 底下那三格：只有图标，压在栏尾 */
+.mn-desk__rail-btn--bare {
+  gap: 0;
+  min-height: 34px;
+  margin-bottom: 18px;
+  padding: 6px 0;
+}
+
+.mn-desk__rail-gap {
+  flex: 1;
+}
+
+.mn-desk__rail-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 24px;
+}
+
+.mn-desk__rail-label {
+  font-size: 12px;
+  line-height: 12px;
+  white-space: nowrap;
+}
+
+/* 通知那一格上的红角标（1688 的角标是不掺色的纯红，量出来就是 #FF0000） */
+.mn-desk__rail-badge {
+  position: absolute;
+  top: -7px;
+  left: 11px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--mn-desk-badge);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 顶条 + 三列的骨架 ---- */
+
+.mn-desk__work {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mn-desk__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* ---- 顶上那一条 ---- */
+
+.mn-desk__top {
+  flex: 0 0 auto;
+  height: 96px;
+  display: flex;
+  align-items: stretch;
+  background: var(--mn-surface);
+}
+
+/* 身份那一段占的正是会话列表那一列（240） */
+.mn-desk__ident {
+  flex: 0 0 240px;
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 20px;
+}
+
+/* 「1688」是产品记号，色号**有意写死**（和飞书那三个色、PPT 那个橙同一个例外，
+   见 AGENTS.md 第二节第 1 条）：它是这个产品的商标色，跟着主题走就不像那个产品了 */
+.mn-desk__mark {
+  color: #ff6a00;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.mn-desk__status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--mn-fg);
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.mn-desk__dot {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  color: var(--mn-desk-ok);
+}
+
+.mn-desk__status-sub {
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+}
+
+.mn-desk__status-caret {
+  width: 12px;
+  height: 12px;
+  color: var(--mn-fg-faint);
+}
+
+/* 四个指标：数字 26、标签 12（截图里就是这两个字号差） */
+.mn-desk__stats {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  padding: 0 24px;
+  overflow: hidden;
+}
+
+.mn-desk__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mn-desk__stat-value {
+  color: var(--mn-fg);
+  font-size: 26px;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-desk__stat-label {
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+  line-height: 12px;
+  white-space: nowrap;
+}
+
+/* 右边那一栏：上面窗口按钮、下面页签（宽度就是面板的 450） */
+.mn-desk__topright {
+  flex: 0 0 450px;
+  width: 450px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mn-desk__winctl {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 11px;
+  padding-right: 24px;
+}
+
+.mn-desk__wbtn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  color: var(--mn-fg);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__wbtn:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+}
+
+.mn-desk__wbtn:disabled {
+  color: var(--mn-fg-faint);
+}
+
+.mn-desk__wicon {
+  width: 18px;
+  height: 18px;
+}
+
+/* 面板那四个页签：选中的一块铺蓝底白字（截图量到 89×40） */
+.mn-desk__paneltabs {
+  flex: 0 0 40px;
+  height: 40px;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 0 6px;
+}
+
+.mn-desk__paneltab {
+  display: grid;
+  place-items: center;
+  min-width: 62px;
+  padding: 0 10px;
+  color: var(--mn-fg);
+  font-size: 14px;
+  white-space: nowrap;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__paneltab:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-desk__paneltab.is-active {
+  background: var(--mn-accent);
+  color: #fff;
+}
+
+.mn-desk__panelrefresh {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  margin-left: auto;
+  color: var(--mn-fg-muted);
+}
+
+.mn-desk__panelrefresh:hover {
+  color: var(--mn-fg);
+}
+
+/* ==========================================================================
+   会话列表（240）
+   ========================================================================== */
+
+.mn-desk__list {
+  flex: 0 0 240px;
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  background: var(--mn-surface-2);
+  overflow: hidden;
+}
+
+.mn-desk__search {
+  display: flex;
+  align-items: center;
+  padding: 11px 23px;
+}
+
+.mn-desk__search-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 15px;
+  background: var(--mn-surface);
+  color: var(--mn-fg-faint);
+}
+
+.mn-desk__search-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.mn-desk__search-box input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  color: var(--mn-fg);
+  font-size: 13px;
+}
+
+.mn-desk__search-box input::placeholder {
+  color: var(--mn-fg-faint);
+}
+
+/* 页签条：200 宽、五个 40 宽的页签（1688 是「当前 / 最近 / 好友 / 团队 / 群聊」） */
+.mn-desk__filters {
+  display: flex;
+  align-items: stretch;
+  margin: 0 20px;
+  border-bottom: 1px solid var(--mn-border-strong);
+}
+
+.mn-desk__filter {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__filter + .mn-desk__filter {
+  border-left: 1px solid color-mix(in srgb, var(--mn-fg-faint) 55%, transparent);
+}
+
+.mn-desk__filter.is-active {
+  background: var(--mn-accent);
+  color: #fff;
+}
+
+.mn-desk__list-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-top: 14px;
+}
+
+.mn-desk__group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 4px;
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+}
+
+.mn-desk__group-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-desk__group-hint {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+/* 会话行：52 高，选中的那一行铺 #D8DDE4（左右各缩进 8、圆角 6） */
+.mn-desk__session {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 16px);
+  height: 52px;
+  margin: 0 8px;
+  padding: 0 10px 0 7px;
+  border-radius: 6px;
+  text-align: left;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__session:hover {
+  background: color-mix(in srgb, var(--mn-desk-select) 60%, transparent);
+}
+
+.mn-desk__session.is-current {
+  background: var(--mn-desk-select);
+}
+
+.mn-desk__avatar {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  /* 1688 的默认头像是橙色系：色相按名字哈希取（见 apps/DeskApp.tsx 的 sessionHue） */
+  background: hsl(var(--mn-dhue, 20) 78% 90%);
+  color: hsl(var(--mn-dhue, 20) 62% 38%);
+  font-size: 16px;
+}
+
+.mn-desk__avatar-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--mn-desk-badge);
+  color: #fff;
+  font-size: 10.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-desk__session-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mn-desk__session-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.mn-desk__session-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mn-fg);
+  font-size: 15px;
+}
+
+.mn-desk__session-time {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-desk__session-preview {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 「[未读]」那个橙：1688 用它标还没回的消息，我们用它标还没读完的会话 */
+.mn-desk__session-tag {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+}
+
+.mn-desk__session-tag.is-unread {
+  color: var(--mn-desk-unread);
+}
+
+.mn-desk__list-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 16px;
+  border-top: 1px solid var(--mn-border);
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+}
+
+.mn-desk__list-count {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-desk__list-hint {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   中间：聊天窗口
+   ========================================================================== */
+
+.mn-desk__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--mn-bg);
+}
+
+.mn-desk__chathead {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 22px 0 12px;
+  border-bottom: 1px solid var(--mn-border-strong);
+}
+
+.mn-desk__list-toggle {
+  display: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-desk__peer-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: hsl(var(--mn-dhue, 20) 78% 90%);
+  color: hsl(var(--mn-dhue, 20) 62% 38%);
+  font-size: 13px;
+}
+
+.mn-desk__peer-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mn-fg);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mn-desk__peer-tag {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 15px;
+}
+
+.mn-desk__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mn-desk__icon-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: var(--mn-fg);
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__icon-btn:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-desk__icon-btn.is-active {
+  color: var(--mn-accent);
+}
+
+.mn-desk__head-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.mn-desk__head-menu {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--mn-fg);
+}
+
+.mn-desk__head-caret {
+  width: 10px;
+  height: 10px;
+  color: var(--mn-fg-muted);
+}
+
+/* 消息区：滚动容器（ReaderView）在里面，黑纱也盖在这一层 */
+.mn-desk__stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  position: relative;
+}
+
+.mn-desk__stage > .mn-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+.mn-desk .mn-scroll {
+  background: var(--mn-reader-bg);
+  padding: 0;
+}
+
+/* 消息流不是「一栏正文」：它铺满会话区（同企业微信那一屏的处理） */
+.mn-desk .mn-scroll .mn-content {
+  max-width: none;
+  margin: 0;
+}
+
+/* ---- 收起 / 展开底部那个回复框 ----
+   收的是 .mn-desk__draft（这一章的位置 + 进度条 + 「关闭 / 发送」那一行），
+   工具条留着、切换的按钮就在工具条上——做法照企业微信那一副外壳的「收起输入区」
+   （见 apps/ChatApp.tsx 的 composerOpen）：收起来之后消息区正好多出一屏。
+   所以这一节没有别的规则，收起来就是「那块 DOM 不画」（DeskApp 里条件渲染）。 */
+
+/* ==========================================================================
+   客服工具区（快捷话术 / 图标行 / 那个白盒子）
+   ========================================================================== */
+
+.mn-desk__composer {
+  flex: 0 0 auto;
+  border-top: 2px solid var(--mn-border-strong);
+  background: var(--mn-bg);
+  padding: 12px 16px 14px;
+}
+
+.mn-desk__quick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+}
+
+/* 这一章的位置（1688 那一颗是「当前用户回复中」，蓝到紫的渐变） */
+.mn-desk__chip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #2cb8ff, #7979ff);
+  color: #fff;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.mn-desk__chip--idle {
+  background: color-mix(in srgb, var(--mn-accent) 78%, #7979ff);
+}
+
+.mn-desk__chip-icon {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff 88%, transparent);
+  color: var(--mn-accent);
+}
+
+/* 五颗药丸：1688 那一排快捷话术的位置（上一章 / 下一章 / 目录 / 阅读设置 / 摸鱼） */
+.mn-desk__pill {
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 13px;
+  background: var(--mn-surface);
+  color: var(--mn-fg);
+  font-size: 13px;
+  white-space: nowrap;
+  transition:
+    border-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__pill:hover:not(:disabled) {
+  border-color: var(--mn-accent);
+  color: var(--mn-accent);
+}
+
+.mn-desk__pill:disabled {
+  color: var(--mn-fg-faint);
+}
+
+.mn-desk__tools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 12px;
+}
+
+.mn-desk__tool {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+  color: var(--mn-fg-muted);
+  transition: color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__tool:hover:not(:disabled) {
+  color: var(--mn-fg);
+}
+
+.mn-desk__tool.is-active {
+  color: var(--mn-accent);
+}
+
+.mn-desk__tool:disabled {
+  color: var(--mn-fg-faint);
+}
+
+.mn-desk__tool-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* 收起 / 展开回复框：工具条最右那一格。给它一个真的按钮的样子（悬停垫底、圆角），
+   因为它干的是「把底部那一块收掉」这种一整块的事，不该和旁边那几个改设置的图标一样轻 */
+.mn-desk__tool--fold {
+  justify-content: center;
+  width: 24px;
+  border-radius: 4px;
+}
+
+.mn-desk__tool--fold:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+}
+
+.mn-desk__tool-caret {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+  color: var(--mn-fg-muted);
+  transition: color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__tool-caret:hover {
+  color: var(--mn-fg);
+}
+
+.mn-desk__tool-caret-icon {
+  width: 9px;
+  height: 9px;
+}
+
+/* 「译」那一格：真 1688 的记号就是一个圆框里的「译」，所以这里写字不画图 */
+.mn-desk__tool--glyph {
+  width: 22px;
+  height: 22px;
+  justify-content: center;
+  border: 1.4px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* 白盒子：真客服在这里打字。我们打不了字，所以放的是这一章读到哪里了 */
+.mn-desk__draft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 92px;
+  padding: 10px 12px 8px;
+  border-radius: 4px;
+  background: var(--mn-surface);
+}
+
+.mn-desk__draft--idle {
+  min-height: 62px;
+  justify-content: center;
+}
+
+.mn-desk__draft-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mn-desk__draft-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mn-fg);
+  font-size: 14px;
+}
+
+.mn-desk__draft-hint {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-desk__range {
+  width: 100%;
+}
+
+.mn-desk__send-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.mn-desk__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 18px;
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 15px;
+  background: var(--mn-surface);
+  color: var(--mn-fg);
+  font-size: 15px;
+}
+
+.mn-desk__btn:hover:not(:disabled) {
+  border-color: var(--mn-accent);
+  color: var(--mn-accent);
+}
+
+.mn-desk__btn--send {
+  min-width: 76px;
+  border-color: var(--mn-accent);
+  background: var(--mn-accent);
+  color: #fff;
+}
+
+.mn-desk__btn--send:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-accent) 86%, #000);
+  color: #fff;
+}
+
+.mn-desk__btn--send:disabled {
+  border-color: var(--mn-border-strong);
+  background: var(--mn-surface-2);
+  color: var(--mn-fg-faint);
+}
+
+/* 发送左边那条竖分隔 + 小三角（截图上「发送 | ▾」是这么分的） */
+.mn-desk__btn-split {
+  width: 1px;
+  height: 14px;
+  background: color-mix(in srgb, #fff 45%, transparent);
+}
+
+.mn-desk__btn--send:disabled .mn-desk__btn-split {
+  background: var(--mn-border-strong);
+}
+
+.mn-desk__btn-caret {
+  width: 11px;
+  height: 11px;
+}
+
+/* ==========================================================================
+   右边：客户档案（450）
+   ========================================================================== */
+
+.mn-desk__panel {
+  flex: 0 0 450px;
+  width: 450px;
+  display: flex;
+  flex-direction: column;
+  background: var(--mn-surface);
+  border-left: 1px solid var(--mn-border);
+}
+
+.mn-desk__panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 卡片：白底 + 一圈浅边（截图上两张卡之间那条虚线/留白就是这么来的） */
+.mn-desk__card {
+  margin: 10px 12px;
+  border: 1px solid var(--mn-border);
+  border-radius: 8px;
+  background: var(--mn-surface);
+}
+
+.mn-desk__card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-bottom: 1px dashed var(--mn-border);
+}
+
+.mn-desk__card-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mn-fg);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mn-desk__card-note {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+}
+
+.mn-desk__fold {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--mn-fg-muted);
+  font-size: 13px;
+}
+
+.mn-desk__fold:hover {
+  color: var(--mn-accent);
+}
+
+.mn-desk__fold-icon {
+  width: 12px;
+  height: 12px;
+  transition: rotate var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__fold-icon.is-up {
+  rotate: 180deg;
+}
+
+/* 档案里的一行：左边 46 宽的标签列 + 右边的值 */
+.mn-desk__fields {
+  padding: 8px 12px 10px;
+}
+
+.mn-desk__field {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* 标签列 46 是量出来的（截图里「本店关系」四个字占 47px、值从 1538 起）。
+   min-width: 0 不能省：弹性项目的 min-width 默认是 auto，中文标签的 min-content
+   比 46 宽，不给它就会把这一列顶成 56（第一版就是这么量的）。 */
+.mn-desk__field-label {
+  flex: 0 0 46px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.mn-desk__field-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mn-desk__field-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mn-desk__field-key {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 13.5px;
+}
+
+.mn-desk__field-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mn-fg);
+}
+
+/* 值之间那条竖线（截图上「近30天 413.2元 | 历史累计 413.2元」中间那一根） */
+.mn-desk__field-rule {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 12px;
+  background: var(--mn-border-strong);
+}
+
+.mn-desk__valchip {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--mn-accent) 10%, transparent);
+  color: var(--mn-fg);
+  font-size: 13.5px;
+}
+
+.mn-desk__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 标签：白底细描边那一圈（绿色那一个是「待收货」那种状态色） */
+.mn-desk__tagline {
+  padding: 1px 7px;
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.mn-desk__tagline.is-accent {
+  border-color: var(--mn-accent);
+  color: var(--mn-accent);
+}
+
+.mn-desk__tagline.is-ok {
+  border-color: var(--mn-desk-ok);
+  color: var(--mn-desk-ok);
+}
+
+.mn-desk__field-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-desk__field-icon:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-accent);
+}
+
+.mn-desk__field-icon:disabled {
+  color: var(--mn-fg-faint);
+}
+
+.mn-desk__link {
+  align-self: flex-start;
+  color: var(--mn-reader-link);
+  font-size: 14px;
+}
+
+.mn-desk__link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.mn-desk__link--muted {
+  color: var(--mn-fg-muted);
+  font-size: 13px;
+}
+
+/* 订单追踪那一行状态：状态字（绿）+ 当前第几章 + 日期 */
+.mn-desk__order-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 13.5px;
+}
+
+.mn-desk__state {
+  flex: 0 0 auto;
+  color: var(--mn-desk-ok);
+}
+
+.mn-desk__order-index {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mn-fg);
+}
+
+.mn-desk__order-when {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+}
+
+/* 一行订单 = 一行章：左边 62 的章号块 + 中间两行字 + 右边读到哪了 */
+.mn-desk__orders {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 12px 10px;
+}
+
+.mn-desk__order {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 74px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  text-align: left;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-desk__order:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-desk__order.is-current {
+  background: color-mix(in srgb, var(--mn-accent) 8%, transparent);
+}
+
+.mn-desk__order-thumb {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 4px;
+  background: var(--mn-surface-2);
+  color: var(--mn-fg-muted);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-desk__order-thumb[data-state='reading'] {
+  background: color-mix(in srgb, var(--mn-accent) 12%, transparent);
+  color: var(--mn-accent);
+}
+
+.mn-desk__order-thumb--name {
+  background: hsl(var(--mn-dhue, 20) 78% 90%);
+  color: hsl(var(--mn-dhue, 20) 62% 38%);
+  font-size: 20px;
+}
+
+.mn-desk__order-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mn-desk__order-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mn-fg);
+  font-size: 14.5px;
+}
+
+.mn-desk__order-sub {
+  color: var(--mn-fg-faint);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-desk__order-pay {
+  flex: 0 0 auto;
+  padding-right: 4px;
+  color: var(--mn-fg-muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mn-desk__order-pay.is-current {
+  color: var(--mn-fg);
+}
+
+/* 「店铺商品」那一栏每行多一个 ⋯（解析设置与删除） */
+.mn-desk__order-row {
+  display: flex;
+  align-items: center;
+}
+
+.mn-desk__order-row .mn-desk__order {
+  flex: 1;
+  min-width: 0;
+}
+
+.mn-desk__order-act {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-desk__order-act:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-desk__panel-empty {
+  padding: 10px 12px 14px;
+  color: var(--mn-fg-faint);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.mn-desk__panel-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border-top: 1px solid var(--mn-border);
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+}
+
+.mn-desk__panel-foot-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-desk__panel-foot-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  border-radius: 5px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-desk__panel-foot-btn:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+/* ==========================================================================
+   消息流（客服工作台那一副：有头像、右边那一侧带「已读 / 未读」）
+   ========================================================================== */
+
+.mn-dthread {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  padding: 20px 17px 28px;
+}
+
+.mn-dthread__divider {
+  align-self: center;
+  margin: 4px 0;
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+}
+
+.mn-dthread__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 100%;
+}
+
+/* 我发的（双语书的原文段）靠右：头像在右边、气泡在左，和聊天工具一样 */
+.mn-dthread__row--me {
+  flex-direction: row-reverse;
+  align-self: flex-end;
+}
+
+.mn-dthread__avatar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: hsl(var(--mn-dhue, 20) 78% 90%);
+  color: hsl(var(--mn-dhue, 20) 62% 38%);
+  font-size: 15px;
+}
+
+.mn-dthread__row--me .mn-dthread__avatar {
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+}
+
+.mn-dthread__col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  max-width: min(72%, 620px);
+}
+
+.mn-dthread__row--me .mn-dthread__col {
+  align-items: flex-end;
+}
+
+/* 名字 / 时间那一行小字（1688 写的是 `时间 店名:客服`，我们写 `书名:作者`） */
+.mn-dthread__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px;
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+}
+
+.mn-dthread__stamp {
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-dthread__bubble {
+  padding: 10px 12px;
+  border: 1px solid var(--mn-border);
+  border-radius: 6px;
+  background: var(--mn-surface);
+  color: var(--mn-fg);
+  font-size: var(--mn-font-size);
+  line-height: var(--mn-line-height);
+}
+
+/* 我发的那一侧：铺强调色的浅底（1688 量到的是 #E8F0FF） */
+.mn-dthread__bubble--me {
+  border-color: transparent;
+  background: var(--mn-desk-bubble-me);
+}
+
+.mn-dthread__body {
+  display: block;
+  overflow-wrap: break-word;
+}
+
+.mn-dthread__body p {
+  margin: 0 0 0.5em;
+  text-indent: 0;
+}
+
+.mn-dthread__body p:last-child {
+  margin-bottom: 0;
+}
+
+.mn-dthread__body a {
+  color: var(--mn-reader-link);
+}
+
+.mn-dthread__body figcaption {
+  margin-top: 4px;
+  color: var(--mn-reader-fg-muted);
+  font-size: 0.9em;
+}
+
+/* 「已读 / 未读」：按阅读位置算（见 lib/desk.ts），所以往下读会一条条变成已读 */
+.mn-dthread__receipt {
+  padding: 0 2px;
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+}
+
+/* 双语模式：只看译文时把原文那几行收掉，反之亦然（状态读阅读器根上的 data-bilingual） */
+[data-bilingual='primary'] .mn-dthread__row--me,
+[data-bilingual='secondary'] .mn-dthread__row:not(.mn-dthread__row--me) {
+  display: none;
+}
+
+/* ==========================================================================
+   首页那一屏（还没选中会话）
+   ========================================================================== */
+
+.mn-desk__empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+}
+
+.mn-desk__empty-title {
+  color: var(--mn-fg);
+  font-size: 17px;
+}
+
+.mn-desk__empty-hint {
+  color: var(--mn-fg-faint);
+  font-size: 13px;
+}
+
+.mn-desk__empty-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(100%, 420px);
+  margin-top: 14px;
+}
+
+.mn-desk__empty-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--mn-surface);
+  color: var(--mn-fg);
+  font-size: 14px;
+  text-align: left;
+}
+
+.mn-desk__empty-row:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-desk__empty-meta {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+}
+
+.mn-desk__empty-actions {
+  margin-top: 16px;
+}
+
+.mn-desk__empty-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 16px;
+  background: var(--mn-accent);
+  color: #fff;
+  font-size: 14px;
+}
+
+.mn-desk__empty-btn:hover {
+  background: color-mix(in srgb, var(--mn-accent) 86%, #000);
+}
+
+/* 骨架（书还没读出来那一拍）：形状和真窗口一样，里面空着 */
+.mn-desk--skeleton .mn-desk__rail-btn {
+  opacity: 0.4;
+}
+
+.mn-desk--skeleton .mn-desk__rail-label {
+  width: 26px;
+  height: 10px;
+  border-radius: 4px;
+  background: color-mix(in srgb, #fff 45%, transparent);
+}
+
+.mn-desk--skeleton .mn-desk__list {
+  background: var(--mn-surface-2);
+}
+
+.mn-desk--skeleton .mn-desk__main {
+  display: grid;
+  place-items: center;
+}
+
+/* ==========================================================================
+   窄屏与矮屏
+   --------------------------------------------------------------------------
+   三列 + 顶条一摆，最窄也要 64 + 240 + 500 + 450 = 1254。窄于这个宽度：
+   会话列表先变成浮层（900 以下），面板跟着变浮层（1300 以下由 JS 默认收起来，
+   展开时浮在聊天区右边）。这和企业微信那一副是同一个判断：屏幕就那么宽，
+   与其把三列压成三条缝，不如让它们轮流占满。
+   ========================================================================== */
+
+@media (max-width: 1023px) {
+  .mn-desk__panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    width: min(92vw, 450px);
+    flex-basis: auto;
+    box-shadow: var(--mn-shadow-panel);
+  }
+
+  .mn-desk__topright {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .mn-desk__paneltabs {
+    display: none;
+  }
+
+  .mn-desk__stats {
+    gap: 24px;
+  }
+
+  .mn-desk__stat-value {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 900px) {
+  .mn-desk__list {
+    position: absolute;
+    top: 0;
+    left: 64px;
+    bottom: 0;
+    z-index: 40;
+    width: min(76vw, 280px);
+    flex-basis: auto;
+    box-shadow: var(--mn-shadow-panel);
+  }
+
+  .mn-desk[data-list='closed'] .mn-desk__list {
+    display: none;
+  }
+
+  .mn-desk__list-toggle {
+    display: grid;
+  }
+
+  .mn-desk__ident {
+    flex: 0 0 auto;
+    width: auto;
+    padding-right: 8px;
+  }
+
+  .mn-desk__stats {
+    padding: 0 12px;
+  }
+}
+
+@media (max-width: 720px) {
+  /* 指标与身份在窄屏上让位给窗口按钮：它们在截图上本来就是「看一眼」的东西 */
+  .mn-desk__stats,
+  .mn-desk__status-sub {
+    display: none;
+  }
+
+  .mn-desk__top {
+    height: 64px;
+  }
+
+  .mn-desk__quick,
+  .mn-desk__tools {
+    gap: 8px;
+  }
+
+  .mn-desk__draft {
+    min-height: 78px;
+  }
+}
+
+/* 矮屏：功能栏五格 + 底下三格，照 1033 的高度排下来是 40 + 5×74 + 3×52，
+   900 高的屏上会把底下那三格顶出去。1688 自己也是这么变的（窗口矮了格子跟着矮），
+   所以这里收的是格子的高与间距，不是砍掉哪一格。 */
+@media (max-height: 900px) {
+  .mn-desk__rail {
+    padding-top: 18px;
+  }
+
+  .mn-desk__rail-btn {
+    margin-bottom: 12px;
+    min-height: 42px;
+  }
+
+  .mn-desk__rail-btn--bare {
+    margin-bottom: 10px;
+  }
+
+  .mn-desk__top {
+    height: 78px;
+  }
+}

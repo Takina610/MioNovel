@@ -4,16 +4,16 @@ import type { TocRow } from '../hooks/useToc'
 import type { ReaderSettings } from '../store/settings'
 
 /**
- * 五套办公外壳的形态名。
+ * 六套办公外壳的形态名。
  *
  * AppChrome（themes/types.ts）里那个还把 code 算进来——它也是「带外壳的形态」，
  * 只是外壳在 components/code 那边、历史更久。这一层分开写，是为了让办公外壳
  * 的组件不必处理「code 分支不可能发生」这件事。
  */
-export type AppShellChrome = 'doc' | 'chat' | 'page' | 'sheet' | 'slide'
+export type AppShellChrome = 'doc' | 'chat' | 'page' | 'sheet' | 'slide' | 'desk'
 
 /**
- * 五个办公外壳共用的契约。
+ * 六个办公外壳共用的契约。
  *
  * 和编辑器形态一样，外壳**只认 chrome，不认主题 id**：同一副 Word 外壳
  * 由亮色和暗色两套主题各自上色。所以这里没有一处提到颜色的名字，
@@ -22,9 +22,9 @@ export type AppShellChrome = 'doc' | 'chat' | 'page' | 'sheet' | 'slide'
  * 三件事每个外壳都要做，做法也一样：
  *
  * 1. **回书架**（onBack）：各自用各自的方式——Office 是「文件」页签，
- *   飞书是左上角的返回箭头，企业微信是功能栏里的图标。
+ *    飞书是左上角的返回箭头，企业微信是功能栏里的图标，客服工作台是窗口右上角那个 ×。
  * 2. **换章**（onChapter）：Office 是导航窗格 / 工作表标签 / 节，
- *   飞书是文档大纲，企业微信是聊天记录。
+ *    飞书是文档大纲，企业微信是聊天记录，客服工作台是右边那块面板里的目录。
  * 3. **压暗**（dim）：摸鱼模式的黑纱，盖在正文区上（--mn-dim + styles/office.css 的 .mn-veil）。
  */
 export interface AppFrameProps {

@@ -25,9 +25,9 @@
 1. **颜色只能来自主题注册表。** 组件里不写色号，CSS 里不为某个主题写选择器，一律
    `var(--mn-*)` / 工具类（`bg-surface`、`text-fg-muted`）。唯一例外是**产品记号**
    （飞书的商标与卡片插图、MioNovel 自己的图），它们是有意写死的，且必须在注释里说明。
-2. **组件只认 `chrome`（形态），不认主题 id。** 形态有七个：`plain` / `code`（VS Code）/
-   `doc`（飞书）/ `chat`（企业微信）/ `page`（Word）/ `sheet`（Excel）/ `slide`（PPT）。
-   同一副外壳给亮暗两套主题用，一行都不用改。
+2. **组件只认 `chrome`（形态），不认主题 id。** 形态有八个：`plain` / `code`（VS Code）/
+   `doc`（飞书）/ `chat`（企业微信）/ `page`（Word）/ `sheet`（Excel）/ `slide`（PPT）/
+   `desk`（1688 客户工作台）。同一副外壳给亮暗两套主题用，一行都不用改。
 3. **会响的按钮才可点，灰着的按钮不许响。** 按下去屏幕必须真的变（它们都是这个阅读器本来
    就有的设置：字号、行距、缩进、对齐、主题、摸鱼模式、换章、回书架……）；只读文档里本来
    就该灰的（粘贴、加粗、评论、云盘、知识库……）一律 `disabled` + `title` 说明原因。
@@ -40,13 +40,13 @@
 
 ## 三、几处容易踩的
 
-- **图片**：**放真图的只有普通阅读器（`plain`）**，其余六个形态
-  （编辑器、飞书、企业微信、表格、Word、幻灯片）都换成一行 `![](./路径)`（走 `lib/blocks.ts`
-  的 `mediaLinesHtml` / `chapterBlocks` 的 `'reference'`；路径必须是书里的原始路径，
-  靠 `resolve` 把 blob 还原回来）。这条规矩**只在一处定义**：`lib/blocks.ts` 的
-  `mediaModeFor(chrome)`——历史上它写在两个调用点，改动只落到一处，于是
-  「某个形态还在放图」被报了三回（企业微信、Word、幻灯片各一次，见决定记录 32 / 35 / 38）。
-  加形态、改规矩都改那个函数，`verify:apps` 断言它。
+- **图片**：**放真图的只有普通阅读器（`plain`）**，其余七个形态
+  （编辑器、飞书、企业微信、表格、Word、幻灯片、客服工作台）都换成一行 `![](./路径)`
+  （走 `lib/blocks.ts` 的 `mediaLinesHtml` / `chapterBlocks` 的 `'reference'`；
+  路径必须是书里的原始路径，靠 `resolve` 把 blob 还原回来）。这条规矩**只在一处定义**：
+  `lib/blocks.ts` 的 `mediaModeFor(chrome)`——历史上它写在两个调用点，改动只落到一处，
+  于是「某个形态还在放图」被报了三回（企业微信、Word、幻灯片各一次，
+  见决定记录 32 / 35 / 38）。加形态、改规矩都改那个函数，`verify:apps` 断言它。
 - **改解析器之后**：存量的书不会自动变，要在书面板里重新解析。`bun run verify` 是回归防线。
 - **CSS 的层级**：Tailwind 在 `@layer utilities` 里，手写 CSS（`styles/*.css`）是无层级的——
   所以手写规则能压过工具类。**别同时用两处给同一个元素定尺寸**（比如工具类给了 `h-4`，
@@ -85,6 +85,10 @@
   还被下排按钮压住——用户报的「下拉框层级出错」）。`OfficeFrame` 的 `AppMenu` 和
   `ui/Select` 都是这一套：位置由 JS 按触发器的 `getBoundingClientRect()` 算，
   滚动/改窗口时跟着走。
+- **弹性项目里的中文标签要把 `min-width: 0` 一起写上。** 客服工作台那一屏的档案里，
+  标签列量出来是 46px（`flex: 0 0 46px`），但浏览器渲染成 56——弹性项目的 `min-width`
+  默认是 `auto`（= min-content），「书籍身份」四个字就是 56，于是那一条被顶宽、右边的值
+  整列移位。截图量的值配 `flex-basis` 时，**顺手把 `min-width: 0` 写上**（配 `overflow: hidden`）。
 - **会压暗正文的那一层要自己挂 `mn-veil`**：`--mn-dim` 只写在 `.mn-office` / 外壳根上，
   真正变暗靠的是某一块带 `.mn-veil` 的元素。三件套的正文容器（`.mn-word__body` /
   `.mn-excel__body` / `.mn-ppt__body`）漏挂过一次，于是「摸鱼在正文部分不生效」。

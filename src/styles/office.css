@@ -900,6 +900,12 @@ html[data-chrome='page'] .mn-ribbon__panel {
   position: fixed;
   z-index: 150;
   min-width: 224px;
+  /* 限高 + 自己滚：客服工作台那个「皮肤」菜单列的是整个主题注册表（二十套），
+     不限高的话在矮窗口里会顶出屏幕，而 AppMenu 只会在上/下之间挑一边，不会缩。
+     矮到 60vh 都放不下时让它自己滚，比把最后几项丢掉诚实。 */
+  max-height: min(60vh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 4px 0;
   background: var(--mn-surface);
   border: 1px solid var(--mn-border-strong);

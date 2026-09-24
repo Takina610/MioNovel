@@ -28,6 +28,12 @@ interface ReaderViewProps {
   /** 书名与作者（幻灯片的副标题、聊天的发信人） */
   bookTitle?: string
   author?: string
+  /**
+   * 这本书真实的最近阅读时间（客服工作台那一屏要用：消息行上那行小字）。
+   * 只有「读者正读到」的那一条消息会写它，其余的时候不写时间——
+   * 一条消息一个编出来的时刻是最容易露馅的东西（见决定记录 27）。
+   */
+  readStamp?: number
   /** 进入本章要恢复到的章内比例（0-1） */
   entryRatio: number
   hasPrev: boolean
@@ -110,6 +116,7 @@ function ReaderViewImpl({
   label,
   bookTitle,
   author,
+  readStamp,
   entryRatio,
   hasPrev,
   hasNext,
@@ -145,9 +152,11 @@ function ReaderViewImpl({
    */
   const paged = settings.pageMode === 'paged' && (chrome === 'plain' || chrome === 'code')
   const code = chrome === 'code'
-  /** 块状形态：正文由 ChapterBody 渲染（表格 / 幻灯片 / 聊天） */
+  /** 块状形态：正文由 ChapterBody 渲染（表格 / 幻灯片 / 聊天 / 客服工作台） */
   const blockChrome =
-    chrome === 'chat' || chrome === 'sheet' || chrome === 'slide' ? chrome : null
+    chrome === 'chat' || chrome === 'sheet' || chrome === 'slide' || chrome === 'desk'
+      ? chrome
+      : null
   // 缩略图上「现在读到哪」的位置。滚动报告本来就限流到 100ms，跟着它一起更新，
   // 免得为了一个装饰性的框每秒重渲染十次仍不够快
   const [mapRatio, setMapRatio] = useState(() => clamp01(entryRatio))
@@ -805,9 +814,9 @@ function ReaderViewImpl({
     >
       <div ref={frameRef} className={cx('mn-frame', paged && 'mn-frame--paged')}>
         {blockChrome ? (
-          // 块状形态（表格 / 幻灯片 / 聊天）：正文不是一片字，而是一格一格的东西，
-          // 由 ChapterBody 渲染。滚动、进度、锚点跳转仍然走这一层——所以这三种形态
-          // 不用各自长出一套「怎么算读到哪了」。
+          // 块状形态（表格 / 幻灯片 / 聊天 / 客服工作台）：正文不是一片字，而是一格一格
+          // 的东西，由 ChapterBody 渲染。滚动、进度、锚点跳转仍然走这一层——所以这四种
+          // 形态不用各自长出一套「怎么算读到哪了」。
           <article ref={contentRef} className="mn-content mn-content--blocks">
             <ChapterBody
               chrome={blockChrome}
@@ -818,6 +827,7 @@ function ReaderViewImpl({
               author={author ?? ''}
               percent={mapRatio}
               fontSize={settings.fontSize}
+              readStamp={readStamp}
             />
           </article>
         ) : (

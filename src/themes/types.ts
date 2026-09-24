@@ -15,6 +15,7 @@ export type ThemeScheme = 'light' | 'dark'
  *   page   字处理（Word）：开始屏幕 + 页面视图 + 功能区 + 导航窗格
  *   sheet  表格（Excel）：开始屏幕 + 网格 + 编辑栏 + 工作表标签
  *   slide  演示文稿（PPT）：开始屏幕 + 节 + 幻灯片 + 备注
+ *   desk   客服工作台（1688 客户工作台）：会话列表 + 消息流 + 右边一块客户档案
  *
  * 名字说的是**形状**，不是品牌：组件只认这几个值，不认主题 id
  * （见 hooks/useTheme.ts 的 useChrome）。所以同一副 Office 外壳可以挂两套
@@ -24,7 +25,7 @@ export type ThemeScheme = 'light' | 'dark'
  * 「选中这套主题，整个应用就是那个样子」。分成两个开关的话，
  * 颜色和形态可以互相矛盾，那不是一种观感，只是两块设置。
  */
-export type ThemeChrome = 'plain' | 'code' | 'doc' | 'chat' | 'page' | 'sheet' | 'slide'
+export type ThemeChrome = 'plain' | 'code' | 'doc' | 'chat' | 'page' | 'sheet' | 'slide' | 'desk'
 
 /** 带外壳的形态（除了默认阅读器之外的全部）。组件按它分派到各自的外壳 */
 export type AppChrome = Exclude<ThemeChrome, 'plain'>
@@ -196,6 +197,47 @@ export interface SlideTokens {
 }
 
 /**
+ * 客服工作台形态（1688 客户工作台）多出来的几个值。
+ *
+ * 这几个是别的 token 表达不了的：
+ *
+ *   rail       最左边那条功能栏。**不跟界面明暗走**——1688 工作台那条是
+ *              品牌蓝 #3D7FFF（图标与文字都是白的），暗色主题下也要留着这个蓝，
+ *              它是这个产品的记号，不是一层次要底色。
+ *   railTile   选中那一格垫的方块（浅蓝 #83ADFF）：1688 把整格（图标 + 小字）
+ *              垫在一块圆角方块里，其余几格只有图标和小字
+ *   railFg     功能栏上的图标与文字色（白）
+ *   badge      功能栏上那个红角标（通知那一格，写的是还没读完的章数）
+ *   select     会话列表里当前那一行的底（1688 是整行浅灰蓝，不是浅蓝）
+ *   bubbleMe   右边那一侧的气泡。**收到的消息是白的**（和面板同色、靠边框分开），
+ *              只有「我发的」那一侧有底色——这点和企业微信相反（那边是收到的带底色）
+ *   unread     会话行上「[未读]」那个橙。1688 用它标还没回的消息，我们用它标
+ *              还没读完的会话
+ *   ok         右侧档案里「待收货」那类状态字的绿
+ *
+ * 其余全部复用主 token（会话列表底 = surface2、聊天区底 = bg、面板底 = surface、
+ * 正文气泡里的字 = fg、右侧面板的标签列 = fgMuted）。
+ */
+export interface DeskTokens {
+  /** 最左边那条功能栏的底 */
+  rail: string
+  /** 选中那一格垫的方块 */
+  railTile: string
+  /** 功能栏上的图标与文字色 */
+  railFg: string
+  /** 功能栏上的红角标 */
+  badge: string
+  /** 会话列表里当前那一行的底 */
+  select: string
+  /** 右边那一侧（我发的 / 原文对照）的气泡 */
+  bubbleMe: string
+  /** 「[未读]」那个橙 */
+  unread: string
+  /** 「待收货」那类状态字的绿 */
+  ok: string
+}
+
+/**
  * 主题 token。应用外壳（书架、工具栏、弹窗）和正文共用同一组变量：
  * 换主题是整个 app 一起变，不让正文和 UI 各说各话。
  *
@@ -252,6 +294,8 @@ export interface ReaderTheme {
   sheet?: SheetTokens
   /** chrome: 'slide' 的工作区、缩略图栏与版式占位框 */
   slide?: SlideTokens
+  /** chrome: 'desk' 的功能栏、会话选中行与右侧气泡 */
+  desk?: DeskTokens
   /**
    * 这套主题自带的排版参数。**只在用户主动选中它时**写进阅读设置，
    * 之后用户怎么改都归用户——它是一次预设，不是一层覆盖。
