@@ -27,18 +27,50 @@
   font-family: var(--mn-font-sans);
 }
 
-/* ---- 标题栏 ---- */
+/* ---- 标题栏 ----
+   高度按形态给：Word 那一屏是 40px（截图里那个搜索框就占 32px），
+   Excel / PPT 沿用 36px。同一个框，两个数写在 html[data-chrome] 上。 */
 
 .mn-office__title {
+  position: relative;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 36px;
+  height: var(--mn-office-title, 36px);
   padding: 0 10px 0 14px;
   background: var(--mn-surface);
   font-size: 12.5px;
   user-select: none;
+}
+
+/* 产品记号（Word 那个蓝方块）：这一屏最左边的第一件东西 */
+.mn-office__brand {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.mn-office__brand-icon {
+  width: 17px;
+  height: 17px;
+}
+
+/* 快速访问工具栏：保存、撤销、重做一字排开，紧挨着产品记号 */
+.mn-office__qat {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+/* 标题栏正中间那一格（Word 的搜索框）。绝对居中是照截图来的：
+   它不跟着左边那一串的长度挪 */
+.mn-office__title-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  transform: translate(-50%, -50%);
 }
 
 .mn-office__file {
@@ -107,12 +139,17 @@
   font-weight: 600;
 }
 
-/* ---- 功能区 ---- */
+/* ---- 功能区 ----
+   尺寸照 2026-09-24 那张 1920×1030 的 Word 截图量的：
+     页签行 33（页签左右各 9px 外边距，当前那一页底下 2px 强调色短线）
+     功能面板 102 = 上边距 10 + 两行 26 的格子 + 行间 4 + 组名那一行
+     组与组之间一条 1px 分隔线（borderStrong，比正文里的分隔线深一档）
+     格子里：图标 22px、字 12.5px；大格图标 40px、字在下面；分隔线 1px */
 
 .mn-ribbon {
   flex: 0 0 auto;
   background: var(--mn-surface);
-  border-bottom: 1px solid var(--mn-border);
+  border-bottom: 1px solid var(--mn-border-strong);
   user-select: none;
 }
 
@@ -120,7 +157,7 @@
   display: flex;
   align-items: stretch;
   gap: 0;
-  height: 30px;
+  height: var(--mn-office-tab, 30px);
   padding: 0 6px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -132,30 +169,29 @@
 
 .mn-ribbon__tab {
   position: relative;
-  padding: 0 11px;
-  color: var(--mn-fg-muted);
+  margin: 0 9px;
+  padding: 0 3px;
+  color: var(--mn-fg);
   font-size: 12.5px;
   white-space: nowrap;
   transition: color var(--mn-dur-1) var(--mn-ease);
 }
 
 .mn-ribbon__tab:hover:not(:disabled) {
-  color: var(--mn-fg);
+  color: var(--mn-accent);
 }
 
-/* 当前页签：文字用强调色，底下一条同色短线——Office 里就是这样 */
+/* 当前页签：字加粗，底下一条强调色短线（线的宽度就是这一页文字那么宽） */
 .mn-ribbon__tab.is-active {
-  color: var(--mn-accent);
   font-weight: 600;
 }
 
 .mn-ribbon__tab.is-active::after {
   content: '';
   position: absolute;
-  inset: auto 8px 0;
+  inset: auto 0 0;
   height: 2px;
   background: var(--mn-accent);
-  border-radius: 1px;
 }
 
 .mn-ribbon__tab--file {
@@ -164,50 +200,294 @@
 }
 
 .mn-ribbon__tab:disabled {
-  opacity: 0.4;
+  color: var(--mn-fg-muted);
   cursor: default;
 }
 
+/* 页签行右端那一组（Word 的批注 / 编辑 / 共享）：贴右，自己一格 */
+.mn-ribbon__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-left: 16px;
+}
+
 .mn-ribbon__panel {
+  position: relative;
   display: flex;
   align-items: stretch;
   gap: 0;
-  height: 92px;
-  padding: 4px 6px 0;
+  height: 102px;
+  padding: 10px 8px 0;
   overflow-x: auto;
   scrollbar-width: thin;
 }
 
-/* 一个命令组：中间是按钮，底下一行小字写组名（Office 的分组就是这么标） */
-.mn-ribbon__group {
-  display: flex;
-  flex-direction: column;
-  padding: 0 8px;
-  border-right: 1px solid var(--mn-border);
+/* Word 那一屏里标题栏、页签行和桌面是**连成一片**的（截图量出来是同一个 #E5EBEF），
+   只有功能区的面板是白的、上面一条浅灰线把它和页签行分开。
+   Excel / PPT 的标题栏仍然用 surface（Fluent 的 Office 里那一条本来就更白）。 */
+html[data-chrome='page'] .mn-office__title,
+html[data-chrome='page'] .mn-ribbon {
+  background: var(--mn-bg);
 }
 
-.mn-ribbon__group:last-child {
+html[data-chrome='page'] .mn-ribbon__panel {
+  background: var(--mn-surface);
+  border-top: 1px solid var(--mn-border);
+}
+
+/* 一个命令组：上面是格子，底下一行小字写组名（Office 的分组就是这么标） */
+.mn-ribbon__group {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0 10px;
+  border-right: 1px solid var(--mn-border-strong);
+}
+
+.mn-ribbon__group:last-of-type {
   border-right: 0;
 }
 
 .mn-ribbon__group-body {
   display: flex;
   flex: 1;
-  align-items: stretch;
+  align-items: center;
+  min-height: 0;
+}
+
+/* 一行行摆：行与行之间不对齐，这是照 Word 来的（见 OfficeFrame 的 RibbonItem） */
+.mn-ribbon__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.mn-ribbon__row {
+  display: flex;
+  align-items: center;
   gap: 2px;
-  align-content: flex-start;
-  flex-wrap: wrap;
-  max-height: 68px;
 }
 
 .mn-ribbon__group-label {
   flex: 0 0 auto;
-  padding: 2px 0 4px;
-  color: var(--mn-fg-faint);
-  font-size: 10.5px;
+  padding: 2px 0 5px;
+  color: var(--mn-fg);
+  font-size: 11px;
   text-align: center;
 }
 
+/* 对话框启动器：组右下角那个小记号（真 Office 里点开是这个组的对话框） */
+.mn-ribbon__launcher {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  color: var(--mn-fg-muted);
+}
+
+/* 收起功能区：面板右下角那个小三角。点一下只剩页签那一行 */
+.mn-ribbon__collapse {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 22px;
+  margin-left: auto;
+  color: var(--mn-fg-muted);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-ribbon__collapse:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-ribbon__collapse--folded {
+  align-self: center;
+  margin: 0 4px 0 auto;
+}
+
+/* ---- 功能区里的一格 ---- */
+
+.mn-rb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 26px;
+  padding: 0 3px;
+  border-radius: 3px;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  white-space: nowrap;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-rb:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+}
+
+.mn-rb.is-active {
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+}
+
+.mn-rb:disabled {
+  color: var(--mn-fg-faint);
+  cursor: default;
+}
+
+.mn-rb__icon {
+  display: grid;
+  place-items: center;
+}
+
+.mn-rb__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.mn-rb__icon--big svg {
+  width: 38px;
+  height: 38px;
+}
+
+.mn-rb__glyph {
+  padding: 0 1px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.mn-rb__label {
+  padding-right: 2px;
+}
+
+.mn-rb__caret {
+  display: grid;
+  place-items: center;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.mn-rb__caret svg {
+  width: 9px;
+  height: 9px;
+}
+
+/* 只有图标的一格 */
+.mn-rb--icon {
+  position: relative;
+  min-width: 26px;
+}
+
+/* 只有图标的那种格子，小三角挂在左下角——真 Word 也是把三角压在图标角上的，
+   这样一格就是 26px 宽（把三角单独排一列的话每格要多占 11px，整条功能区会溢出） */
+.mn-rb--icon > .mn-rb__caret {
+  position: absolute;
+  right: -2px;
+  bottom: -1px;
+}
+
+/* 图标在左、字在右的一格（剪切 / 复制 / 格式刷 / 查找那一类） */
+.mn-rb--small {
+  justify-content: flex-start;
+  min-width: 50px;
+  padding-left: 2px;
+}
+
+/* 图标在上、字在下、宽度跟着字走的一格（Word 视图页签那一排：
+   单独的页面 / 阅读视图 / 沉浸式阅读器 / 标尺 / 导航 / 悬停……）。
+   盒子 66 高、图标 26、字 11.5px——和截图里量到的一致（一格 ≈ 46-70 宽，看字多长） */
+.mn-rb--stack,
+.mn-rb__static {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 40px;
+  height: 66px;
+  padding: 3px 6px 0;
+}
+
+.mn-rb--stack .mn-rb__icon svg,
+.mn-rb__static .mn-rb__icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.mn-rb--stack .mn-rb__label,
+.mn-rb__static .mn-rb__label {
+  padding: 0;
+  font-size: 11.5px;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* 只有样子、不能按的那一格（缩放组里那个「缩放:」）：块级元素，不是按钮 */
+.mn-rb__static {
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  cursor: default;
+}
+
+/* 图标在上、字在下的一格（粘贴 / AI 助手 / 论文查重那一类） */
+.mn-rb--big {
+  flex-direction: column;
+  gap: 1px;
+  width: 52px;
+  height: 66px;
+  padding: 1px 2px 0;
+}
+
+.mn-rb--big .mn-rb__label {
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+}
+
+/* 只有字形的一格（B / I / U / Aa / x₂ 这些在真 Office 里本来就是字） */
+.mn-rb--text {
+  min-width: 22px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 组分隔线：一格 1px 的竖线，靠外边距和两边隔开 */
+.mn-rb--rule {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: var(--mn-border-strong);
+}
+
+/* 竖着码的一摞（剪贴板右边那三个、编辑组那三个） */
+.mn-rb--column {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+/* 整格交给调用方的那种（字体框、字号框、样式库、行距那个下拉） */
+.mn-rb--node {
+  padding: 0;
+}
+
+/* 老式的一行式按钮（Excel / PPT 还在用） */
 .mn-ribbon__btn {
   display: grid;
   place-items: center;
@@ -381,6 +661,12 @@
   color: inherit;
 }
 
+/* 状态栏右侧那一串按钮上的图标。盒子 22（墨迹 ≈16px），和截图里那三个视图按钮一个大小 */
+.mn-office__status-icon {
+  width: 22px;
+  height: 22px;
+}
+
 .mn-office__status-btn {
   display: inline-flex;
   align-items: center;
@@ -403,12 +689,32 @@
   opacity: 0.45;
 }
 
-/* 缩放：Word / Excel / PPT 的状态栏右下角都是它，靠右对齐、结尾是百分比 */
+/* 缩放：Word / Excel / PPT 的状态栏右下角都是它，靠右对齐、结尾是百分比。
+   两头那两个 − ＋ 是真能点的（各走一档字号），和真 Office 一样 */
 .mn-office__zoom {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   padding-left: 4px;
+}
+
+.mn-office__zoom-step {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--mn-fg-muted);
+  font-size: 12px;
+  line-height: 1;
+  transition: color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-office__zoom-step:hover:not(:disabled) {
+  color: var(--mn-fg);
+}
+
+.mn-office__zoom-step:disabled {
+  opacity: 0.4;
 }
 
 .mn-office__zoom-range {
@@ -659,7 +965,9 @@
    几件共用的零件
    ========================================================================== */
 
-/* 「⋯」菜单（飞书和企业微信的顶栏用它）：一个普通的下拉，不是 VS Code 那种深色 popup */
+/* 「⋯」菜单（飞书和企业微信的顶栏用它）：一个普通的下拉，不是 VS Code 那种深色 popup。
+   菜单本体挂在 body 上（见 OfficeFrame 的 AppMenu）：功能区的面板与侧栏都是 overflow
+   容器，绝对定位的下拉会被裁掉——位置由 JS 按触发器的位置算成 fixed 坐标。 */
 .mn-appmenu-wrap {
   position: relative;
 }
@@ -701,10 +1009,9 @@
 }
 
 .mn-appmenu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 60;
+  /* fixed：位置由 AppMenu 按触发器的位置算出来（left + top 或 left + bottom） */
+  position: fixed;
+  z-index: 150;
   min-width: 224px;
   padding: 4px 0;
   background: var(--mn-surface);
@@ -864,10 +1171,26 @@
    这正是 data-chrome 该派上用场的地方：形态的能力，不是某个组件的属性。 */
 
 html[data-chrome='page'] {
-  /* 页面左右留白占纸宽的百分比。标尺上那两个边距标记也用它，
-     所以「标记对齐正文边」是算出来的，不是对出来的 */
-  --mn-word-margin: 11.3%;
+  /* 纸面上正文的留白。量出来的：纸上正文从 119px 处开始（Word 的中文默认
+     页边距左右 3.17cm @96dpi），上下 96px（2.54cm）。两个都是**长度**不是百分比：
+     百分比 padding 是按包含块（桌面那一层）算的，不是按纸宽算——纸上量出来的
+     会大两倍多。标尺上那两个边距标记也取这两个数（标尺和纸同宽）。
+     窄屏在下面的媒体查询里收窄。 */
+  --mn-word-margin: 119px;
+  --mn-word-pad: 96px;
   --mn-word-page: 794px; /* 21cm @96dpi，A4 的宽度 */
+  --mn-word-page-height: 1123px; /* 29.7cm @96dpi，A4 的高度 */
+  /* 标题栏 40 / 页签行 33：也是截图量的（搜索框就占 32px 高） */
+  --mn-office-title: 40px;
+  --mn-office-tab: 33px;
+  /* 导航窗格 296：截图量的（比 PPT 那栏的 236 宽一档——Word 这一栏里要放下
+     三页页签、一个搜索框和一份目录） */
+  --mn-word-side: 296px;
+}
+
+html[data-chrome='page'] .mn-office__side {
+  flex: 0 0 var(--mn-word-side);
+  width: var(--mn-word-side);
 }
 
 html[data-chrome='slide'] {
@@ -904,5 +1227,20 @@ html[data-chrome='slide'] ::-webkit-scrollbar-thumb {
     flex-basis: auto;
     border-right: 1px solid var(--mn-border-strong);
     box-shadow: var(--mn-shadow-panel);
+  }
+}
+
+/* 窄屏：纸上的留白按屏宽收（119px 在 390px 的屏上等于没有正文了） */
+@media (max-width: 900px) {
+  html[data-chrome='page'] {
+    --mn-word-margin: 48px;
+    --mn-word-pad: 48px;
+  }
+}
+
+@media (max-width: 767px) {
+  html[data-chrome='page'] {
+    --mn-word-margin: 20px;
+    --mn-word-pad: 32px;
   }
 }

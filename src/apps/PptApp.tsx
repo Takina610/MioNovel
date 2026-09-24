@@ -340,7 +340,8 @@ export function PptApp(props: AppFrameProps) {
       onToggleDim={props.onToggleDim}
     >
       {/* 幻灯片由 ReaderView 贴着排（它管着滚动与进度），外壳只画框 */}
-      <div className="mn-ppt__body">{props.children}</div>
+      {/* mn-veil：摸鱼模式的黑纱盖在幻灯片区上（左侧缩略图栏不动） */}
+      <div className="mn-ppt__body mn-veil">{props.children}</div>
     </OfficeFrame>
   )
 }

@@ -255,3 +255,148 @@ export function pinnedBook(books: BookRecord[]): BookRecord | undefined {
     undefined,
   )
 }
+
+/* ==========================================================================
+   Word 形态那一排页签与样式库
+   --------------------------------------------------------------------------
+   2026-09-24 按截图一比一复刻 Word 外壳时从组件里搬出来的两份数据。
+   放在这儿是因为它们是**纯数据**：页签的顺序、哪几页是真的、样式库里
+   当前是哪一个——这三件事对着屏幕扫一眼都未必看得出来（少一页、
+   某一页悄悄变成能点的、当前样式指错了），但它们是「这个外壳诚不诚实」
+   的全部依据，所以 verify:apps 逐条断言。
+
+   注意「文件」页签不在这张表里：它由 OfficeFrame 单独画，点了就是回开始屏幕，
+   不是一条可以并进 tablist 的普通页签。
+   ========================================================================== */
+
+export interface WordTab {
+  id: string
+  label: string
+  /** 这个外壳里没有这一页：灰着，title 里说明为什么 */
+  disabled?: boolean
+}
+
+/** Word 的页签（顺序照截图：开始之后插的是 OfficePLUS，最后是 PDF工具箱） */
+export const WORD_TABS: ReadonlyArray<WordTab> = [
+  { id: 'home', label: '开始' },
+  { id: 'officeplus', label: 'OfficePLUS', disabled: true },
+  { id: 'insert', label: '插入', disabled: true },
+  { id: 'design', label: '设计', disabled: true },
+  { id: 'layout', label: '布局', disabled: true },
+  { id: 'refs', label: '引用', disabled: true },
+  { id: 'mail', label: '邮件', disabled: true },
+  { id: 'review', label: '审阅', disabled: true },
+  { id: 'view', label: '视图' },
+  { id: 'pdf', label: 'PDF工具箱', disabled: true },
+  { id: 'help', label: '帮助', disabled: true },
+]
+
+export interface WordStyle {
+  id: string
+  label: string
+  /** 标题样式（在样式库里字号更大、颜色跟着主题的强调色走） */
+  heading?: boolean
+  /** 当前这一章用的就是它 */
+  current?: boolean
+}
+
+/**
+ * 样式库里的那几个。
+ *
+ * 正文是当前这一个（我们读的是小说正文，没有别的段落样式），
+ * 其余是只读文档里本来就该灰着的：这一层改不了书里的样式。
+ */
+export const WORD_STYLES: ReadonlyArray<WordStyle> = [
+  { id: 'body', label: '正文', current: true },
+  { id: 'tight', label: '无间隔' },
+  { id: 'h1', label: '标题 1', heading: true },
+  { id: 'h2', label: '标题 2', heading: true },
+  { id: 'h3', label: '标题 3', heading: true },
+]
+
+/* ==========================================================================
+   Word 开始屏幕（书架）与视图页签
+   --------------------------------------------------------------------------
+   2026-09-24 按截图复刻 Word 开始屏幕时从组件里搬出来的数据与判断。
+   放在这里是因为它们是**纯数据 / 纯函数**：搜到了哪几本、按什么排、
+   哪一栏是空的——对着屏幕扫一眼看不出「少了一本」或「排错了」，
+   所以 verify:apps 逐条断言（和飞书首页的 homeRows 同一路数）。
+   ========================================================================== */
+
+export type WordHomeTab = 'recent' | 'starred' | 'shared'
+
+export interface WordHomeTabSpec {
+  id: WordHomeTab
+  label: string
+  /** 这一栏空着时的说法。没有内容就老实说，不把同一批书换个标题再列一遍 */
+  empty: string
+}
+
+export const WORD_HOME_TABS: ReadonlyArray<WordHomeTabSpec> = [
+  { id: 'recent', label: '最近', empty: '还没有文件' },
+  { id: 'starred', label: '收藏夹', empty: '还没有收藏的文档' },
+  { id: 'shared', label: '与我共享', empty: '本地文件没有共享这回事' },
+]
+
+/**
+ * Word 开始屏幕上那份列表：栏 + 搜索词 → 要显示的书。
+ *
+ * 「最近」按最近读的排（没读过就按导入时间）；「收藏夹」「与我共享」两栏
+ * **老实空着**——本地文件没有收藏也没有共享，把同一批书换个标题再列一遍是骗人。
+ */
+export function wordHomeRows(
+  books: BookRecord[],
+  options: { tab: WordHomeTab; query?: string },
+): BookRecord[] {
+  if (options.tab !== 'recent') return []
+  const needle = (options.query ?? '').trim().toLowerCase()
+  const matched = needle
+    ? books.filter(
+        (book) =>
+          book.title.toLowerCase().includes(needle) ||
+          book.author.toLowerCase().includes(needle) ||
+          book.fileName.toLowerCase().includes(needle),
+      )
+    : books
+  return [...matched].sort(
+    (a, b) =>
+      (b.lastReadAt || b.addedAt) - (a.lastReadAt || a.addedAt) ||
+      a.title.localeCompare(b.title, 'zh'),
+  )
+}
+
+/**
+ * 「已修改日期」那一列怎么写。照 Word 的样子：今天 / 昨天 / M月D日 / YYYY/M/D。
+ *
+ * 注意这一列写的是**这本书在我们这儿最近一次被动过的时间**（读过就写读完那次），
+ * 不是磁盘上那个文件的修改时间——浏览器拿不到它（见 AGENTS.md「不编造数据」）。
+ * now 参数是给断言留的。
+ */
+export function wordDateText(ts: number, now = Date.now()): string {
+  const date = new Date(ts)
+  const today = new Date(now)
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  if (sameDay(date, today)) return '今天'
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (sameDay(date, yesterday)) return '昨天'
+  if (date.getFullYear() === today.getFullYear()) return `${date.getMonth() + 1}月${date.getDate()}日`
+  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`
+}
+
+export type WordNavTab = 'headings' | 'search' | 'replace'
+
+/** Word 的导航窗格那三页（标题 / 查找 / 替换）。替换是灰的：只读文档改不了字 */
+export interface WordNavTabSpec {
+  id: WordNavTab
+  label: string
+  disabled?: boolean
+  why?: string
+}
+
+export const WORD_NAV_TABS: ReadonlyArray<WordNavTabSpec> = [
+  { id: 'headings', label: '标题' },
+  { id: 'search', label: '查找' },
+  { id: 'replace', label: '替换', disabled: true, why: '替换（只读文档改不了字）' },
+]

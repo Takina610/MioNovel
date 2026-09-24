@@ -27,14 +27,15 @@ globals.Element = testWindow.Element
 globals.HTMLElement = testWindow.HTMLElement
 globals.NodeFilter = testWindow.NodeFilter
 
-const { chapterBlocks, looksLikeDialogue, prepareBody, mediaLinesHtml } = await import('../src/lib/blocks.ts')
+const { chapterBlocks, looksLikeDialogue, prepareBody, mediaLinesHtml, mediaModeFor } = await import('../src/lib/blocks.ts')
 const { chapterMessages, avatarInitial, chatSender, messageSender, CHAT_ME, CHAT_RAIL, sessionTag, sessionUnread } = await import('../src/lib/chat.ts')
 const { chapterRows, activeRowOf, rowsTotal } = await import('../src/lib/sheet.ts')
 const { chapterSlides } = await import('../src/lib/slide.ts')
 const { chapterFileName } = await import('../src/lib/code.ts')
-const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeText, homeRows, pinnedBook, docOwnerOf, DOC_TABS, DOC_FILTERS } = await import('../src/lib/appdocs.ts')
+const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeText, homeRows, pinnedBook, docOwnerOf, DOC_TABS, DOC_FILTERS, WORD_TABS, WORD_STYLES, WORD_HOME_TABS, WORD_NAV_TABS, wordHomeRows, wordDateText } = await import('../src/lib/appdocs.ts')
+const { markFinds, clearFinds, countFinds, FIND_MARK } = await import('../src/lib/find.ts')
 const { getTheme, listThemes, buildThemeSheet, chromeOf } = await import('../src/themes/apply.ts')
-const { CODE_TOKEN_VARS, CHAT_TOKEN_VARS, TOKEN_VARS } = await import('../src/themes/vars.ts')
+const { CODE_TOKEN_VARS, CHAT_TOKEN_VARS, PAGE_TOKEN_VARS, TOKEN_VARS } = await import('../src/themes/vars.ts')
 
 let failures = 0
 let checks = 0
@@ -72,6 +73,7 @@ console.log('\n主题注册表')
 
   const tokenKeys = Object.keys(TOKEN_VARS)
   const codeKeys = Object.keys(CODE_TOKEN_VARS)
+  const pageKeys = Object.keys(PAGE_TOKEN_VARS)
   const chatKeys = Object.keys(CHAT_TOKEN_VARS)
 
   let missingTokens = 0
@@ -96,6 +98,12 @@ console.log('\n主题注册表')
         if (!theme.chat[key as keyof typeof theme.chat]) badChromeTokens++
       }
     }
+    if (theme.chrome === 'page' && !theme.page) badChromeTokens++
+    if (theme.page) {
+      for (const key of pageKeys) {
+        if (!theme.page[key as keyof typeof theme.page]) badChromeTokens++
+      }
+    }
     if (theme.preset) {
       const { fontSize, lineHeight, contentWidth, indent, paragraphGap } = theme.preset
       if (fontSize !== undefined && (fontSize < 10 || fontSize > 40)) badPreset++
@@ -107,7 +115,7 @@ console.log('\n主题注册表')
   }
   check('每套主题的 18 个主 token 一个不缺', missingTokens === 0, `缺 ${missingTokens} 个`)
   check('没有空值 token', emptyTokens === 0, `空 ${emptyTokens} 个`)
-  check('声明了 code / chat 的主题把那一层的 token 也补全了', badChromeTokens === 0, `缺 ${badChromeTokens} 个`)
+  check('声明了 code / chat / page 的主题把那一层的 token 也补全了', badChromeTokens === 0, `缺 ${badChromeTokens} 个`)
   check('每套主题自带的排版参数都在合理范围内', badPreset === 0, `越界 ${badPreset} 个`)
 
   const sheet = buildThemeSheet()
@@ -454,6 +462,194 @@ console.log('\n云文档首页（飞书）')
   check('一本书都没有时不摆置顶行', pinnedBook([]) === undefined)
   check('所有者：没有作者就写「我」', docOwnerOf(book({ author: '' })) === '我' && docOwnerOf(book({ author: '张三' })) === '张三')
   check('四个页签、四档筛选都写的是中文标签', DOC_TABS.length === 4 && DOC_FILTERS.length === 4 && DOC_TABS.every((t) => !!t.label))
+}
+
+/* ==========================================================================
+   七、Word 外壳：页签、样式库、章内查找
+   ========================================================================== */
+
+console.log('\nWord 外壳')
+{
+  // 页签这一排：顺序照截图（开始之后插的是 OfficePLUS，最后是 PDF工具箱），
+  // 「文件」不在表里——它是回开始屏幕那个按钮，由 OfficeFrame 单独画
+  check(
+    '页签顺序照截图',
+    WORD_TABS.map((tab) => tab.label).join(' ') ===
+      '开始 OfficePLUS 插入 设计 布局 引用 邮件 审阅 视图 PDF工具箱 帮助',
+    WORD_TABS.map((tab) => tab.label).join(' '),
+  )
+  check('真的只有「开始」和「视图」两页', WORD_TABS.filter((tab) => !tab.disabled).map((tab) => tab.id).join(',') === 'home,view')
+  check(
+    '其余页签全灰着，而且都有自己的名字（灰按钮要说得出为什么）',
+    WORD_TABS.filter((tab) => tab.disabled).length === 9 &&
+      WORD_TABS.every((tab) => (tab.disabled ? !!tab.label : !!tab.label)),
+  )
+
+  // 样式库：当前那一个只能有一个，不然「这一段用的是哪个样式」就说不清了
+  check('样式库里有「正文」', WORD_STYLES.some((style) => style.id === 'body'))
+  check('当前样式恰好一个', WORD_STYLES.filter((style) => style.current).length === 1)
+  check(
+    '当前那一个是正文（我们读的是小说正文，不是标题样式）',
+    WORD_STYLES.find((style) => style.current)?.id === 'body',
+  )
+  check(
+    '标题样式的字更大（样式库照 Word 把标题画大一号）',
+    WORD_STYLES.filter((style) => style.heading).length > 0 &&
+      WORD_STYLES.filter((style) => style.heading).every((style) => !style.current),
+  )
+}
+
+console.log('\n章内查找')
+{
+  /** 一份小正文：两个自然段 + 一个注音 + 章末那对翻章按钮 */
+  const html =
+    '<p>雪国では、夜の底が白くなった。</p>' +
+    '<p>「雪」という字が三度出てくる。雪、雪。</p>' +
+    '<p>つづりは snow と書く。Snow も同じ。</p>' +
+    '<p><ruby>雪<rt>ゆき</rt></ruby>の朝</p>' +
+    '<nav class="mn-chapter-nav"><button data-mn-nav="next">下一章</button></nav>'
+  const root = document.createElement('div')
+  root.innerHTML = html
+  const plain = root.textContent ?? ''
+
+  check('数得出命中几处（含注音那个「雪」，一共 5 处）', countFinds(root, '雪') === 5, String(countFinds(root, '雪')))
+  check('英文忽略大小写', countFinds(root, 'SNOW') === 2, String(countFinds(root, 'SNOW')))
+  check('不搜我们自己拼进去的翻章按钮', countFinds(root, '下一章') === 0)
+  check('不搜注音（rt 里的字不是书里的正文）', countFinds(root, 'ゆき') === 0)
+  check('查不到就是 0（不是抛错）', countFinds(root, '不存在的词') === 0)
+  check('空查询不数', countFinds(root, '   ') === 0)
+
+  const marks = markFinds(root, '雪')
+  check('标出来的和数出来的一样多', marks.length === 5, String(marks.length))
+  check('每一处标的就是查的那个词', marks.every((mark) => mark.textContent === '雪'))
+  check('标记顺序按正文出现顺序', marks[0].textContent === '雪' && marks[4].textContent === '雪')
+  check('标记落在正文里（第一篇就是第一个）', root.querySelectorAll(`mark.${FIND_MARK}`).length === 5)
+  check('原文一个字都没变', (root.textContent ?? '') === plain)
+
+  const again = markFinds(root, '雪')
+  check('再查一次不会套娃（不会出现标记套标记）', again.length === 5 && root.querySelectorAll('mark mark').length === 0)
+  check('再查一次原文也还是没变', (root.textContent ?? '') === plain)
+
+  check('清干净之后正文里没有 mark 了', clearFinds(root) === 5 && root.querySelectorAll('mark').length === 0)
+  check('清完原文仍然一个字不差', (root.textContent ?? '') === plain)
+
+  const none = markFinds(root, '不存在的词')
+  check('查不到时不留标记', none.length === 0 && root.querySelectorAll('mark').length === 0)
+
+  markFinds(root, '雪')
+  markFinds(root, '')
+  check('把搜索框清空等于清掉标记', root.querySelectorAll('mark').length === 0)
+}
+
+/* ==========================================================================
+   七、Word 开始屏幕与视图页签（2026-09-24 按截图复刻的那一屏）
+   ========================================================================== */
+
+console.log('\nWord 开始屏幕')
+{
+  check(
+    '三栏的顺序与名字照截图',
+    WORD_HOME_TABS.map((tab) => tab.label).join(' ') === '最近 收藏夹 与我共享',
+    WORD_HOME_TABS.map((tab) => tab.label).join(' '),
+  )
+  check(
+    '每一栏空着时都说得出为什么（收藏夹 / 与我共享不摆假内容）',
+    WORD_HOME_TABS.every((tab) => !!tab.empty),
+  )
+  check(
+    '「收藏夹」「与我共享」老实空着（本地文件没有收藏与共享）',
+    wordHomeRows([{ id: 'a' } as never], { tab: 'starred' }).length === 0 &&
+      wordHomeRows([{ id: 'a' } as never], { tab: 'shared' }).length === 0,
+  )
+
+  /** 四本假书：时间刻意错开，排序一算就知道对不对 */
+  const DAY = 86_400_000
+  const now = new Date(2026, 8, 24, 15, 0, 0).getTime()
+  const book = (over: Partial<BookRecord>): BookRecord => ({
+    id: 'b',
+    state: 'ready',
+    title: '未命名',
+    author: '',
+    format: 'txt',
+    addedAt: now,
+    lastReadAt: now,
+    totalChars: 1000,
+    chapterCount: 4,
+    charOffsets: [],
+    groups: [],
+    progress: null,
+    fileName: 'x.txt',
+    fileSize: 1,
+    signature: 's',
+    ...over,
+  })
+  const older = book({ id: 'old', title: '老书', addedAt: now - 10 * DAY, lastReadAt: now - 5 * DAY })
+  const newer = book({ id: 'new', title: '新书', addedAt: now - DAY, lastReadAt: now - DAY })
+  const reading = book({ id: 'reading', title: '在读的书', addedAt: now - 2 * DAY, lastReadAt: now - 1000 })
+  const shelf = [older, newer, reading]
+
+  check(
+    '「最近」按最近读的排（倒序）',
+    wordHomeRows(shelf, { tab: 'recent' }).map((item) => item.id).join(',') === 'reading,new,old',
+    wordHomeRows(shelf, { tab: 'recent' }).map((item) => item.id).join(','),
+  )
+  check(
+    '没读过的按导入时间算（lastReadAt 是 0 的时候不能全挤在最前面）',
+    wordHomeRows([book({ id: 'never', lastReadAt: 0, addedAt: now })], { tab: 'recent' })[0].id === 'never',
+  )
+  check(
+    '搜索按书名、作者、文件名三样匹配',
+    wordHomeRows(shelf, { tab: 'recent', query: '在读' })[0].id === 'reading' &&
+      wordHomeRows(shelf, { tab: 'recent', query: 'x.txt' }).length === 3 &&
+      wordHomeRows(shelf, { tab: 'recent', query: '不存在的书' }).length === 0,
+  )
+  check(
+    '搜到的东西仍然按最近读的排（搜索不打乱顺序）',
+    wordHomeRows(shelf, { tab: 'recent', query: '书' }).map((item) => item.id).join(',') === 'reading,new,old',
+  )
+  check(
+    '时间一样时按书名兜底（顺序稳定）',
+    wordHomeRows(
+      [book({ id: 'a', title: '乙' }), book({ id: 'b', title: '甲' })],
+      { tab: 'recent' },
+    )[0].title === '甲',
+  )
+
+  check('今天写「今天」', wordDateText(new Date(2026, 8, 24, 9, 9).getTime(), now) === '今天')
+  check('昨天写「昨天」', wordDateText(new Date(2026, 8, 23, 21, 40).getTime(), now) === '昨天')
+  check('今年写「M月D日」', wordDateText(new Date(2026, 3, 15).getTime(), now) === '4月15日')
+  check('跨年写「YYYY/M/D」', wordDateText(new Date(2025, 11, 31).getTime(), now) === '2025/12/31')
+  check('跨月的昨天也算昨天（不是「上个月的最后一天」）', wordDateText(new Date(2026, 7, 31, 23, 0).getTime(), new Date(2026, 8, 1, 9, 0).getTime()) === '昨天')
+
+  check(
+    '导航窗格三页是标题 / 查找 / 替换',
+    WORD_NAV_TABS.map((tab) => tab.label).join(' ') === '标题 查找 替换',
+  )
+  check(
+    '替换是灰的，而且说清了为什么（只读文档改不了字）',
+    WORD_NAV_TABS.filter((tab) => tab.disabled).length === 1 &&
+      WORD_NAV_TABS.find((tab) => tab.disabled)?.id === 'replace' &&
+      !!WORD_NAV_TABS.find((tab) => tab.disabled)?.why,
+  )
+}
+
+console.log('\n放真图的形态')
+{
+  // 「哪一屏显示小说插图」只在一处定义（lib/blocks.ts 的 mediaModeFor）。
+  // 这条规矩踩过两次：先是企业微信、后是 Word 还在放图，而改动只落到一个调用点。
+  // 所以直接断言那张表：**放真图的只有普通阅读器与幻灯片**，
+  // 编辑器（它自己那套占位）、文档、聊天、表格、页面一律写引用行。
+  const shells = ['plain', 'code', 'doc', 'chat', 'page', 'sheet', 'slide'] as const
+  const keeping = shells.filter((shell) => mediaModeFor(shell) === 'keep')
+  check(
+    '只有普通阅读器与幻灯片放真图，其余形态一律写 ![](./路径)',
+    keeping.length === 2 && keeping.join(',') === 'plain,slide',
+    keeping.join(','),
+  )
+  check(
+    'Word（page）与飞书（doc）都不放图（这两个形态分别被报过一次）',
+    mediaModeFor('page') === 'reference' && mediaModeFor('doc') === 'reference',
+  )
 }
 
 /* ==========================================================================

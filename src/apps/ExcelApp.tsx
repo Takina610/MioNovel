@@ -366,7 +366,8 @@ export function ExcelApp(props: AppFrameProps) {
           「冻结首行」落成这里的一个 data 属性：表头贴着顶端还是跟着滚由 CSS 决定
           （见 apps.css 里 .mn-excel__body[data-frozen] 那条）。两块共用同一份
           chapterBlocks / chapterRows 结果——纯函数，算两遍结果也一样 */}
-      <div className="mn-excel__body" data-frozen={frozen ? 'true' : 'false'}>
+      {/* mn-veil：摸鱼模式的黑纱盖在网格上（表头与标签行不动） */}
+      <div className="mn-excel__body mn-veil" data-frozen={frozen ? 'true' : 'false'}>
         {props.children}
       </div>
     </OfficeFrame>

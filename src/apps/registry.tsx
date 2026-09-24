@@ -11,6 +11,7 @@ import { DocHome } from './DocHome'
 import { ExcelApp } from './ExcelApp'
 import { PptApp } from './PptApp'
 import { WordApp } from './WordApp'
+import { WordHome } from './WordHome'
 import { ShelfShell, type ShelfProps } from './ShelfShell'
 import type { AppFrameProps, AppShellChrome } from './types'
 
@@ -139,7 +140,10 @@ export function AppShelf({
           case 'chat':
             return <ChatHome {...props} />
           case 'page':
-            return <OfficeHome chrome="page" {...props} />
+            // Word 那一屏的开始屏幕是单独的组件：左边一条导航栏、新建三张卡、
+            // 页签行与一份两列列表（见 WordHome.tsx）。Excel / PPT 仍用共用的
+            // OfficeStart——它们那一屏的结构确实不一样
+            return <WordHome {...props} />
           case 'sheet':
             return <OfficeHome chrome="sheet" {...props} />
           case 'slide':
@@ -152,22 +156,21 @@ export function AppShelf({
   )
 }
 
-const BLANK_ICONS: Record<'page' | 'sheet' | 'slide', ReturnType<typeof IconDoc>> = {
-  page: <IconDoc className="h-8 w-8" />,
+// 只有 Excel / PPT 还用这张共用的开始屏幕（Word 有自己的一屏，见 WordHome.tsx）
+const BLANK_ICONS: Record<'sheet' | 'slide', ReturnType<typeof IconDoc>> = {
   sheet: <IconBookBlank className="h-8 w-8" />,
   slide: <IconSlide className="h-8 w-8" />,
 }
 
-const BLANK_LABELS: Record<'page' | 'sheet' | 'slide', string> = {
-  page: '空白文档',
+const BLANK_LABELS: Record<'sheet' | 'slide', string> = {
   sheet: '空白工作簿',
   slide: '空白演示文稿',
 }
 
 /**
- * Office 三件套的开始屏幕（书架）。
+ * Excel / PowerPoint 的开始屏幕（书架）。
  *
- * 真 Office 打开时就是这一屏：左边「新建」（空白文档/工作簿/演示文稿），
+ * 真 Office 打开时就是这一屏：左边「新建」（空白工作簿/演示文稿），
  * 右边「最近」列表。用同一个组件 + 主题里的强调色，所以 Word 是蓝的、
  * Excel 是绿的、PowerPoint 是橙的——品牌色全部来自主题，组件里一个色号都没有。
  *
@@ -185,7 +188,7 @@ function OfficeHome({
   dim,
   dimOn,
   onToggleDim,
-}: { chrome: 'page' | 'sheet' | 'slide' } & ShelfProps) {
+}: { chrome: 'sheet' | 'slide' } & ShelfProps) {
   const list = (books ?? []).map((book) => ({
     id: book.id,
     title: fileNameFor(chrome, book.title),

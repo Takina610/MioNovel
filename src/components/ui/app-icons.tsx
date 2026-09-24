@@ -987,3 +987,550 @@ export function IconContactCard(props: IconProps) {
     </Svg>
   )
 }
+
+/* ==========================================================================
+   Word 形态（chrome: 'page'）
+   --------------------------------------------------------------------------
+   这一批是 2026-09-24 按截图一比一复刻 Word 外壳时补的：功能区的全部格子、
+   标题栏那一串（保存 / 撤销 / 重做 / 升级计划）、状态栏右边那三个视图按钮。
+
+   规格和上面两批完全一致（24 格、1.75 描边、圆头、currentColor），**只有三处例外**
+   是有意的，都是产品记号，不是界面控件：
+
+   1. **Word 的商标**（IconWordMark）写死了三个蓝：那是 Word 的标识。
+   2. **保存那个紫盘子**（IconSaveFloppy）：Office 自己的保存图标就是紫的，
+      跟着主题变色就不像它了。
+   3. **四个加载项的图标**（OfficePLUS 的 AI 助手 / 字体 / 模板，论文查重、
+      加载项、PDF 转换）：它们是**别的产品的记号**，颜色照截图取。
+      其余（查找、替换、选择、边框、底纹……）一律 currentColor。
+   ========================================================================== */
+
+/** Word 的商标：一页浅蓝纸 + 左下角深蓝方块里的 W（三个蓝是产品色） */
+export function IconWordMark(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M6.4 2.6h7.2l4.4 4.6v11.4a2.4 2.4 0 0 1-2.4 2.4H6.4A2.4 2.4 0 0 1 4 18.6V5a2.4 2.4 0 0 1 2.4-2.4z" fill="#2B7CD3" />
+      <path d="M6.4 2.6h7.2l4.4 4.6H8.6a2.2 2.2 0 0 1-2.2-2.2z" fill="#3BD5FF" />
+      <rect x="2" y="8.4" width="11.6" height="10" rx="1.6" fill="#07279B" />
+      <path d="M4.2 10.8 6 16.2l1.5-3.6 1.5 3.6 1.8-5.4" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** 保存：一张软盘。紫是 Office 保存图标自己的颜色（产品记号） */
+export function IconSaveFloppy(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5.2 4.6h10.4l3.2 3.2v11.6a1 1 0 0 1-1 1H5.2a1 1 0 0 1-1-1V5.6a1 1 0 0 1 1-1z" style={{ stroke: '#922E9B' }} />
+      <path d="M7.6 4.6h6.2v4.2H7.6z" style={{ stroke: '#922E9B' }} />
+      <rect x="7.6" y="12.4" width="7.4" height="8" rx="0.8" style={{ stroke: '#922E9B' }} />
+    </Svg>
+  )
+}
+
+/** 快速访问工具栏右边那个小三角（自定义工具栏）。灰着的记号 */
+export function IconQatMore(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5 5.6h11" strokeWidth="2.6" />
+      <path d="m8.4 10.8 3.6 3.6 3.6-3.6" />
+    </Svg>
+  )
+}
+
+/** 对话框启动器：组右下角那个「往角落里拐」的记号 */
+export function IconLauncher(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M20 4v9.4a2.6 2.6 0 0 1-2.6 2.6H8" />
+      <path d="M11.6 12.4 8 16l3.6 3.6" />
+    </Svg>
+  )
+}
+
+/** 编辑：一支铅笔（页签行右端那个「编辑」） */
+export function IconEditPencil(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M15.4 4.6l4 4L8.6 19.4l-4.6 1 1-4.6z" />
+      <path d="m13.4 6.6 4 4" />
+    </Svg>
+  )
+}
+
+/* ---- 字体组 ---- */
+
+/** 增大字号：A + 右上角向上的箭头 */
+export function IconFontGrow(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.4 19 10 6.4 15.6 19" />
+      <path d="M6.6 14.6h6.8" />
+      <path d="M18.6 9.6V3.4M16.2 5.8l2.4-2.4 2.4 2.4" />
+    </Svg>
+  )
+}
+
+/** 缩小字号：A + 右上角向下的箭头 */
+export function IconFontShrink(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.4 19 10 6.4 15.6 19" />
+      <path d="M6.6 14.6h6.8" />
+      <path d="M18.6 3.4v6.2M16.2 7.2l2.4 2.4 2.4-2.4" />
+    </Svg>
+  )
+}
+
+/** 清除格式：一个 A + 一块橡皮（Word 里橡皮是粉紫的，这里跟文字同色） */
+export function IconClearFormat(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.6 17.4 9.4 6l4.8 11.4" />
+      <path d="M6.6 13.2h5.6" />
+      <path d="m15.4 12.2 3.6-3.6a1.4 1.4 0 0 1 2 0l1 1a1.4 1.4 0 0 1 0 2l-3.6 3.6z" />
+      <path d="m15.4 15.2 3 3" />
+    </Svg>
+  )
+}
+
+/** 查找替换区：查找 = 放大镜 + 一行字（在 app-icons 上方已有），这里是替换 */
+export function IconReplace(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.4" width="7.2" height="5.2" rx="1.2" />
+      <rect x="13.4" y="14.4" width="7.2" height="5.2" rx="1.2" />
+      <path d="M6.8 9.8v3.8a2.6 2.6 0 0 0 2.6 2.6h3.4" />
+      <path d="m10.8 14 2.2 2.2-2.2 2.2" />
+    </Svg>
+  )
+}
+
+/** 选择：一个箭头光标 */
+export function IconSelectCursor(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6.6 4.2 18 12.6l-5.2 1 2.8 5.6-2.4 1.1-2.8-5.6-3.8 3.6z" />
+    </Svg>
+  )
+}
+
+/** 字符底纹：一个 A 压在一块底色上 */
+export function IconCharShading(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.6" y="4.4" width="16.8" height="15.2" rx="1.4" fill="currentColor" opacity="0.18" stroke="none" />
+      <path d="M7.4 17 12 7.6 16.6 17" />
+      <path d="M9.2 13.4h5.6" />
+    </Svg>
+  )
+}
+
+/** 字符边框：一个 A 装在一个框里 */
+export function IconCharBorder(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.6" y="4.4" width="16.8" height="15.2" rx="1.2" />
+      <path d="M8.2 16.4 12 8.4l3.8 8" />
+      <path d="M9.6 13.6h4.8" />
+    </Svg>
+  )
+}
+
+/** 带圈字符：一个字装在一个圈里 */
+export function IconCircledChar(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="8.4" />
+      <path d="M8.6 9.8h6.8M12 9.8v5.4M9.2 15.2h5.6M9.8 12.4h4.4" />
+    </Svg>
+  )
+}
+
+/* ---- 段落组 ---- */
+
+/** 多级列表：三行字，越往下越缩进 */
+export function IconMultilevelList(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 6h2.4M8.8 6H20M6.6 12H9M11.8 12H20M4 18h5.2M12.6 18H20" />
+    </Svg>
+  )
+}
+
+/** 显示/隐藏编辑标记：一个段落符 ¶ */
+export function IconParagraphMark(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M14.6 4.4H10a3.6 3.6 0 0 0 0 7.2h4.6" />
+      <path d="M14.6 4.4v15.2M11.4 11.6v8" />
+    </Svg>
+  )
+}
+
+/** 分散对齐：几行字被两个箭头往两边撑开 */
+export function IconAlignDistribute(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.6 4.6h14.8M4.6 19.4h14.8" />
+      <path d="M6.6 9.4 4.4 12l2.2 2.6M17.4 9.4l2.2 2.6-2.2 2.6" />
+      <path d="M8.6 12h6.8" />
+    </Svg>
+  )
+}
+
+/** 边框：一桶漆浇在一条线上（Word 的「边框」就是这个记号） */
+export function IconBorders(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M10.2 4.2 6.4 8a1.4 1.4 0 0 0 0 2l4.6 4.6a1.4 1.4 0 0 0 2 0l3.8-3.8z" />
+      <path d="M18.4 12.6c0 1-.8 1.8-1.8 1.8s-1.8-.8-1.8-1.8 1.8-3 1.8-3 1.8 2 1.8 3z" fill="currentColor" stroke="none" />
+      <path d="M4.6 18.4h14.8" strokeWidth="2.4" />
+    </Svg>
+  )
+}
+
+/** 底纹：一块方子的四个角 + 里面几点墨（点的密度就是深浅） */
+export function IconShading(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.4 8.4V4.4h4M15.6 4.4h4v4M19.6 15.6v4h-4M8.4 19.6h-4v-4" />
+      <g fill="currentColor" stroke="none">
+        <circle cx="9" cy="9" r="0.9" />
+        <circle cx="12" cy="9" r="0.9" />
+        <circle cx="15" cy="9" r="0.9" />
+        <circle cx="9" cy="12" r="0.9" />
+        <circle cx="12" cy="12" r="0.9" />
+        <circle cx="15" cy="12" r="0.9" />
+        <circle cx="9" cy="15" r="0.9" />
+        <circle cx="12" cy="15" r="0.9" />
+        <circle cx="15" cy="15" r="0.9" />
+      </g>
+    </Svg>
+  )
+}
+
+/* ---- OfficePLUS 与三个加载项（产品记号，颜色照截图取） ---- */
+
+/** AI 助手：一只橙色的机器人猫（OfficePLUS 那个记号） */
+export function IconAiHelper(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M7.4 8.6 5.6 3.4l4.2 2.4M16.6 8.6l1.8-5.2-4.2 2.4" fill="none" stroke="#F36A2F" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 5.2c4.6 0 8 3.4 8 8s-3.4 7.6-8 7.6S4 17.3 4 13.2s3.4-8 8-8z" fill="none" stroke="#DD4809" strokeWidth="1.9" />
+      <path d="M8.6 12.4h.02M15.4 12.4h.02" stroke="#DD4809" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M9.6 16c1.6 1 3.2 1 4.8 0" fill="none" stroke="#DD4809" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M17.6 10.2c1.4-.8 2.6.2 2.6 1.6 0 1.4-1.2 2-2.4 1.4z" fill="#54A6F7" stroke="none" />
+    </svg>
+  )
+}
+
+/** 字体（OfficePLUS 的字库）：一个橙色的 A 搭一个「字」 */
+export function IconFontLibrary(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M3.4 19.4 9.6 4.6l6.2 14.8" fill="none" stroke="#F36A2F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5.9 14.4h7.4" fill="none" stroke="#F36A2F" strokeWidth="2" strokeLinecap="round" />
+      <path d="M15.6 8.6h5.8M18.5 8.6v9.8M16.4 13h4.2" fill="none" stroke="#DD4809" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** 模板（OfficePLUS）：一页折角的纸 + 几行字 */
+export function IconTemplateDoc(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M13.6 3.4H7.4a2 2 0 0 0-2 2v13.2a2 2 0 0 0 2 2h9.2a2 2 0 0 0 2-2V8.4z" fill="none" stroke="#DD4809" strokeWidth="1.9" strokeLinejoin="round" />
+      <path d="M13.4 3.6v5h5" fill="none" stroke="#DD4809" strokeWidth="1.9" strokeLinejoin="round" />
+      <path d="M8.6 12.4h6.8M8.6 15.2h6.8M8.6 18h4" fill="none" stroke="#F36A2F" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** 论文查重：一页字 + 一个放大镜（论文助手那个记号） */
+export function IconDupeCheck(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path d="M14.2 3.4H6.6a1.8 1.8 0 0 0-1.8 1.8v13.6a1.8 1.8 0 0 0 1.8 1.8h4" fill="none" stroke="#1978D7" strokeWidth="1.9" />
+      <path d="M7.6 7.6h6M7.6 11h3.4" fill="none" stroke="#3D91E5" strokeWidth="1.9" strokeLinecap="round" />
+      <circle cx="14.6" cy="14.2" r="4.2" fill="none" stroke="#1978D7" strokeWidth="1.9" />
+      <path d="m17.8 17.4 2.6 2.6" fill="none" stroke="#1978D7" strokeWidth="2.1" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** 加载项：四格方块（那个红记号） */
+export function IconAddinGrid(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <g fill="none" stroke="#D83B01" strokeWidth="1.9">
+        <rect x="4.2" y="4.2" width="6.6" height="6.6" rx="1" />
+        <rect x="13.2" y="4.2" width="6.6" height="6.6" rx="1" />
+        <rect x="4.2" y="13.2" width="6.6" height="6.6" rx="1" />
+        <rect x="13.2" y="13.2" width="6.6" height="6.6" rx="1" />
+      </g>
+    </svg>
+  )
+}
+
+/** PDF 转换：一个 PDF 牌子 + 一叠纸（PDF 工具箱那个记号） */
+export function IconPdfConvert(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <rect x="2.4" y="6.2" width="12.6" height="11.4" rx="1.4" fill="none" stroke="#1978D7" strokeWidth="1.9" />
+      <path d="M5 13.6V10h1.4a1.1 1.1 0 0 1 0 2.2H5M9.6 10h1.1a1.8 1.8 0 0 1 0 3.6H9.6zM13.3 10h2.4M13.3 11.8h1.8" fill="none" stroke="#1978D7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15.6 9.4h5a1.4 1.4 0 0 1 1.4 1.4v6.4a1.4 1.4 0 0 1-1.4 1.4h-5a1.4 1.4 0 0 1-1.4-1.4v-6.4a1.4 1.4 0 0 1 1.4-1.4z" fill="none" stroke="#3D91E5" strokeWidth="1.9" />
+      <path d="M16.6 14.2h4M16.6 16.6h2.6" fill="none" stroke="#3D91E5" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/* ---- 状态栏右边那三格 ---- */
+
+/** 专注：一对方括号框住的一个人 */
+export function IconFocus(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8.4 3.8H5.2a1.4 1.4 0 0 0-1.4 1.4v3.2M15.6 3.8h3.2a1.4 1.4 0 0 1 1.4 1.4v3.2M20.2 15.6v3.2a1.4 1.4 0 0 1-1.4 1.4h-3.2M8.4 20.2H5.2a1.4 1.4 0 0 1-1.4-1.4v-3.2" />
+      <circle cx="12" cy="10.4" r="2.2" />
+      <path d="M8.2 16.6c.6-1.6 2.1-2.5 3.8-2.5s3.2.9 3.8 2.5" />
+    </Svg>
+  )
+}
+
+/** 页宽 / 缩放：一页纸 + 一个放大镜 */
+export function IconPageZoom(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="6.4" y="4.4" width="12.2" height="15.2" rx="1.4" />
+      <circle cx="15.2" cy="15.2" r="3.6" fill="none" />
+      <path d="m18 18 2.4 2.4" />
+    </Svg>
+  )
+}
+
+/** 字号框右边那一对上下小三角（Word 的字号框里就是这个） */
+export function IconSpin(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m9.4 10.2 2.6-3 2.6 3z" fill="currentColor" stroke="none" />
+      <path d="m9.4 13.8 2.6 3 2.6-3z" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/* ==========================================================================
+   Word 的开始屏幕、视图页签与导航窗格（2026-09-24，决定记录 35）
+   --------------------------------------------------------------------------
+   规格同上（24 格、1.75 描边、圆头、currentColor）。这一批里有**两张插图**
+   （解锁高级模板的封面、书法字帖的样张）：真 Word 里那是两张位图，我们不用位图，
+   所以按同一个意思自己画一张**用主题色**的——它们是界面里的插图，不是商标，
+   跟着主题走才对（飞书那三张卡片是商标插图，那才写死色号）。
+   ========================================================================== */
+
+/** 开始：一间房子（开始屏幕左栏第一格） */
+export function IconHomeLine(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.2 10.4 12 4.2l7.8 6.2V19a1.4 1.4 0 0 1-1.4 1.4H5.6A1.4 1.4 0 0 1 4.2 19z" />
+      <path d="M9.6 20.4v-5.2a1 1 0 0 1 1-1h2.8a1 1 0 0 1 1 1v5.2" />
+    </Svg>
+  )
+}
+
+/** 打开：一个敞开的文件夹（开始屏幕左栏第三格） */
+export function IconFolderOpen(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.6 6.4a1.6 1.6 0 0 1 1.6-1.6h3.4l1.9 2.3h6.3a1.6 1.6 0 0 1 1.6 1.6v1.1" />
+      <path d="M3.9 8.9h14.6a1.5 1.5 0 0 1 1.45 1.9l-1.35 6a1.5 1.5 0 0 1-1.45 1.2H5.2A1.5 1.5 0 0 1 3.7 16.7z" />
+    </Svg>
+  )
+}
+
+/** 账户：一个人（本地文件没有账户，这一格是灰的） */
+export function IconAccount(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="9" r="3.6" />
+      <path d="M5.2 20c0-3.4 3-6 6.8-6s6.8 2.6 6.8 6" />
+    </Svg>
+  )
+}
+
+/** 选项：一个齿轮 */
+export function IconGear(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="6.2" />
+      <circle cx="12" cy="12" r="2.4" />
+      {/* 六颗轮齿：贴着外圈往外长（不贴外圈的话看着像太阳，不像齿轮） */}
+      <path
+        d="M12 4.4V2.6M12 21.4v-1.8M3.6 12h1.8M18.6 12h1.8M6.1 6.1 4.8 4.8M17.9 6.1l1.3-1.3M6.1 17.9l-1.3 1.3M17.9 17.9l1.3 1.3"
+        strokeWidth="2.1"
+      />
+    </Svg>
+  )
+}
+
+/** 图钉：置顶到列表最上面（本地书架没有置顶这一说，这一格是灰的） */
+export function IconPin(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9.4 3.8h5.2l-.9 4 2.4 2.1v1.5H7.9v-1.5l2.4-2.1z" />
+      <path d="M12 11.4v8.8" />
+    </Svg>
+  )
+}
+
+/** 星（收藏）：收藏夹那一栏用的是它 */
+export function IconStarLine(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m12 4.2 2.5 5.1 5.6.8-4 3.9 1 5.6-5.1-2.7-5.1 2.7 1-5.6-4-3.9 5.6-.8z" />
+    </Svg>
+  )
+}
+
+/**
+ * Word 文档的图标：一页纸 + 左下角一个「W」徽标。
+ * 徽标用主题的强调色（它是界面上的一枚文件类型记号，不是 Word 的商标——
+ * 真正的商标是 IconWordMark 那个蓝方块，只在标题栏上出现一次）。
+ */
+export function IconWordFile(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6.4 3.4h8.2l4 4v10.2a2 2 0 0 1-2 2H6.4a2 2 0 0 1-2-2V5.4a2 2 0 0 1 2-2z" />
+      <path d="M14.2 3.6v4h4" />
+      <g fill="currentColor" stroke="none">
+        <rect x="2.6" y="13.4" width="10" height="7" rx="1.4" style={{ fill: 'var(--mn-accent)' }} />
+      </g>
+      <path d="M4.6 15.2 5.9 18.6l1.35-2.6 1.35 2.6 1.3-3.4" stroke="#fff" strokeWidth="1.25" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  )
+}
+
+/** 解锁高级模板的封面（插图：真 Word 里是一张位图封面，这里用主题色画一张） */
+export function IconTemplateCover(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2.6" y="3" width="18.8" height="18" rx="1.6" />
+      <path d="M2.6 15.4h18.8v5.6" opacity="0.5" />
+      <rect x="5.4" y="6" width="8.6" height="10.6" rx="0.8" style={{ fill: 'var(--mn-surface)', stroke: 'var(--mn-fg-muted)' }} />
+      <path d="M6.8 8.2h5.8M6.8 10.2h4.6M6.8 12.2h5.8M6.8 14.2h3.4" strokeWidth="1.3" />
+      <path d="M16.4 8.6h3.2M16.4 11h3.2M16.4 13.4h2" strokeWidth="1.4" opacity="0.75" />
+    </Svg>
+  )
+}
+
+/** 书法字帖的样张（插图：一页格子里写着字，旁边一支笔） */
+export function IconCalligraphyPage(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="3" width="14.4" height="18" rx="1.4" />
+      <path d="M3.4 9h14.4M3.4 15h14.4M10.6 3v18" strokeWidth="1.3" opacity="0.6" />
+      <path d="M6.2 6.6c1.6-1 3 1 4.6 0M12.6 12.6c1.6-1 3 1 4.6 0M6.2 17.4c1.6-1 3 1 4.6 0" strokeWidth="1.4" />
+      <path d="m16.6 11.2 4.2 4.2-3 3-4.2-4.2z" style={{ fill: 'var(--mn-accent)' }} stroke="none" />
+      <path d="m15.4 16.6 2 2-3.2 1z" style={{ fill: 'var(--mn-fg-muted)' }} stroke="none" />
+    </Svg>
+  )
+}
+
+/** 沉浸式阅读器：一本摊开的书 + 一个喇叭（真 Word 里它是「朗读」那一档） */
+export function IconImmersiveReader(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M11 7.6S9.2 6 6.2 6c-1 0-1.7.3-1.7.3v9.4s.7-.3 1.7-.3c3 0 4.8 1.4 4.8 1.4s1.8-1.4 4.8-1.4c1 0 1.7.3 1.7.3V6.3s-.7-.3-1.7-.3c-3 0-4.8 1.6-4.8 1.6z" />
+      <path d="M11 7.6v9.2" />
+      <path d="M15.6 9.6 18 8v5.4l-2.4-1.6z" fill="currentColor" stroke="none" />
+      <path d="M18 8v5.4" />
+    </Svg>
+  )
+}
+
+/** 缩放到 100%：一个框里写着 100（真 Word 那个记号就是这么画的） */
+export function IconZoom100(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4.6" y="6.4" width="14.8" height="11.2" rx="2.2" />
+      <text
+        x="12"
+        y="14.4"
+        textAnchor="middle"
+        fontSize="7.2"
+        fontWeight="600"
+        fill="currentColor"
+        stroke="none"
+      >
+        100
+      </text>
+    </Svg>
+  )
+}
+
+/** 页眉和页脚：一页纸，上下两条带（书里的每一页都没有，这一格是灰的） */
+export function IconHeaderFooter(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="5.2" y="3.6" width="13.6" height="16.8" rx="1.4" />
+      <rect x="7.4" y="6" width="9.2" height="2.6" rx="0.7" fill="currentColor" stroke="none" />
+      <rect x="7.4" y="15.4" width="9.2" height="2.6" rx="0.7" fill="currentColor" stroke="none" opacity="0.55" />
+    </Svg>
+  )
+}
+
+/** 脚注：Ab 后面挂一个上标 1（真 Word 那个记号） */
+export function IconFootnoteMark(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3.6 18 8.6 6.4 13.6 18" />
+      <path d="M5.4 14.4h6.4" />
+      <path d="M15.4 13.6c.2-1.6 1.4-2.6 3-2.6 1.7 0 2.9 1 2.9 2.4 0 1.7-1.6 2.2-2.4 3.2M18.4 4.4h.02" strokeWidth="1.5" />
+      <path d="M17.6 4.2h1.6l-.5 3.6" strokeWidth="1.5" />
+    </Svg>
+  )
+}
+
+/** 尾注：一页纸 + 右下角一个记号 */
+export function IconEndnoteMark(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6.4 3.6h7.8L18 7.4v13H6.4a1.6 1.6 0 0 1-1.6-1.6V5.2a1.6 1.6 0 0 1 1.6-1.6z" />
+      <path d="M14 3.7v4h4" />
+      <path d="M7.6 15.4h6" />
+      <path d="M15.4 17.6h.02" strokeWidth="2.2" />
+    </Svg>
+  )
+}
+
+/** 深色模式：一个半明半暗的圆 */
+export function IconDarkMode(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="8.2" />
+      <path d="M12 3.8a8.2 8.2 0 0 1 0 16.4z" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** 导航窗格（视图页签的「显示」那一组）：左边一列 + 正文那一块 */
+export function IconNavRows(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.4" y="4.6" width="17.2" height="14.8" rx="1.6" />
+      <path d="M9.8 4.6v14.8" />
+      <rect x="3.4" y="4.6" width="6.4" height="14.8" rx="1.6" fill="currentColor" stroke="none" opacity="0.3" />
+      <path d="M12.4 8.6h5.4M12.4 12h5.4M12.4 15.4h3.4" strokeWidth="1.5" />
+    </Svg>
+  )
+}
+
+/** 放大镜（缩放那一组的记号）。比查找那个细一档：它是「缩放」不是「查找」 */
+export function IconZoomIn(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="10.6" cy="10.6" r="5.6" />
+      <path d="m14.8 14.8 4.6 4.6" />
+    </Svg>
+  )
+}

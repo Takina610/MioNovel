@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { clamp01 } from '../../lib/progress'
-import { mediaLinesHtml } from '../../lib/blocks'
+import { mediaLinesHtml, mediaModeFor } from '../../lib/blocks'
 import { decorateChapterHtml, type CodeLine } from '../../lib/code'
 import type { ReaderSettings } from '../../store/settings'
 import type { ThemeChrome } from '../../themes/types'
@@ -172,11 +172,12 @@ function ReaderViewImpl({
   // 结果在普通形态里按过 Alt+Q 之后，章末的上下章按钮被一并吞掉）
   const decoy = code && decoyFlag ? decoyPresetId : null
   /**
-   * 飞书形态也不显示图：整章的图片换成一行 `![](./路径)`，和编辑器形态同一条约定。
-   * 理由是同一个——那一屏的价值在于「这是一篇文档」，一张全屏的插页会把这话冲掉；
-   * 而引用行写的是书里的原始路径，图并没有被丢掉（Word、幻灯片、聊天照常放图）。
+   * 图片写成一行引用（`![](./路径)`）的形态：编辑器、文档、聊天、表格、页面。
+   * 哪些形态放真图由 mediaModeFor 一处说了算（见 lib/blocks.ts）——2026-09-24
+   * 之前的 Word（page）就是漏网的那一个：封面被拉成整张 A4 纸，看着像文档坏了。
+   * 引用行写的是书里的原始路径，图并没有被丢掉。
    */
-  const mediaLines = chrome === 'doc'
+  const mediaLines = mediaModeFor(chrome) === 'reference'
   const decorated = useMemo(
     () =>
       code

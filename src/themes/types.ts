@@ -89,6 +89,30 @@ export interface ChatTokens {
 }
 
 /**
+ * 字处理形态（Word）多出来的几个值。
+ *
+ * 这几个是别的 token 表达不了的：它们都是「纸」和「控件」这一层的线。
+ *
+ *   paperEdge  纸的边线。页面视图里纸不是靠阴影浮起来的，是拿一条线描出来的
+ *   crop       正文区四角的裁剪标记（Word 的「显示裁剪标记」）
+ *   control    下拉框、按钮的描边。比 borderStrong 深一档——它描的是控件，
+ *              不是分隔线，Word 这两条线的用法本来就不同
+ *   field      标题栏上搜索框的底
+ *
+ * 其余全部复用主 token（纸面 = readerBg、桌面 = bg、纸上的字 = readerFg）。
+ */
+export interface PageTokens {
+  /** 纸的边线 */
+  paperEdge: string
+  /** 正文区四角的裁剪标记 */
+  crop: string
+  /** 下拉框与按钮的描边 */
+  control: string
+  /** 标题栏上搜索框的底色 */
+  field: string
+}
+
+/**
  * 主题 token。应用外壳（书架、工具栏、弹窗）和正文共用同一组变量：
  * 换主题是整个 app 一起变，不让正文和 UI 各说各话。
  *
@@ -139,6 +163,8 @@ export interface ReaderTheme {
   code?: CodeTokens
   /** chrome: 'chat' 的气泡与功能栏 */
   chat?: ChatTokens
+  /** chrome: 'page' 的纸与控件 */
+  page?: PageTokens
   /**
    * 这套主题自带的排版参数。**只在用户主动选中它时**写进阅读设置，
    * 之后用户怎么改都归用户——它是一次预设，不是一层覆盖。

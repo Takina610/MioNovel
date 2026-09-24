@@ -23,6 +23,8 @@ export type LineKind =
   | 'prop'
   | 'image'
 
+import type { ThemeChrome } from '../themes/types'
+
 /** 会单独占一行的块级元素。取最里层那些：`<div><p>x</p></div>` 里是 p 不是 div */
 export const BLOCK_SELECTOR =
   'p, h1, h2, h3, h4, h5, h6, li, blockquote, figcaption, td, th, pre, dt, dd, div, section'
@@ -183,8 +185,9 @@ export function normalizeMediaLines(body: Element): void {
  * 编辑器形态和块状形态（表格 / 幻灯片 / 聊天）都从这里起步：它们的分块规则
  * 必须一致，不然同一章在四个形态里会切出不同的段数。
  *
- * media 决定图片怎么处理：'reference' 换成 `![](./路径)`（编辑器、文档、聊天、表格），
- * 'keep' 原样留着（页面、幻灯片——它们放得下图）。
+ * media 决定图片怎么处理：'reference' 换成 `![](./路径)`，'keep' 原样留着。
+ * 哪种形态用哪一种由 mediaModeFor() 说了算（**一处定义**，别在别处再写一遍
+ * 这个三元表达式——历史上写了两处，改动时漏掉一处就成了「某个形态还在放图」）。
  * resolve 用来把渲染时的 blob 地址还原成书里的原始路径（见 hooks/useChapterHtml）。
  */
 export function prepareBody(
@@ -193,7 +196,7 @@ export function prepareBody(
 ): { body: Element; elements: Element[] } {
   const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
   const body = doc.body
-  // 图片引用（`![](./路径)`）属于编辑器、文档、聊天与表格；页面与幻灯片留着原图。
+  // 图片引用（`![](./路径)`）与真图两种处理见 mediaModeFor()；
   // 不管哪种模式，都要把图整理成「一块」——否则它渲染不到（见 normalizeMediaLines）
   if (options.media === 'reference') replaceMedia(body, options.resolve)
   normalizeMediaLines(body)
@@ -239,11 +242,28 @@ export function isContentBlock(block: Block): boolean {
 }
 
 /**
+ * 哪种形态显示真图。**这条规矩只在这一处定义**，ReaderView 与 ChapterBody 都来问它。
+ *
+ * 2026-09-24：用户报了两次「某个形态也在放小说插图」。第一次修的是企业微信，
+ * 第二次是 Word（一张封面铺满整张 A4 纸、还被拉变形，见决定记录 32 与 35）。
+ * 根因是这条规矩曾经写在两个地方（ReaderView 一个三元、ChapterBody 一个三元），
+ * 改动只落到一处。所以现在收成一个纯函数，verify:apps 直接断言它。
+ *
+ * 结论：**放真图的只有两个**——普通阅读器（`plain`，几套日间/夜间主题那一档，
+ * 它本来就是「安静地看一本书」，插图该在）；幻灯片（`slide`，一页一张图就是
+ * 它存在的意义）。编辑器（`code`，它有自己的图片占位）、文档、聊天、表格、
+ * 页面一律写一行 `![](./路径)`。
+ */
+export function mediaModeFor(chrome: ThemeChrome): 'keep' | 'reference' {
+  return chrome === 'plain' || chrome === 'slide' ? 'keep' : 'reference'
+}
+
+/**
  * 正文 HTML → 「图片写成一行引用」的正文 HTML。
  *
- * 编辑器形态和飞书形态都不渲染任何图：打开一本书应该是一片字，
- * 而不是一张全屏的图。做法和 chapterBlocks 的 'reference' 模式共用同一套
- * （替换 + 整理成块），只是这里返回 HTML——那两个形态的正文是直出的。
+ * 编辑器、文档与页面这几个形态的正文是直出的（不切成块），它们不渲染任何图：
+ * 打开一本书应该是一片字，而不是一张铺满整屏的图。做法和 chapterBlocks 的
+ * 'reference' 模式共用同一套（替换 + 整理成块），只是这里返回 HTML。
  *
  * 引用行里写的是**书里的原始路径**（`OEBPS/Images/pic.png`），不是渲染时的
  * blob 地址，所以 resolve 必须把 blob 还原回原始路径（见 hooks/useChapterHtml）。

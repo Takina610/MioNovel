@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { chapterBlocks } from '../lib/blocks'
+import { chapterBlocks, mediaModeFor } from '../lib/blocks'
 import { chapterMessages, chatSender } from '../lib/chat'
 import { activeRowOf, chapterRows, rowsTotal } from '../lib/sheet'
 import { chapterSlides } from '../lib/slide'
@@ -44,9 +44,8 @@ export function ChapterBody({
   const blocks = useMemo(
     () =>
       chapterBlocks(html, {
-        // 装不下图、或者那一屏就不该有图的形态：写成一行 `![](./路径)`
-        // （表格本来就装不下；聊天和编辑器、文档同一条约定——见 lib/blocks.ts）
-        media: chrome === 'sheet' || chrome === 'chat' ? 'reference' : 'keep',
+        // 图片怎么处理由 mediaModeFor 一处说了算（见 lib/blocks.ts）
+        media: mediaModeFor(chrome),
         resolve,
       }),
     [html, chrome, resolve],

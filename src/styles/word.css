@@ -1,9 +1,20 @@
 /* ==========================================================================
    Word 形态（.mn-word）
    --------------------------------------------------------------------------
-   灰底上一张白纸：正文就是那张纸（.mn-content 直接当页面用），
-   上面一条标尺，左右留白和标尺上的两个边距标记是同一个数
-   （--mn-word-margin，一处定义——它们本来就该对齐，分两处写迟早会错开）。
+   2026-09-24 按 1920×1030 的截图重做了一遍：灰蓝的桌面上摆一张 A4 纸，
+   纸上四角有裁剪标记，标尺在纸张上面那条 band 里，正文就是那张纸本身。
+
+   量出来的数（都在这条注释和 html[data-chrome='page'] 那几条变量里）：
+
+     桌面        #E5EBEF（标题栏、页签行用的是同一个色 —— Word 里它们连成一片）
+     纸          794×1123（A4 @96dpi），1px 边线 #C6C6C6，没有投影
+     纸上留白    上下 96（2.54cm）、左右 119（3.17cm，占纸宽 15%）
+     裁剪标记    #AAAAAA，每笔 24px，四角各一横一竖，朝纸外张开
+     纸离功能区  11px
+     标尺        和纸同宽，边距标记落在正文边界上（同一个 --mn-word-margin）
+
+   颜色一律取 token（--mn-page-* 是这套形态自己那几个，见 themes/builtins.ts
+   的 page 那一层）；组件里一个色号都没有。
    ========================================================================== */
 
 .mn-word__body {
@@ -18,26 +29,61 @@
   min-width: 0;
 }
 
-/* 纸外面的底：Word 的页面视图就是灰底 + 白纸 + 纸的投影 */
+/* 纸外面那一圈：桌面。Word 的页面视图就是灰底 + 白纸，纸只有一条边线 */
 .mn-word__body .mn-scroll {
   background: var(--mn-bg);
-  padding: 18px 12px 72px;
+  padding: 11px 0 0;
 }
 
-/* 正文 = 纸张。宽度按 A4，最小高度给一屏的观感（短章也不该是一小块）。
+/* 正文 = 纸张。宽度按 A4，最小高度也按 A4（短章也该是一整页纸）。
    max-width 归零：正文栏宽那项设置在这里让位给「纸有多宽」——纸上再叠一层
    栏宽限制，字就会缩在纸中间，两边空出没道理的白 */
 .mn-word__body .mn-content {
+  position: relative;
   max-width: none;
   width: min(100%, var(--mn-word-page));
-  min-height: 62vh;
+  min-height: var(--mn-word-page-height);
   margin: 0 auto;
-  padding: 84px var(--mn-word-margin) 96px;
-  background: var(--mn-reader-bg);
+  padding: var(--mn-word-pad) var(--mn-word-margin);
+  background-color: var(--mn-reader-bg);
   color: var(--mn-reader-fg);
-  box-shadow:
-    0 1px 3px rgb(0 0 0 / 14%),
-    0 10px 28px rgb(0 0 0 / 8%);
+  border: 1px solid var(--mn-page-edge);
+  /* 裁剪标记：四角各一横一竖，共 8 笔，拿 8 条渐变画在**内容盒**的四角上
+     （background-origin: content-box → 内容盒的四角就是正文的四角）。
+     每笔朝纸外张开：所以左上那笔的 x 是负的、右下那笔的 y 是 100% + 24px */
+  background-image:
+    /* 左上：横 + 竖 */
+    linear-gradient(var(--mn-page-crop), var(--mn-page-crop)),
+    linear-gradient(var(--mn-page-crop), var(--mn-page-crop)),
+    /* 右上 */
+    linear-gradient(var(--mn-page-crop), var(--mn-page-crop)),
+    linear-gradient(var(--mn-page-crop), var(--mn-page-crop)),
+    /* 左下 */
+    linear-gradient(var(--mn-page-crop), var(--mn-page-crop)),
+    linear-gradient(var(--mn-page-crop), var(--mn-page-crop)),
+    /* 右下 */
+    linear-gradient(var(--mn-page-crop), var(--mn-page-crop)),
+    linear-gradient(var(--mn-page-crop), var(--mn-page-crop));
+  background-size:
+    24px 1px,
+    1px 24px,
+    24px 1px,
+    1px 24px,
+    24px 1px,
+    1px 24px,
+    24px 1px,
+    1px 24px;
+  background-position:
+    -24px 0,
+    0 -24px,
+    calc(100% + 24px) 0,
+    100% -24px,
+    -24px 100%,
+    0 calc(100% + 24px),
+    calc(100% + 24px) 100%,
+    100% calc(100% + 24px);
+  background-repeat: no-repeat;
+  background-origin: content-box;
 }
 
 /* 标尺：和纸同宽居中，底下一排刻度。
@@ -55,11 +101,16 @@
   padding-left: 248px;
 }
 
+/* 标尺本体只能和纸一样宽，但它外面那层要横贯整窗（底色是白的那一条）。
+   纸是靠 margin auto 居中的，标尺也跟着居中，两者才对得上 */
+.mn-word__ruler-slide {
+  max-width: var(--mn-word-page);
+  margin: 0 auto;
+}
+
 .mn-word__ruler {
   position: relative;
-  width: min(100%, var(--mn-word-page));
   height: 22px;
-  margin: 0 auto;
   background-image: repeating-linear-gradient(
     to right,
     var(--mn-border-strong) 0 1px,
@@ -92,6 +143,281 @@
   transform: translateX(2px);
 }
 
+/* ---- 标题栏上那几件 ---- */
+
+/* 搜索框：32 高、圆角 4、浅底。它是真能搜的（在这一章里找，见 lib/find.ts） */
+.mn-word__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: min(370px, 26vw);
+  height: 32px;
+  padding: 0 6px 0 8px;
+  background: var(--mn-page-field);
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 4px;
+  transition: border-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-word__search:focus-within {
+  border-color: var(--mn-accent);
+  background: var(--mn-surface);
+}
+
+.mn-word__search-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-word__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  outline: none;
+}
+
+.mn-word__search-count {
+  flex: 0 0 auto;
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mn-word__search-btn {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-word__search-btn:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-word__search-btn:disabled {
+  opacity: 0.4;
+}
+
+/* 自动保存：截图里它停在「关」（本地文件不上云，没有要同步的东西） */
+.mn-word__autosave {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 2px;
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.mn-word__switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 44px;
+  height: 22px;
+  padding: 2px 7px 2px 2px;
+  border: 1px solid var(--mn-page-control);
+  border-radius: 11px;
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+}
+
+.mn-word__switch-knob {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--mn-fg-muted);
+}
+
+/* 升级计划那个小牌子。它是灰的：本地文件用不上云服务 */
+.mn-word__alert {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  margin-right: 6px;
+  padding: 0 10px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-page-control);
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* 页签行右端那三个：批注 / 编辑 / 共享 */
+.mn-word__tabbtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.mn-word__tabbtn svg {
+  flex: 0 0 auto;
+}
+
+/* 共享是实心的一块强调色。上面的白字是「实心块自己的墨色」——
+   和飞书商标里那几笔白线同一个例外（见 app-icons.tsx 的文件头） */
+.mn-word__share {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  background: var(--mn-accent);
+  border: 1px solid var(--mn-accent);
+  border-radius: 3px;
+  color: #fff;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* ---- 功能区里几个 Word 自己的零件（字体框、字号框、样式库） ---- */
+
+.mn-word__combo {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  min-width: 122px;
+  padding: 0 3px 0 7px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-page-control);
+  border-radius: 2px;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.mn-word__combo:hover {
+  border-color: var(--mn-accent);
+}
+
+.mn-word__combo-note {
+  color: var(--mn-fg-muted);
+}
+
+.mn-word__combo--size {
+  min-width: 46px;
+  gap: 1px;
+  padding-left: 7px;
+}
+
+.mn-word__combo-caret {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  margin-left: auto;
+  color: var(--mn-fg-muted);
+}
+
+/* 字号框右边那一对上下小三角 */
+.mn-word__spin {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  border-left: 1px solid var(--mn-border);
+}
+
+.mn-word__spin button {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 100%;
+  color: var(--mn-fg-muted);
+}
+
+.mn-word__spin button:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-word__spin button:disabled {
+  opacity: 0.4;
+}
+
+.mn-word__spin-icon {
+  width: 11px;
+  height: 11px;
+}
+
+/* 文字效果那一格：一个 A 加一颗星（Word 那个记号的意思） */
+.mn-word__spark {
+  width: 10px;
+  height: 10px;
+  margin-left: -3px;
+  vertical-align: 6px;
+  color: var(--mn-accent);
+}
+
+/* 样式库：文档自己的样式预览，不是一排按钮（这一层只读，改不了样式）。
+   标题那几个字大、颜色跟着强调色走 —— Word 里也是这样把标题样式画大一号 */
+.mn-word__gallery {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 71px;
+  padding: 0 2px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mn-word__style {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  min-width: 72px;
+  padding: 0 16px;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.mn-word__style--heading {
+  color: var(--mn-accent);
+  font-size: 20px;
+}
+
+.mn-word__style.is-current {
+  border: 1px solid var(--mn-page-control);
+  background: var(--mn-surface);
+}
+
+/* ---- 查找命中 ---- */
+
+.mn-content mark.mn-find {
+  background: color-mix(in srgb, var(--mn-accent) 24%, transparent);
+  color: inherit;
+  border-radius: 1px;
+}
+
+.mn-content mark.mn-find.is-current {
+  background: var(--mn-accent);
+  color: var(--mn-reader-bg);
+}
+
 /* ---- 阅读视图：整窗只剩一张纸 ---- */
 
 .mn-word__body.is-immersive .mn-scroll {
@@ -101,8 +427,9 @@
 .mn-word__body.is-immersive .mn-content {
   width: min(100%, 900px);
   min-height: 100dvh;
-  box-shadow: none;
   padding: clamp(40px, 6vw, 96px) clamp(28px, 8vw, 120px);
+  border: 0;
+  background-image: none;
 }
 
 .mn-word__exit {
@@ -166,10 +493,43 @@
   right: 14px;
 }
 
+/* 纸外面那条滚动条：截图里是一个 14px 宽的常规滚动条，
+   滑块是实心的（不是别处那种细细一条），轨道是浅灰 */
+html[data-chrome='page'] .mn-scroll::-webkit-scrollbar {
+  width: 14px;
+}
+
+html[data-chrome='page'] .mn-scroll::-webkit-scrollbar-track {
+  background: var(--mn-surface-2);
+}
+
+html[data-chrome='page'] .mn-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--mn-fg) 42%, transparent);
+  border: 4px solid transparent;
+  border-radius: 0;
+  background-clip: padding-box;
+}
+
+@media (max-width: 900px) {
+  .mn-word__search {
+    width: min(240px, 34vw);
+  }
+
+  .mn-word__autosave {
+    display: none;
+  }
+
+  .mn-word__alert {
+    display: none;
+  }
+}
+
 @media (max-width: 767px) {
+  /* 窄屏上纸就是整屏：不要边线、不要裁剪标记（它们本来标的是纸边距） */
   .mn-word__body .mn-content {
-    padding: 40px 20px 64px;
-    box-shadow: none;
+    min-height: 0;
+    border: 0;
+    background-image: none;
   }
 
   .mn-word__ruler-margin {
@@ -179,4 +539,722 @@
   .mn-word__immersive-nav {
     display: none;
   }
+
+  .mn-word__search {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Word 开始屏幕（这一套的书架，.mn-whome）
+   --------------------------------------------------------------------------
+   2026-09-24 按桌面版 Word 的开屏截图一比一复刻。从截图量出来的数：
+
+     左栏           96 宽，一格 82 高（图标 26 + 字 13px 在下）、当前那格左边 4px 强调色
+     内容区         左起 144（也就是左栏右侧再留 48）、右到 1838
+     新建标题行     字 15px 半粗，右边的「更多模板 →」13px
+     卡片           第一张 224×190（浅底 + 2px 描边 = 选中态），
+                    另两张是 92×120 的缩略图 + 下面的字（没有盒子）
+     页签行         药丸 102×32、间距 18；首个是强调色实心（字白），其余白底一条描边
+     搜索框         584×40、圆角 4
+     列表表头       34 高；每一行 70 高，行间一条 1px 线
+     文件名         15px；第二行路径 13px（用 » 分级）；日期列右对齐
+     更多文档 →     最后一行右下角
+
+   颜色一律取 token：左栏 = bg（比内容区深一档，和截图里那条灰栏同一个层次）、
+   内容区 = surface2、卡片与搜索框 = surface。
+   ========================================================================== */
+
+.mn-whome {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: var(--mn-surface-2);
+}
+
+/* ---- 左边那条导航栏 ---- */
+
+.mn-whome__rail {
+  flex: 0 0 96px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0 8px;
+  background: var(--mn-bg);
+  border-right: 1px solid var(--mn-border);
+}
+
+.mn-whome__rail-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 82px;
+  padding-top: 18px;
+  color: var(--mn-fg-muted);
+  font-size: 13px;
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-whome__rail-item:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+/* 当前那一格：字和图标用强调色，左边一条 4px 的竖线 */
+.mn-whome__rail-item.is-active {
+  color: var(--mn-accent);
+}
+
+.mn-whome__rail-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 4px;
+  background: var(--mn-accent);
+}
+
+.mn-whome__rail-item:disabled {
+  color: var(--mn-fg-faint);
+  cursor: default;
+}
+
+.mn-whome__rail-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.mn-whome__rail-gap {
+  flex: 1;
+}
+
+.mn-whome__rail-sep {
+  height: 1px;
+  margin: 6px 12px;
+  background: var(--mn-border);
+}
+
+/* ---- 右边：新建 + 最近 ---- */
+
+.mn-whome__main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 0 0 40px 48px;
+}
+
+.mn-whome__section {
+  padding-right: 60px;
+}
+
+.mn-whome__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 44px 0 12px;
+}
+
+.mn-whome__section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mn-fg);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mn-whome__section-caret {
+  width: 16px;
+  height: 16px;
+  color: var(--mn-fg-muted);
+}
+
+/* 「更多模板 →」「更多文档 →」：一条能被按的链子，灰着时也说得出为什么 */
+.mn-whome__link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: var(--mn-accent);
+  font-size: 13px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-whome__link:hover:not(:disabled) {
+  background: var(--mn-accent-soft);
+}
+
+.mn-whome__link:disabled {
+  color: var(--mn-fg-faint);
+  cursor: default;
+}
+
+.mn-whome__link-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.mn-whome__cards {
+  display: flex;
+  align-items: flex-start;
+  gap: 78px;
+  padding-left: 12px;
+}
+
+.mn-whome__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--mn-fg);
+  font-size: 14px;
+}
+
+/* 第一张（空白文档）：224×190 的浅底盒子，选中的那一张四周一圈 2px 的深描边 */
+.mn-whome__card.is-selected {
+  width: 224px;
+  height: 190px;
+  justify-content: center;
+  gap: 18px;
+  background: var(--mn-surface-2);
+  border: 2px solid var(--mn-fg);
+  border-radius: 2px;
+  transition: border-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-whome__card.is-selected:hover {
+  border-color: var(--mn-accent);
+}
+
+/* 白纸：那三张卡上画的是「一页纸」，不引位图 */
+.mn-whome__page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 92px;
+  height: 96px;
+  padding-top: 22px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.mn-whome__page-line {
+  width: 56px;
+  height: 2px;
+  background: var(--mn-border);
+}
+
+.mn-whome__page-line--short {
+  width: 34px;
+}
+
+/* 另两张是模板缩略图：真 Word 里是位图，这里用主题色画的矢量图（见 app-icons） */
+.mn-whome__card--template:disabled .mn-whome__cover {
+  opacity: 0.55;
+}
+
+.mn-whome__card--template {
+  cursor: default;
+}
+
+.mn-whome__cover {
+  width: 92px;
+  height: 120px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-whome__card-label {
+  color: inherit;
+}
+
+.mn-whome__card--template .mn-whome__card-label {
+  color: var(--mn-fg-muted);
+}
+
+/* ---- 页签行 + 搜索框 ---- */
+
+.mn-whome__section--list {
+  padding-top: 34px;
+}
+
+.mn-whome__filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 0 0;
+}
+
+.mn-whome__tabs {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.mn-whome__tab {
+  height: 32px;
+  min-width: 102px;
+  padding: 0 22px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 16px;
+  color: var(--mn-fg);
+  font-size: 13.5px;
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    border-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-whome__tab:hover {
+  border-color: var(--mn-accent);
+}
+
+/* 当前那一栏：强调色实心（字是「实心块自己的墨色」，见飞书商标那个例外） */
+.mn-whome__tab.is-active {
+  background: var(--mn-accent);
+  border-color: var(--mn-accent);
+  color: #fff;
+}
+
+.mn-whome__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(584px, 46vw);
+  height: 40px;
+  padding: 0 10px 0 14px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 4px;
+  transition: border-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-whome__search:focus-within {
+  border-color: var(--mn-accent);
+}
+
+.mn-whome__search-icon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-whome__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 13.5px;
+  outline: none;
+}
+
+.mn-whome__search button {
+  flex: 0 0 auto;
+  color: var(--mn-fg-muted);
+}
+
+.mn-whome__search button:hover {
+  color: var(--mn-fg);
+}
+
+/* ---- 列表 ---- */
+
+.mn-whome__list {
+  display: flex;
+  flex-direction: column;
+  padding-top: 12px;
+}
+
+.mn-whome__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 70px;
+  border-bottom: 1px solid var(--mn-border);
+}
+
+.mn-whome__row--head {
+  height: 34px;
+  color: var(--mn-fg-muted);
+  font-size: 13px;
+  border-bottom-color: var(--mn-border-strong);
+}
+
+.mn-whome__row:not(.mn-whome__row--head):hover {
+  background: var(--mn-surface);
+}
+
+/* 名称那一格（图标 + 两行字）和表头的「名称」列同宽：一样是 62% 封顶，
+   所以数据行的「已修改日期」落在表头那一列的下面 */
+.mn-whome__open {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 auto;
+  max-width: 62%;
+  min-width: 0;
+  height: 100%;
+  text-align: left;
+}
+
+.mn-whome__file-icon {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 36px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-whome__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mn-whome__file-name {
+  color: var(--mn-fg);
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-whome__file-path {
+  color: var(--mn-fg-muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 名称那一列占 62%：截图上「已修改日期」那一列就落在 1290 附近，
+   右边那一片是空的（窗口更宽时那儿才是别的列）。表头与数据行用同一套列宽 */
+.mn-whome__name {
+  flex: 1 1 auto;
+  max-width: 62%;
+  min-width: 0;
+}
+
+.mn-whome__when {
+  flex: 0 0 132px;
+  color: var(--mn-fg-muted);
+  font-size: 13.5px;
+}
+
+.mn-whome__row--head .mn-whome__when {
+  color: inherit;
+}
+
+/* 行尾那两个记号（图钉 / 星）与真能按的 ⋯：悬停才出现，和截图一致。
+   宽度是定死的 94px（空的表头也占这一格），所以日期列不会因为悬停而左右跳 */
+.mn-whome__acts {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  flex: 0 0 94px;
+  padding-right: 6px;
+  opacity: 0;
+  transition: opacity var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-whome__row:hover .mn-whome__acts,
+.mn-whome__acts:focus-within {
+  opacity: 1;
+}
+
+.mn-whome__act {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-whome__act:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-whome__act:disabled {
+  color: var(--mn-fg-faint);
+  cursor: default;
+}
+
+.mn-whome__act-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.mn-whome__empty {
+  padding: 40px 4px;
+  color: var(--mn-fg-faint);
+  font-size: 13px;
+}
+
+.mn-whome__more {
+  display: flex;
+  justify-content: flex-end;
+  padding: 18px 0 0;
+}
+
+@media (max-width: 900px) {
+  /* 开始屏幕：窄屏上卡片竖着排、左栏收窄 */
+  .mn-whome__rail {
+    flex-basis: 76px;
+  }
+
+  .mn-whome__main {
+    padding-left: 24px;
+  }
+
+  .mn-whome__section {
+    padding-right: 24px;
+  }
+
+  .mn-whome__cards {
+    flex-wrap: wrap;
+    gap: 32px;
+  }
+
+  .mn-whome__filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .mn-whome__search {
+    width: 100%;
+  }
+
+  .mn-whome__when {
+    width: 84px;
+  }
+}
+
+@media (max-width: 767px) {
+  /* 三颗药丸在 390px 上放不进一行：让它们换行，别把最后一颗切掉 */
+  .mn-whome__tabs {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .mn-whome__tab {
+    min-width: 0;
+    padding: 0 16px;
+  }
+
+  .mn-whome__rail-item {
+    height: 68px;
+    padding-top: 12px;
+    font-size: 12px;
+  }
+
+  .mn-whome__rail-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mn-whome__acts {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Word 的导航窗格（.mn-word__nav）
+   --------------------------------------------------------------------------
+   按桌面版 Word 的截图：一行「← 导航」+ 三页（标题 / 查找 / 替换）+ 一个
+   「在文档中搜索」的框 + 内容区。量出来的数：窗格 296 宽（那个数写在
+   office.css 的 html[data-chrome='page'] 里）、标题行 44 高、页签 26 高、
+   搜索框 32 高、空状态那一块是一圈描边的方框。
+   ========================================================================== */
+
+.mn-word__nav {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  background: var(--mn-surface-2);
+}
+
+.mn-word__nav-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  height: 44px;
+  padding: 0 12px;
+}
+
+.mn-word__nav-back {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  color: var(--mn-fg);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-word__nav-back:hover {
+  background: var(--mn-surface);
+}
+
+.mn-word__nav-title {
+  color: var(--mn-fg);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.mn-word__nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex: 0 0 auto;
+  padding: 0 14px;
+}
+
+.mn-word__nav-tab {
+  position: relative;
+  height: 26px;
+  color: var(--mn-fg);
+  font-size: 13.5px;
+}
+
+/* 当前那一页：字变强调色，底下一条同色短线 */
+.mn-word__nav-tab.is-active {
+  color: var(--mn-accent);
+  font-weight: 600;
+}
+
+.mn-word__nav-tab.is-active::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--mn-accent);
+}
+
+.mn-word__nav-tab:disabled {
+  color: var(--mn-fg-faint);
+  cursor: default;
+}
+
+.mn-word__nav-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 32px;
+  margin: 14px 12px 0;
+  padding: 0 8px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 4px;
+  transition: border-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-word__nav-search:focus-within {
+  border-color: var(--mn-accent);
+}
+
+.mn-word__nav-search-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-word__nav-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 13px;
+  outline: none;
+}
+
+.mn-word__nav-search button {
+  flex: 0 0 auto;
+  color: var(--mn-fg-muted);
+}
+
+.mn-word__nav-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 0 8px;
+}
+
+.mn-word__nav-hint {
+  padding: 2px 14px;
+  color: var(--mn-fg-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* 空状态那一块：一圈描边的方框里一句话（截图里也是这么一块） */
+.mn-word__nav-box {
+  margin: 0 12px;
+  padding: 12px;
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.mn-word__nav-find {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.mn-word__nav-find-acts {
+  display: flex;
+  gap: 8px;
+  padding: 0 14px;
+}
+
+.mn-word__nav-btn {
+  height: 28px;
+  padding: 0 14px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-page-control);
+  border-radius: 3px;
+  color: var(--mn-fg);
+  font-size: 13px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-word__nav-btn:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+}
+
+.mn-word__nav-btn:disabled {
+  color: var(--mn-fg-faint);
+  cursor: default;
+}
+
+.mn-word__nav-foot {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-top: 1px solid var(--mn-border);
 }

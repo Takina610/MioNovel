@@ -1,4 +1,4 @@
-import type { ChatTokens, CodeTokens, ThemeTokens } from './types'
+import type { ChatTokens, CodeTokens, PageTokens, ThemeTokens } from './types'
 
 /**
  * token 名 → CSS 自定义属性名。
@@ -56,3 +56,13 @@ export const CHAT_TOKEN_VARS = {
   select: '--mn-chat-select',
   bubble: '--mn-chat-bubble',
 } as const satisfies Record<keyof ChatTokens, string>
+
+/**
+ * 字处理形态多出来的那几个变量。同一套道理：只有 chrome: 'page' 的主题要写它们。
+ */
+export const PAGE_TOKEN_VARS = {
+  paperEdge: '--mn-page-edge',
+  crop: '--mn-page-crop',
+  control: '--mn-page-control',
+  field: '--mn-page-field',
+} as const satisfies Record<keyof PageTokens, string>

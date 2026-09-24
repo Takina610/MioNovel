@@ -476,9 +476,11 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
       align: 'left',
     },
     tokens: {
-      bg: '#F5F5F5',
+      // 桌面（纸外面那一圈）是 #E5EBEF——2026-09-24 按截图重量的，不是 Fluent 的中性灰。
+      // 标题栏用的是同一个值：Word 里标题栏和桌面本来就是一片
+      bg: '#E5EBEF',
       surface: '#FFFFFF',
-      surface2: '#F0F0F0',
+      surface2: '#F5F5F5',
       border: '#E0E0E0',
       borderStrong: '#D1D1D1',
       fg: '#242424',
@@ -494,6 +496,12 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
       readerLink: '#0563C1',
       readerSelection: '#B4D5FE',
       readerRule: '#E0E0E0',
+    },
+    page: {
+      paperEdge: '#C6C6C6',
+      crop: '#AAAAAA',
+      control: '#8A8A8A',
+      field: '#FAFAFA',
     },
   },
   {
@@ -531,6 +539,12 @@ export const BUILTIN_THEMES: ReaderTheme[] = [
       readerLink: '#3D99F5',
       readerSelection: '#37465D',
       readerRule: '#333333',
+    },
+    page: {
+      paperEdge: '#3D3D3D',
+      crop: '#525252',
+      control: '#6E6E6E',
+      field: '#292929',
     },
   },
   {
