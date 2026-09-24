@@ -33,6 +33,22 @@ function pad(value: number): string {
   return value.toString().padStart(2, '0')
 }
 
+/**
+ * 绝对时间：「2026/9/22 14:30」。和相对时间（几天前）刻意分开——
+ * 办公软件的「最近使用」一列里写的就是这个格式，写「3 天前」反而不像那一列。
+ */
+export function formatDateTime(timestamp: number): string {
+  const date = new Date(timestamp)
+  const day = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`
+  return `${day} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+/** 只要日期那一半（云文档列表里的一列） */
+export function formatDay(timestamp: number): string {
+  const date = new Date(timestamp)
+  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`

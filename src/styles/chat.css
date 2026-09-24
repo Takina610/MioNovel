@@ -1,0 +1,843 @@
+/* ==========================================================================
+   企业微信形态（.mn-chat）
+   --------------------------------------------------------------------------
+   一本书 = 一个会话，一段正文 = 一条消息（见 lib/chat.ts）。界面是微信系那副样子：
+   最左边一条深灰功能栏、中间会话列表、右边会话。
+
+   三个颜色不跟界面明暗走，单独给（见 themes/types.ts 的 ChatTokens）：
+   功能栏在亮色和暗色下都是深灰——桌面版微信就是这样，它不是「面板」，是「边框」；
+   消息气泡既不是面板色也不是阅读底，它是「别人发来的消息」这一层。
+   ========================================================================== */
+
+.mn-chat {
+  height: 100dvh;
+  display: flex;
+  overflow: hidden;
+  background: var(--mn-bg);
+  color: var(--mn-fg);
+  font-family: var(--mn-font-sans);
+}
+
+/* ---- 功能栏 ---- */
+
+.mn-chat__rail {
+  flex: 0 0 56px;
+  width: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 0 12px;
+  background: var(--mn-chat-rail);
+  user-select: none;
+}
+
+.mn-chat__me {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 14px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 14%);
+  color: #ededed;
+  font-size: 13px;
+}
+
+.mn-chat__rail-btn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  color: var(--mn-chat-rail-fg);
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-chat__rail-btn:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 8%);
+}
+
+.mn-chat__rail-btn[aria-pressed='true'] {
+  color: #fff;
+}
+
+.mn-chat__rail-glyph {
+  font-size: 16px;
+}
+
+/* ---- 会话列表 ---- */
+
+.mn-chat__list {
+  flex: 0 0 268px;
+  width: 268px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--mn-surface);
+  border-right: 1px solid var(--mn-border);
+}
+
+.mn-chat__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  margin: 12px 10px 8px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: var(--mn-bg);
+  color: var(--mn-fg-faint);
+}
+
+.mn-chat__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  outline: none;
+}
+
+.mn-chat__list-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mn-chat__list-foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+  border-top: 1px solid var(--mn-border);
+}
+
+.mn-chat__list-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.mn-chat__list-btn:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+/* 会话行：头像 + 名字 + 摘要 + 时间 + 未读角标 */
+.mn-chat__session {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 10px 10px 12px;
+  text-align: left;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-chat__session:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-chat__session.is-current {
+  background: var(--mn-surface-2);
+}
+
+.mn-chat__avatar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 5px;
+  /* 头像底色：色相由名字哈希决定（lib/chat.ts），饱和度和明度固定——于是同一个
+     作者永远是同一个颜色，而且亮暗两种主题下都是企业微信那种色块 */
+  background: hsl(var(--mn-avatar-hue, 250) 58% 52%);
+  color: #fff;
+  font-size: 14px;
+}
+
+.mn-chat__session-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mn-chat__session-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.mn-chat__session-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--mn-fg);
+  font-size: 13px;
+}
+
+.mn-chat__session-time {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 10.5px;
+}
+
+.mn-chat__session-preview {
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+}
+
+.mn-chat__badge {
+  flex: 0 0 auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--mn-danger);
+  color: #fff;
+  font-size: 10.5px;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* 通讯录 / 日程 / 微盘：功能栏上那三个视图的列表 */
+.mn-chat__contacts,
+.mn-chat__schedule,
+.mn-chat__drive {
+  display: flex;
+  flex-direction: column;
+}
+
+.mn-chat__contact {
+  padding: 6px 0 8px;
+  border-bottom: 1px solid var(--mn-border);
+}
+
+.mn-chat__contact-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 6px;
+}
+
+.mn-chat__contact-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+}
+
+.mn-chat__contact-count {
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+}
+
+.mn-chat__contact-book {
+  display: block;
+  width: 100%;
+  padding: 5px 12px 5px 54px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--mn-fg-muted);
+  font-size: 12px;
+  text-align: left;
+}
+
+.mn-chat__contact-book:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-chat__schedule-group {
+  padding: 6px 0;
+}
+
+.mn-chat__schedule-head {
+  padding: 4px 12px;
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+}
+
+.mn-chat__schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.mn-chat__schedule-row:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-chat__schedule-time {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+}
+
+.mn-chat__drive-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.mn-chat__drive-row:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-chat__drive-size {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+}
+
+/* ---- 会话主区 ---- */
+
+.mn-chat__main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--mn-bg);
+}
+
+.mn-chat__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding: 0 14px;
+  background: var(--mn-surface);
+  border-bottom: 1px solid var(--mn-border);
+  user-select: none;
+}
+
+.mn-chat__peer {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mn-chat__peer-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--mn-fg);
+  font-size: 14px;
+}
+
+.mn-chat__peer-sub {
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+}
+
+.mn-chat__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mn-chat__icon-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-chat__icon-btn:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-chat__icon-btn.is-active {
+  color: var(--mn-accent);
+}
+
+.mn-chat__icon-btn:disabled {
+  opacity: 0.4;
+}
+
+.mn-chat__stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* 消息区：滚动容器（ReaderView）在里面，黑纱也盖在这一层 */
+.mn-chat__scroll {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.mn-chat__scroll > .mn-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 聊天区就是阅读区：底色是会话底，不是纸张 */
+.mn-chat .mn-scroll {
+  background: var(--mn-reader-bg);
+  padding: 0;
+}
+
+/* ---- 消息流 ---- */
+
+.mn-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: var(--mn-content-width);
+  margin: 0 auto;
+  padding: 18px clamp(14px, 3vw, 32px) 40px;
+}
+
+.mn-thread__divider {
+  align-self: center;
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--mn-fg) 8%, transparent);
+  color: var(--mn-reader-fg-muted);
+  font-size: 11.5px;
+}
+
+.mn-thread__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.mn-thread__avatar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+  background: hsl(var(--mn-avatar-hue, 250) 58% 52%);
+  color: #fff;
+  font-size: 13px;
+}
+
+/* 气泡：左上角收一点圆角、旁边一个小尖角——微信系的气泡长这样 */
+.mn-thread__bubble {
+  position: relative;
+  max-width: min(100%, 76%);
+  padding: 9px 13px;
+  border-radius: 3px 8px 8px 8px;
+  background: var(--mn-chat-bubble);
+  color: var(--mn-reader-fg);
+  font-size: var(--mn-font-size);
+  line-height: var(--mn-line-height);
+}
+
+.mn-thread__bubble::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--mn-chat-bubble);
+  transform: rotate(45deg);
+}
+
+.mn-thread__body {
+  display: block;
+  overflow-wrap: break-word;
+}
+
+.mn-thread__body p {
+  margin: 0 0 0.5em;
+  text-indent: 0;
+}
+
+.mn-thread__body p:last-child {
+  margin-bottom: 0;
+}
+
+.mn-thread__body img,
+.mn-thread__body svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 4px 0;
+  border-radius: 4px;
+}
+
+.mn-thread__body a {
+  color: var(--mn-reader-link);
+}
+
+/* 图片消息：真聊天里它就是一张图，没有气泡那层白底和边距 */
+.mn-thread__bubble--image {
+  padding: 0;
+  background: transparent;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mn-thread__bubble--image::before {
+  display: none;
+}
+
+.mn-thread__bubble--image .mn-thread__body img {
+  display: block;
+  max-width: min(100%, 420px);
+  margin: 0;
+  border-radius: 4px;
+}
+
+/* 图注、引用这类在气泡里收一下 */
+.mn-thread__body figcaption {
+  margin-top: 4px;
+  color: var(--mn-reader-fg-muted);
+  font-size: 0.9em;
+}
+
+.mn-thread__body blockquote {
+  margin: 0.4em 0;
+  padding-left: 0.8em;
+  border-left: 2px solid var(--mn-reader-rule);
+  color: var(--mn-reader-fg-muted);
+}
+
+/* 双语书的次要语言：显示与否跟着阅读设置。
+   只改 display（消息行是弹性行，用 block 的话头像和气泡会上下叠起来），
+   状态读阅读器根上的 data-bilingual */
+[data-bilingual='primary'] .mn-thread__row[data-alt='true'],
+[data-bilingual='secondary'] .mn-thread__row:not([data-alt]) {
+  display: none;
+}
+
+.mn-thread__row[data-alt='true'] .mn-thread__bubble {
+  color: var(--mn-alt-color, var(--mn-reader-fg-muted));
+}
+
+/* ---- 聊天记录（= 目录） ---- */
+
+.mn-chat__records {
+  flex: 0 0 224px;
+  width: 224px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--mn-surface);
+  border-left: 1px solid var(--mn-border);
+}
+
+.mn-chat__records-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 12px;
+  color: var(--mn-fg-muted);
+  font-size: 12px;
+  user-select: none;
+}
+
+.mn-chat__records-count {
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+}
+
+.mn-chat__records-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mn-chat__records-foot {
+  flex: 0 0 auto;
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--mn-border);
+}
+
+.mn-chat__records-text {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 输入区 ----
+   这里**没有假输入框**：真聊天的输入框能打字，我们的不能。
+   那个位置放的是这一章的位置（一条能拖的进度条，长得像输入框），
+   下面一排是真的按钮，右下角「发送」的位置是「下一章」。 */
+
+.mn-chat__compose {
+  flex: 0 0 auto;
+  padding: 8px 14px 12px;
+  background: var(--mn-surface);
+  border-top: 1px solid var(--mn-border);
+}
+
+.mn-chat__box {
+  position: relative;
+  padding: 8px 12px 12px;
+  border: 1px solid var(--mn-border);
+  border-radius: 6px;
+  background: var(--mn-bg);
+}
+
+.mn-chat__box-text {
+  display: block;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+}
+
+.mn-chat__box-hint {
+  color: var(--mn-fg-faint);
+}
+
+.mn-chat__range {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-top: 8px;
+}
+
+.mn-chat__compose-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.mn-chat__tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+
+.mn-chat__tool {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-chat__tool:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-chat__tool:disabled {
+  opacity: 0.4;
+}
+
+/* 主按钮（真聊天里这是「发送」）：按下去真的翻到下一章 */
+.mn-chat__send {
+  height: 28px;
+  padding: 0 16px;
+  border-radius: 4px;
+  background: var(--mn-accent);
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.mn-chat__send:disabled {
+  opacity: 0.45;
+}
+
+/* ---- 首页（没有人被选中时） ---- */
+
+.mn-chat__empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+}
+
+.mn-chat__empty-title {
+  margin: 0;
+  color: var(--mn-fg-muted);
+  font-size: 14px;
+}
+
+.mn-chat__empty-hint {
+  margin: 0;
+  max-width: 320px;
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.mn-chat__empty-recent {
+  display: flex;
+  flex-direction: column;
+  width: min(360px, 100%);
+  margin-top: 6px;
+  border: 1px solid var(--mn-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mn-chat__empty-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--mn-surface);
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  text-align: left;
+  border-bottom: 1px solid var(--mn-border);
+}
+
+.mn-chat__empty-row:last-child {
+  border-bottom: 0;
+}
+
+.mn-chat__empty-row:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-chat__empty-meta {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+}
+
+.mn-chat__empty-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mn-chat__empty-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+}
+
+.mn-chat__empty-btn:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+/* 空壳：功能栏 + 空列表 + 空主区，形状和真窗口一致 */
+.mn-chat--skeleton .mn-chat__list {
+  background: var(--mn-surface);
+}
+
+@media (max-width: 1023px) {
+  .mn-chat__records {
+    position: absolute;
+    top: 52px;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    width: min(70vw, 240px);
+    flex-basis: auto;
+    border-left: 1px solid var(--mn-border-strong);
+    box-shadow: var(--mn-shadow-panel);
+  }
+}
+
+/* 窄屏：会话列表是浮层（默认收起），功能栏留着——它是「这是个聊天软件」最省地方的记号 */
+.mn-chat__list-toggle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mn-chat__rail {
+    width: 46px;
+    flex-basis: 46px;
+  }
+
+  .mn-chat__list-toggle {
+    position: absolute;
+    top: 11px;
+    left: 54px;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    color: var(--mn-fg-muted);
+  }
+
+  .mn-chat__list-toggle:hover {
+    background: var(--mn-surface-2);
+    color: var(--mn-fg);
+  }
+
+  .mn-chat[data-list='closed'] .mn-chat__list {
+    display: none;
+  }
+
+  .mn-chat__list {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 46px;
+    z-index: 35;
+    width: min(78vw, 280px);
+    flex-basis: auto;
+    border-right: 1px solid var(--mn-border-strong);
+    box-shadow: var(--mn-shadow-panel);
+  }
+
+  /* 会话名让开那个浮层开关 */
+  .mn-chat__peer {
+    padding-left: 26px;
+  }
+}

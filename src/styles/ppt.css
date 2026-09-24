@@ -1,0 +1,311 @@
+/* ==========================================================================
+   PowerPoint 形态（.mn-ppt）
+   --------------------------------------------------------------------------
+   幻灯片浏览视图：灰底上一张张贴着排（不是编辑视图那种一次一张——
+   那个在浏览器里要自己造分页，还要和进度条打架，见决定记录 27）。
+   左侧是节（= 章）+ 当前节的缩略图，下方是备注栏。
+
+   缩略图和大图是**同一份内容**：SlideCard 组件渲染出来的东西，
+   缩略图只是整体缩放到 0.164 倍（900px → 148px）。所以缩略图里写的字
+   和正文里是同一份，不是另画一套占位图。
+   ========================================================================== */
+
+.mn-ppt__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.mn-ppt__body > .mn-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 演示文稿的画布：PowerPoint 的灰底就长这样（这是它最认得出来的一个特征） */
+.mn-ppt__body .mn-scroll {
+  background: var(--mn-bg);
+  padding: 0;
+}
+
+.mn-slidestack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 34px;
+  padding: 30px 16px 72px;
+}
+
+.mn-slidestack__item {
+  width: min(100%, var(--mn-ppt-slide));
+  scroll-margin-top: 18px;
+}
+
+/* ---- 一张幻灯片 ---- */
+
+.mn-slide {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mn-slide__frame {
+  aspect-ratio: 16 / 9;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+  padding: clamp(22px, 3.4vw, 46px) clamp(26px, 4.4vw, 62px);
+  overflow: hidden;
+  background: var(--mn-reader-bg);
+  color: var(--mn-reader-fg);
+  font-family: var(--mn-font-sans);
+  font-size: var(--mn-font-size);
+  line-height: var(--mn-line-height);
+  box-shadow:
+    0 2px 6px rgb(0 0 0 / 22%),
+    0 12px 30px rgb(0 0 0 / 14%);
+}
+
+.mn-slide__title {
+  margin: 0;
+  font-size: 1.5em;
+  font-weight: 600;
+  line-height: 1.25;
+  /* 标题最多两行：多余的部分裁掉。**不在文本里截断**——那是往正文里加原文
+     没有的字（这一条从编辑器形态起就是硬的，见 docs/SPEC.md 五 5.4） */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mn-slide--cover .mn-slide__frame {
+  justify-content: center;
+  gap: 1.1em;
+}
+
+.mn-slide--cover .mn-slide__title {
+  font-size: 2.1em;
+  -webkit-line-clamp: 3;
+}
+
+.mn-slide__subtitle {
+  margin: 0;
+  color: var(--mn-reader-fg-muted);
+  font-size: 1em;
+}
+
+.mn-slide__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+  overflow: hidden;
+}
+
+.mn-slide__part {
+  position: relative;
+  padding-left: 1.1em;
+}
+
+/* 正文段落前面一个短横：幻灯片里的项目符号。
+   用 ::before 画的，不进文本——真幻灯片里它也是版式的一部分 */
+.mn-slide__part::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 0.5em;
+  height: 2px;
+  background: var(--mn-accent);
+}
+
+.mn-slide__part[data-kind='comment'] {
+  color: var(--mn-reader-fg-muted);
+  font-size: 0.94em;
+}
+
+.mn-slide__part[data-kind='keyword'] {
+  font-weight: 600;
+}
+
+.mn-slide__part[data-kind='image'] {
+  padding-left: 0;
+}
+
+.mn-slide__part[data-kind='image']::before {
+  display: none;
+}
+
+.mn-slide__part[data-kind='image'] img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.mn-slide__part img {
+  vertical-align: middle;
+}
+
+/* 幻灯片里不该出现段落级的缩进和间距（那些是阅读排版的活） */
+.mn-slide__part p {
+  margin: 0;
+  text-indent: 0;
+}
+
+.mn-slide__number {
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+  text-align: right;
+}
+
+/* 双语书的次要语言段：和别的形态共用同一组变量 */
+.mn-slide__part[data-alt='true'] {
+  display: var(--mn-alt-display, block);
+  color: var(--mn-alt-color, var(--mn-reader-fg-muted));
+}
+
+/* ---- 左侧：节与缩略图 ---- */
+
+.mn-ppt__sections {
+  padding-bottom: 12px;
+}
+
+.mn-ppt__section {
+  border-bottom: 1px solid var(--mn-border);
+}
+
+.mn-ppt__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px 0 12px;
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+  font-size: 12px;
+  text-align: left;
+}
+
+.mn-ppt__section-head:hover {
+  background: color-mix(in srgb, var(--mn-fg) 10%, transparent);
+}
+
+.mn-ppt__section.is-open .mn-ppt__section-head {
+  color: var(--mn-accent);
+  font-weight: 600;
+}
+
+.mn-ppt__section-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-ppt__section-count {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 10.5px;
+  font-weight: 400;
+}
+
+.mn-ppt__thumbs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.mn-ppt__thumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 12px;
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+}
+
+.mn-ppt__thumb:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-ppt__thumb.is-active {
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+}
+
+.mn-ppt__thumb-canvas {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--mn-ppt-thumb);
+  height: calc(var(--mn-ppt-thumb) * 9 / 16);
+  overflow: hidden;
+  border: 1px solid var(--mn-border-strong);
+  background: var(--mn-reader-bg);
+}
+
+/* 缩略图不是另画一套：把整张幻灯片缩到 0.164 倍，字都还是真的 */
+.mn-ppt__thumb-scale {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--mn-ppt-slide);
+  transform: scale(var(--mn-ppt-scale));
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.mn-ppt__thumb-number {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 备注栏 ---- */
+
+.mn-notes {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: 132px;
+  background: var(--mn-surface);
+  border-top: 1px solid var(--mn-border);
+}
+
+.mn-notes__label {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+  user-select: none;
+}
+
+.mn-notes__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+  color: var(--mn-reader-fg);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.mn-notes__body p {
+  margin: 0 0 4px;
+}
+
+.mn-notes__empty {
+  color: var(--mn-fg-faint);
+}
+
+@media (max-width: 767px) {
+  .mn-notes {
+    height: 96px;
+  }
+}

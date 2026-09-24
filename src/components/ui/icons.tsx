@@ -10,9 +10,10 @@ import type { ReactNode, SVGProps } from 'react'
  * 尺寸由调用方用工具类给（`h-4 w-4`），默认不写死大小。
  */
 
-type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'>
+export type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'>
 
-function Svg({ children, ...props }: IconProps & { children: ReactNode }) {
+/** 图标画布。app-icons.tsx 那批办公图标也用它：规格必须一模一样（见文件头） */
+export function Svg({ children, ...props }: IconProps & { children: ReactNode }) {
   return (
     <svg
       viewBox="0 0 24 24"

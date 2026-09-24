@@ -1,0 +1,302 @@
+/* ==========================================================================
+   Excel 形态（.mn-excel）
+   --------------------------------------------------------------------------
+   一章 = 一个工作表，一段 = 一行（见 lib/sheet.ts）。界面是：编辑栏（名称框 +
+   fx + 编辑栏本体）、网格（行号 + A/B/C 列）、底部的工作表标签、状态栏。
+
+   网格的排布用固定宽度的列：行号列窄、正文列吃掉剩下的宽度、字数列和类型列固定。
+   这四列的宽度只写在这一处（--mn-sheet-*），因为表头、正文行、页脚都要对齐。
+   ========================================================================== */
+
+.mn-excel__body {
+  --mn-sheet-gutter: 52px;
+  --mn-sheet-num: 72px;
+  --mn-sheet-kind: 78px;
+
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.mn-excel__body > .mn-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- 编辑栏 ---- */
+
+.mn-formula {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  height: 26px;
+  background: var(--mn-surface);
+  border-bottom: 1px solid var(--mn-border);
+  font-size: 12px;
+  user-select: none;
+}
+
+.mn-formula__name {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  width: 92px;
+  padding: 0 8px;
+  border-right: 1px solid var(--mn-border);
+  color: var(--mn-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-formula__fx {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-right: 1px solid var(--mn-border);
+  color: var(--mn-fg-faint);
+  font-style: italic;
+}
+
+/* 编辑栏本体：一行文字，不换行（真 Excel 里它也常常被拖窄） */
+.mn-formula__box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--mn-reader-fg);
+}
+
+/* ---- 网格 ---- */
+
+.mn-excel__body .mn-scroll {
+  background: var(--mn-reader-bg);
+  padding: 0;
+}
+
+.mn-sheet {
+  min-width: 100%;
+  font-size: var(--mn-font-size);
+  line-height: var(--mn-line-height);
+  color: var(--mn-reader-fg);
+}
+
+.mn-sheet__row {
+  display: grid;
+  grid-template-columns:
+    var(--mn-sheet-gutter)
+    minmax(0, 1fr)
+    var(--mn-sheet-num)
+    var(--mn-sheet-kind);
+}
+
+.mn-sheet__gutter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 5px;
+  background: var(--mn-surface-2);
+  border-right: 1px solid var(--mn-border-strong);
+  border-bottom: 1px solid var(--mn-border);
+  color: var(--mn-fg-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+/* 当前行：行号也点亮（Excel 里选中的行，表头会跟着变色） */
+.mn-sheet__gutter[data-active='true'] {
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+  font-weight: 600;
+}
+
+.mn-sheet__cell {
+  min-width: 0;
+  padding: 5px 8px;
+  border-right: 1px solid var(--mn-border);
+  border-bottom: 1px solid var(--mn-border);
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.mn-sheet__cell--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--mn-fg-muted);
+}
+
+.mn-sheet__cell--kind {
+  color: var(--mn-fg-faint);
+  font-size: 0.92em;
+}
+
+/* 第 1 行：章标题。Excel 里这种标题行就是横着占满几格 */
+.mn-sheet__row--title .mn-sheet__cell--title {
+  padding: 9px 8px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--mn-border-strong);
+}
+
+/* 第 2 行：字段名。冻结时贴着顶端（由外壳上的 data 属性决定，见 ExcelApp） */
+.mn-sheet__row--head .mn-sheet__cell--head {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg-muted);
+  font-size: 0.92em;
+  font-weight: 600;
+  border-bottom: 1px solid var(--mn-border-strong);
+}
+
+.mn-sheet__gutter--corner {
+  background: var(--mn-surface-2);
+}
+
+.mn-excel__body[data-frozen='true'] .mn-sheet__row--head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* 当前单元格：2px 强调色框（Excel 选中的格子就是一圈绿框）。
+   用 outline + 负偏移，不占布局，也不会让行高抖一下 */
+.mn-sheet__cell[data-active='true'] {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--mn-accent);
+  outline-offset: -2px;
+}
+
+/* 对话、标题、注释在正文列里只用字重区分（表格里不该有一套语法配色） */
+.mn-sheet__cell--text[data-kind='keyword'] {
+  font-weight: 600;
+}
+
+.mn-sheet__cell--text[data-kind='comment'] {
+  color: var(--mn-reader-fg-muted);
+}
+
+.mn-sheet__cell--text[data-kind='image'] {
+  color: var(--mn-reader-link);
+  font-family: var(--mn-font-mono);
+  font-size: 0.92em;
+}
+
+/* 双语书的次要语言行：显示与否跟着阅读设置里的双语模式。
+   只改 display（行自己就是网格，用 block 会把四列拆散），状态读的是阅读器根上的
+   data-bilingual——那份变量是给块级段落用的，这里用不了 */
+.mn-sheet__row[data-alt='true'] .mn-sheet__cell {
+  color: var(--mn-alt-color, var(--mn-reader-fg-muted));
+}
+
+[data-bilingual='primary'] .mn-sheet__row[data-alt='true'],
+[data-bilingual='secondary'] .mn-sheet__row:not([data-alt]) {
+  display: none;
+}
+
+.mn-sheet__foot {
+  padding: 10px 12px 40px var(--mn-sheet-gutter);
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+}
+
+/* ---- 工作表标签条 ---- */
+
+.mn-tabsbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  height: 30px;
+  background: var(--mn-surface-2);
+  border-top: 1px solid var(--mn-border-strong);
+  user-select: none;
+}
+
+.mn-tabsbar__nav {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 4px;
+  border-right: 1px solid var(--mn-border);
+}
+
+.mn-tabsbar__nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-tabsbar__nav button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-fg) 10%, transparent);
+  color: var(--mn-fg);
+}
+
+.mn-tabsbar__nav button:disabled {
+  opacity: 0.35;
+}
+
+.mn-tabsbar__list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.mn-tabsbar__list::-webkit-scrollbar {
+  height: 0;
+}
+
+.mn-sheet-tab {
+  flex: 0 0 auto;
+  max-width: 190px;
+  padding: 0 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border-right: 1px solid var(--mn-border);
+  color: var(--mn-fg-muted);
+  font-size: 12px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-sheet-tab:hover {
+  background: color-mix(in srgb, var(--mn-fg) 6%, transparent);
+}
+
+/* 当前工作表：底色回到纸张色、字用强调色、底部一条粗线——Excel 的标签就是这样 */
+.mn-sheet-tab.is-active {
+  background: var(--mn-reader-bg);
+  color: var(--mn-accent);
+  font-weight: 600;
+  box-shadow: inset 0 2px 0 var(--mn-accent);
+}
+
+.mn-tabsbar__new {
+  flex: 0 0 auto;
+  width: 32px;
+  color: var(--mn-fg-muted);
+  font-size: 14px;
+  border-left: 1px solid var(--mn-border);
+}
+
+.mn-tabsbar__new:disabled {
+  opacity: 0.4;
+}
+
+.mn-tabsbar__empty {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+}

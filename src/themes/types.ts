@@ -7,14 +7,27 @@ export type ThemeScheme = 'light' | 'dark'
 /**
  * 界面形态。
  *
- * plain 是默认的阅读器；code 把外壳换成代码编辑器——书架变成资源管理器，
- * 正文按代码排版（行号、语法高亮、缩略图、状态栏）。
+ * plain 是默认的阅读器；其余五种是「伪装成别的软件」的外壳，各自对应一类应用：
  *
- * 为什么形态写在主题里而不是单独一个「编辑器模式」开关：用户要的是
+ *   code   代码编辑器（VS Code）：书架是资源管理器，正文按代码排版
+ *   doc    在线文档（飞书文档）：云文档首页 + 文档编辑页 + 大纲
+ *   chat   聊天（企业微信）：会话列表 + 消息流 + 聊天记录
+ *   page   字处理（Word）：开始屏幕 + 页面视图 + 功能区 + 导航窗格
+ *   sheet  表格（Excel）：开始屏幕 + 网格 + 编辑栏 + 工作表标签
+ *   slide  演示文稿（PPT）：开始屏幕 + 节 + 幻灯片 + 备注
+ *
+ * 名字说的是**形状**，不是品牌：组件只认这几个值，不认主题 id
+ * （见 hooks/useTheme.ts 的 useChrome）。所以同一副 Office 外壳可以挂两套
+ * 品牌色的主题，换个牌子不用改组件一行。
+ *
+ * 为什么形态写在主题里而不是单独一个「伪装模式」开关：用户要的是
  * 「选中这套主题，整个应用就是那个样子」。分成两个开关的话，
  * 颜色和形态可以互相矛盾，那不是一种观感，只是两块设置。
  */
-export type ThemeChrome = 'plain' | 'code'
+export type ThemeChrome = 'plain' | 'code' | 'doc' | 'chat' | 'page' | 'sheet' | 'slide'
+
+/** 带外壳的形态（除了默认阅读器之外的全部）。组件按它分派到各自的外壳 */
+export type AppChrome = Exclude<ThemeChrome, 'plain'>
 
 /**
  * 代码形态的语法配色。
@@ -43,6 +56,22 @@ export interface CodeTokens {
   prop: string
   /** 图片占位（`![](./figure.png)` 这类引用） */
   image: string
+}
+
+/**
+ * 聊天形态（企业微信）多出来的两个值。
+ *
+ * 只有这两个是别的 token 表达不了的：左边那条功能栏在亮色和暗色下**都是深灰**
+ * （它不跟界面明暗走，微信桌面版就是这样），而消息气泡的底色既不是面板色
+ * 也不是阅读区底色——它是「别人发来的消息」这一层。其余全部复用主 token。
+ */
+export interface ChatTokens {
+  /** 最左边那条功能栏（消息 / 通讯录 / 工作台） */
+  rail: string
+  /** 功能栏上的图标色 */
+  railFg: string
+  /** 收到的消息气泡 */
+  bubble: string
 }
 
 /**
@@ -94,6 +123,8 @@ export interface ReaderTheme {
   chrome?: ThemeChrome
   /** chrome: 'code' 的语法配色 */
   code?: CodeTokens
+  /** chrome: 'chat' 的气泡与功能栏 */
+  chat?: ChatTokens
   /**
    * 这套主题自带的排版参数。**只在用户主动选中它时**写进阅读设置，
    * 之后用户怎么改都归用户——它是一次预设，不是一层覆盖。

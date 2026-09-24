@@ -56,10 +56,13 @@ export function SettingsPanel({
   const setCombo = useHotkeyBindings((state) => state.setCombo)
   const resetCombo = useHotkeyBindings((state) => state.resetCombo)
 
-  // 摸鱼模式只在编辑器形态里存在，所以它那一栏也只在编辑器主题下出现。
-  // 判断和 hook 里一样走 chromeOf(getTheme(...))，不认主题 id：
-  // 再加一套编辑器主题，这里不用改
-  const codeChrome = chromeOf(getTheme(settings.themeId)) === 'code'
+  // 摸鱼模式只在带外壳的形态里存在（编辑器、飞书文档、企业微信、Office 三件套），
+  // 所以它那一栏也只在那些主题下出现。判断和 hook 里一样走 chromeOf(getTheme(...))，
+  // 不认主题 id：再加一套外壳主题，这里不用改
+  const chrome = chromeOf(getTheme(settings.themeId))
+  const codeChrome = chrome === 'code'
+  const appChrome = !codeChrome && chrome !== 'plain'
+  const shellChrome = codeChrome || appChrome
 
   /** 两个功能不能绑同一个组合：谁先响应说不清，索性在录的时候挡住 */
   const conflictWith = (id: HotkeyId, combo: string): string | null => {
@@ -140,13 +143,17 @@ export function SettingsPanel({
           </p>
         </section>
 
-        {/* 摸鱼模式那一栏只属于编辑器形态：普通主题下没有文件树、也没有代码区 */}
-        {codeChrome ? (
+        {/* 摸鱼模式那一栏只属于带外壳的形态：普通主题下没有「内容区」可压 */}
+        {shellChrome ? (
           <section className="space-y-3">
             <SectionTitle>摸鱼模式</SectionTitle>
             <Switch
-              label="把编辑区调暗"
-              description="文件树和代码区盖一层黑纱，标题栏、状态栏不动"
+              label={codeChrome ? '把编辑区调暗' : '把正文区调暗'}
+              description={
+                codeChrome
+                  ? '文件树和代码区盖一层黑纱，标题栏、状态栏不动'
+                  : '正文那块盖一层黑纱，窗口的边框和栏位不动'
+              }
               checked={dimEnabled}
               onChange={setDimEnabled}
             />
@@ -167,23 +174,36 @@ export function SettingsPanel({
           </section>
         ) : null}
 
-        <section className="space-y-3">
-          <SectionTitle>阅读模式</SectionTitle>
-          <div className="grid grid-cols-2 gap-2">
-            <ModeButton
-              active={settings.pageMode === 'scroll'}
-              label="上下滚动"
-              hint="一直往下滚"
-              onClick={() => onChange({ pageMode: 'scroll' })}
-            />
-            <ModeButton
-              active={settings.pageMode === 'paged'}
-              label="左右翻页"
-              hint="一屏一屏翻"
-              onClick={() => onChange({ pageMode: 'paged' })}
-            />
-          </div>
-        </section>
+        {/* 阅读模式只对普通形态和编辑器形态有意义：办公外壳里的正文不是整页排版的
+            （文档是一张纸、表格是网格、PPT 是一张张贴着、聊天是消息流），
+            分栏翻页在那儿不成立。所以这里明说一句，而不是留两个按了没反应的按钮 */}
+        {appChrome ? (
+          <section className="space-y-3">
+            <SectionTitle>阅读模式</SectionTitle>
+            <p className="text-[11.5px] leading-relaxed text-fg-faint">
+              这一套外壳里正文按上下滚动走：它的版面不是你自己的排版，是那个软件的
+              （页面、网格、幻灯片、消息流）。切回普通主题就能用分栏翻页。
+            </p>
+          </section>
+        ) : (
+          <section className="space-y-3">
+            <SectionTitle>阅读模式</SectionTitle>
+            <div className="grid grid-cols-2 gap-2">
+              <ModeButton
+                active={settings.pageMode === 'scroll'}
+                label="上下滚动"
+                hint="一直往下滚"
+                onClick={() => onChange({ pageMode: 'scroll' })}
+              />
+              <ModeButton
+                active={settings.pageMode === 'paged'}
+                label="左右翻页"
+                hint="一屏一屏翻"
+                onClick={() => onChange({ pageMode: 'paged' })}
+              />
+            </div>
+          </section>
+        )}
 
         <section className="space-y-3">
           <SectionTitle>双语显示</SectionTitle>

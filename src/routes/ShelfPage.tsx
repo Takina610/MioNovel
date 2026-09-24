@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { AppShelf } from '../apps/registry'
 import { BookCard } from '../components/shelf/BookCard'
 import { BookPanel } from '../components/shelf/BookPanel'
 import { CodeExplorer, toggleInSet } from '../components/code/CodeExplorer'
@@ -76,13 +77,25 @@ function filterAndSort(books: BookRecord[], query: string, sort: SortKey): BookR
 /**
  * 书架。
  *
- * 两套外壳共用一个入口：主题声明 chrome: 'code' 时走编辑器形态（资源管理器 +
- * 正文预览），否则是封面墙。形态写在主题里（见 themes/types.ts），
- * 所以这里只是「同一页数据的两种排法」，不是两套书架。
+ * 几套外壳共用一个入口：主题声明 chrome 时走对应的形态——code 是编辑器
+ * （资源管理器 + 正文预览），doc / chat / page / sheet / slide 是五套办公外壳
+ * （云文档首页、会话列表、Office 开始屏幕），其余是封面墙。
+ * 形态写在主题里（见 themes/types.ts），所以这里只是「同一页数据的几种排法」，
+ * 不是几套书架。
  */
 export function ShelfPage() {
   const chrome = useChrome()
-  return chrome === 'code' ? <CodeShelfPage /> : <GridShelfPage />
+  const navigate = useNavigate()
+  const openBook = useCallback(
+    (book: BookRecord) => {
+      void navigate(`/read/${book.id}`, { viewTransition: true })
+    },
+    [navigate],
+  )
+
+  if (chrome === 'code') return <CodeShelfPage />
+  if (chrome === 'plain') return <GridShelfPage />
+  return <AppShelf chrome={chrome} navigateToBook={openBook} />
 }
 
 // ==========================================================================

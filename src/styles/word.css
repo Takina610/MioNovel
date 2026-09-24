@@ -1,0 +1,182 @@
+/* ==========================================================================
+   Word 形态（.mn-word）
+   --------------------------------------------------------------------------
+   灰底上一张白纸：正文就是那张纸（.mn-content 直接当页面用），
+   上面一条标尺，左右留白和标尺上的两个边距标记是同一个数
+   （--mn-word-margin，一处定义——它们本来就该对齐，分两处写迟早会错开）。
+   ========================================================================== */
+
+.mn-word__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.mn-word__body > .mn-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 纸外面的底：Word 的页面视图就是灰底 + 白纸 + 纸的投影 */
+.mn-word__body .mn-scroll {
+  background: var(--mn-bg);
+  padding: 18px 12px 72px;
+}
+
+/* 正文 = 纸张。宽度按 A4，最小高度给一屏的观感（短章也不该是一小块）。
+   max-width 归零：正文栏宽那项设置在这里让位给「纸有多宽」——纸上再叠一层
+   栏宽限制，字就会缩在纸中间，两边空出没道理的白 */
+.mn-word__body .mn-content {
+  max-width: none;
+  width: min(100%, var(--mn-word-page));
+  min-height: 62vh;
+  margin: 0 auto;
+  padding: 84px var(--mn-word-margin) 96px;
+  background: var(--mn-reader-bg);
+  color: var(--mn-reader-fg);
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 14%),
+    0 10px 28px rgb(0 0 0 / 8%);
+}
+
+/* 标尺：和纸同宽居中，底下一排刻度。
+   左侧窗格开着的时候要把它那 236px 让出来，否则标尺在整窗居中、
+   纸在主区居中，两者会差一个窗格宽。用 :has 是因为「有没有窗格」这件事
+   已经写在 DOM 里了，不必再传一个 prop 下来。 */
+.mn-word__ruler-wrap {
+  flex: 0 0 auto;
+  padding: 0 12px;
+  background: var(--mn-surface);
+  border-bottom: 1px solid var(--mn-border);
+}
+
+.mn-office:has(.mn-office__side) .mn-word__ruler-wrap {
+  padding-left: 248px;
+}
+
+.mn-word__ruler {
+  position: relative;
+  width: min(100%, var(--mn-word-page));
+  height: 22px;
+  margin: 0 auto;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--mn-border-strong) 0 1px,
+    transparent 1px 14px
+  );
+  background-size: 100% 6px;
+  background-position: bottom left;
+  background-repeat: repeat-x;
+  border-bottom: 1px solid var(--mn-border-strong);
+}
+
+/* 边距标记：两个小三角，位置就是正文的左右边界 */
+.mn-word__ruler-margin {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-bottom: 8px solid var(--mn-accent);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+}
+
+.mn-word__ruler-margin--left {
+  left: var(--mn-word-margin);
+  transform: translateX(-2px);
+}
+
+.mn-word__ruler-margin--right {
+  right: var(--mn-word-margin);
+  transform: translateX(2px);
+}
+
+/* ---- 阅读视图：整窗只剩一张纸 ---- */
+
+.mn-word__body.is-immersive .mn-scroll {
+  padding: 0;
+}
+
+.mn-word__body.is-immersive .mn-content {
+  width: min(100%, 900px);
+  min-height: 100dvh;
+  box-shadow: none;
+  padding: clamp(40px, 6vw, 96px) clamp(28px, 8vw, 120px);
+}
+
+.mn-word__exit {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 4px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border-strong);
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-word__exit:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+/* 阅读视图里的翻页箭头：中间区域左右两侧各一个 */
+.mn-word__immersive-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 56px;
+  margin-top: -28px;
+  border-radius: 4px;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border);
+  color: var(--mn-fg-muted);
+  opacity: 0.7;
+  transition:
+    opacity var(--mn-dur-1) var(--mn-ease),
+    background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-word__immersive-nav:hover:not(:disabled) {
+  opacity: 1;
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-word__immersive-nav:disabled {
+  opacity: 0.25;
+}
+
+.mn-word__immersive-nav--prev {
+  left: 14px;
+}
+
+.mn-word__immersive-nav--next {
+  right: 14px;
+}
+
+@media (max-width: 767px) {
+  .mn-word__body .mn-content {
+    padding: 40px 20px 64px;
+    box-shadow: none;
+  }
+
+  .mn-word__ruler-margin {
+    display: none;
+  }
+
+  .mn-word__immersive-nav {
+    display: none;
+  }
+}

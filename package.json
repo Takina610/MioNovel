@@ -13,11 +13,12 @@
     "icons": "pwa-assets-generator",
     "logo": "bun run scripts/make-logo.ts",
     "samples": "bun run scripts/make-samples.ts",
-    "verify": "bun run scripts/verify-parsers.ts && bun run scripts/verify-epub.ts && bun run scripts/verify-decoy.ts && bun run scripts/verify-hotkey.ts",
+    "verify": "bun run scripts/verify-parsers.ts && bun run scripts/verify-epub.ts && bun run scripts/verify-decoy.ts && bun run scripts/verify-hotkey.ts && bun run scripts/verify-apps.ts",
     "verify:txt": "bun run scripts/verify-parsers.ts",
     "verify:epub": "bun run scripts/verify-epub.ts",
     "verify:decoy": "bun run scripts/verify-decoy.ts",
-    "verify:hotkey": "bun run scripts/verify-hotkey.ts"
+    "verify:hotkey": "bun run scripts/verify-hotkey.ts",
+    "verify:apps": "bun run scripts/verify-apps.ts"
   },
   "dependencies": {
     "chardet": "^2.2.0",

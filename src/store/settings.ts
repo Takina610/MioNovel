@@ -95,8 +95,16 @@ export function fontStackOf(id: string): string {
   return FONT_STACKS.find((font) => font.id === id)?.stack ?? FONT_STACKS[0].stack
 }
 
-/** 双语模式 → 次要/主要段落的 display 与次要段的颜色。收进变量让 CSS 一处写逻辑。
- *  只看原文时次要语言就是正文，用全亮前景色；其余情况弱化。 */
+/**
+ * 双语模式 → 段落/行的显示与次要段的颜色。收进变量让 CSS 一处写逻辑。
+ * 只看原文时次要语言就是正文，用全亮前景色；其余情况弱化。
+ *
+ * **只管显示，不管布局。** 这两个变量给的是 `block` / `none`，只对「本来就是块级」
+ * 的段落成立；表格的行是网格、聊天的消息行是弹性行，拿它们当 display 会当场散架
+ * （四列摊成一行文字、头像和气泡上下叠起来）。那些形态不看这两个变量，
+ * 而是读阅读器根上的 `data-bilingual` 属性，自己决定「隐藏哪一行、怎么隐藏」
+ * （见 styles/excel.css 与 chat.css 里各一条规则）。
+ */
 const BILINGUAL_VARS: Record<
   ReaderSettings['bilingual'],
   { alt: string; primary: string; dimAlt: boolean }

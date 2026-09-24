@@ -5,6 +5,15 @@ import { cleanupStaleImports } from './db/books'
 import './styles/app.css'
 import './styles/content.css'
 import './styles/code.css'
+// 五套办公外壳的皮肤：office 是 Word/Excel/PPT 共用的框，其余各管一种形态。
+// 顺序无所谓——它们的选择器都挂在各自的根类下（.mn-office / .mn-chat / …），
+// 互不重叠
+import './styles/office.css'
+import './styles/word.css'
+import './styles/excel.css'
+import './styles/ppt.css'
+import './styles/doc.css'
+import './styles/chat.css'
 
 const container = document.getElementById('root')
 if (!container) throw new Error('index.html 里缺少 #root')

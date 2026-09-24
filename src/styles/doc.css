@@ -1,0 +1,517 @@
+/* ==========================================================================
+   飞书文档形态（.mn-doc）
+   --------------------------------------------------------------------------
+   一本书 = 一篇云文档（标题栏中间是文档名），一章 = 文档里的一个大标题，
+   左侧「大纲」把全部标题列出来。正文是白底上一列字——飞书文档没有「纸张」
+   这个概念，正文直接铺在编辑区里，所以这里不该有页框和投影。
+
+   飞书也没有状态栏，所以进度放在大纲面板底部那条细线上：它必须在
+   （那是我们自己的阅读器），但可以不显眼。
+   ========================================================================== */
+
+.mn-doc {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--mn-surface);
+  color: var(--mn-fg);
+  font-family: var(--mn-font-sans);
+}
+
+/* ---- 顶栏 ---- */
+
+.mn-doc__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 12px;
+  background: var(--mn-surface);
+  border-bottom: 1px solid var(--mn-border);
+  font-size: 13px;
+  user-select: none;
+}
+
+.mn-doc__brand {
+  color: var(--mn-fg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mn-doc__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--mn-fg);
+  font-weight: 500;
+  text-align: center;
+}
+
+.mn-doc__bar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mn-doc__icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--mn-fg-muted);
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-doc__icon-btn:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-doc__icon-btn.is-active {
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+}
+
+.mn-doc__icon-btn:disabled {
+  opacity: 0.4;
+}
+
+/* 「已读 42%」：飞书没有这一格，但读者需要知道读到哪了，所以做成一颗安静的胶囊 */
+.mn-doc__chip {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--mn-surface-2);
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.mn-doc__share {
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: var(--mn-accent);
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.mn-doc__share:disabled {
+  opacity: 0.45;
+}
+
+.mn-doc__avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---- 主体：大纲 + 文档区 ---- */
+
+.mn-doc__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.mn-doc__outline {
+  flex: 0 0 232px;
+  width: 232px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--mn-bg);
+  border-right: 1px solid var(--mn-border);
+}
+
+.mn-doc__outline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 12px;
+  color: var(--mn-fg-muted);
+  font-size: 12px;
+  user-select: none;
+}
+
+.mn-doc__outline-count {
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+}
+
+.mn-doc__outline-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 8px;
+}
+
+.mn-doc__outline-foot {
+  flex: 0 0 auto;
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--mn-border);
+}
+
+/* 大纲底部那条进度线：细，而且只有已读部分是强调色 */
+.mn-doc__progress {
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--mn-fg) 12%, transparent);
+  overflow: hidden;
+}
+
+.mn-doc__progress span {
+  display: block;
+  height: 100%;
+  background: var(--mn-accent);
+  transition: width var(--mn-dur-2) var(--mn-ease);
+}
+
+.mn-doc__progress-text {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-doc__main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--mn-surface);
+}
+
+/* ---- 格式工具条 ---- */
+
+.mn-doc__toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 38px;
+  padding: 0 10px;
+  background: var(--mn-surface);
+  border-bottom: 1px solid var(--mn-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  user-select: none;
+}
+
+.mn-doc__toolbar::-webkit-scrollbar {
+  height: 0;
+}
+
+.mn-doc__tool {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  color: var(--mn-fg-muted);
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-doc__tool:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-doc__tool.is-active {
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+}
+
+.mn-doc__tool:disabled {
+  opacity: 0.4;
+}
+
+.mn-doc__tool-glyph {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mn-doc__toolbar-gap {
+  flex: 1 0 12px;
+  align-self: stretch;
+  border-left: 1px solid var(--mn-border);
+  margin: 6px 6px;
+}
+
+/* ---- 文档区（正文） ---- */
+
+.mn-doc__canvas {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: var(--mn-reader-bg);
+}
+
+.mn-doc__canvas > .mn-scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 飞书文档的正文：居中的一列，上下留白比左右大，没有纸张边框 */
+.mn-doc .mn-scroll {
+  background: var(--mn-reader-bg);
+  padding: 26px clamp(20px, 6vw, 72px) 96px;
+}
+
+.mn-doc .mn-content {
+  max-width: var(--mn-content-width);
+  margin: 0 auto;
+}
+
+/* ==========================================================================
+   云文档首页（书架）
+   ========================================================================== */
+
+.mn-doc--home {
+  background: var(--mn-bg);
+}
+
+.mn-doc__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: min(420px, 46vw);
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: var(--mn-surface-2);
+  color: var(--mn-fg-faint);
+}
+
+.mn-doc__search input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  outline: none;
+}
+
+.mn-doc__import {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: var(--mn-accent);
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.mn-doc__home-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.mn-doc__spaces {
+  flex: 0 0 208px;
+  width: 208px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 8px;
+  background: var(--mn-bg);
+  border-right: 1px solid var(--mn-border);
+}
+
+.mn-doc__space {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.mn-doc__space:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-doc__space.is-active {
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+  font-weight: 600;
+}
+
+.mn-doc__space:disabled {
+  opacity: 0.5;
+}
+
+.mn-doc__home-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 24px 40px;
+  overflow-y: auto;
+  background: var(--mn-surface);
+}
+
+.mn-doc__home-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+
+.mn-doc__home-head h2 {
+  margin: 0;
+  color: var(--mn-fg);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mn-doc__home-head span {
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+}
+
+.mn-doc__table {
+  display: flex;
+  flex-direction: column;
+}
+
+.mn-doc__table-head,
+.mn-doc__table-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) 1fr 1fr 1.2fr 32px;
+  align-items: center;
+  gap: 8px;
+}
+
+.mn-doc__table-head {
+  height: 30px;
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--mn-border-strong);
+}
+
+.mn-doc__table-row {
+  height: 38px;
+  border-bottom: 1px solid var(--mn-border);
+  font-size: 12.5px;
+}
+
+.mn-doc__table-row:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-doc__doc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 100%;
+  color: var(--mn-fg);
+  text-align: left;
+}
+
+.mn-doc__doc-icon {
+  flex: 0 0 auto;
+  color: var(--mn-accent);
+}
+
+.mn-doc__cell-soft {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--mn-fg-muted);
+}
+
+.mn-doc__row-more {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 24px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  opacity: 0;
+  transition: opacity var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-doc__table-row:hover .mn-doc__row-more {
+  opacity: 1;
+}
+
+.mn-doc__row-more:hover {
+  background: color-mix(in srgb, var(--mn-fg) 10%, transparent);
+  color: var(--mn-fg);
+}
+
+.mn-doc__empty,
+.mn-doc__home-hint {
+  padding: 16px 2px;
+  color: var(--mn-fg-faint);
+  font-size: 12px;
+}
+
+.mn-doc__home-hint {
+  padding-top: 12px;
+}
+
+/* 空壳（书没读出来时）：只有顶栏和一个白底的空文档区 */
+.mn-doc--skeleton .mn-doc__name {
+  max-width: 220px;
+}
+
+@media (max-width: 900px) {
+  .mn-doc__outline,
+  .mn-doc__spaces {
+    position: absolute;
+    top: 44px;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    width: min(78vw, 260px);
+    flex-basis: auto;
+    border-right: 1px solid var(--mn-border-strong);
+    box-shadow: var(--mn-shadow-panel);
+  }
+
+  .mn-doc__table-head,
+  .mn-doc__table-row {
+    grid-template-columns: minmax(0, 2fr) 1fr 1.1fr 32px;
+  }
+
+  .mn-doc__table-head span:nth-child(2),
+  .mn-doc__table-row .mn-doc__cell-soft:nth-child(2) {
+    display: none;
+  }
+}

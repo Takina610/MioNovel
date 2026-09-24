@@ -6,6 +6,7 @@ import type { ThemeChrome } from '../../themes/types'
 import { ensureHighlighter, highlighterReady } from '../../lib/highlight'
 import { useDecoy } from '../../store/decoy'
 import { Minimap } from '../code/Minimap'
+import { ChapterBody } from '../../apps/ChapterBody'
 import { cx } from '../../lib/cx'
 
 interface ReaderViewProps {
@@ -21,6 +22,11 @@ interface ReaderViewProps {
   settings: ReaderSettings
   /** 主题声明的界面形态。code 时正文按代码排版并挂缩略图 */
   chrome: ThemeChrome
+  /** 章名（聊天的分隔线、表格的 A1、幻灯片的标题页要用） */
+  label?: string
+  /** 书名与作者（幻灯片的副标题、聊天的发信人） */
+  bookTitle?: string
+  author?: string
   /** 进入本章要恢复到的章内比例（0-1） */
   entryRatio: number
   hasPrev: boolean
@@ -100,6 +106,9 @@ function ReaderViewImpl({
   decoySeedValue,
   settings,
   chrome,
+  label,
+  bookTitle,
+  author,
   entryRatio,
   hasPrev,
   hasNext,
@@ -125,8 +134,19 @@ function ReaderViewImpl({
   const fragmentRef = useRef('')
   fragmentRef.current = fragment ?? ''
 
-  const paged = settings.pageMode === 'paged'
+  /**
+   * 翻页模式只属于普通形态和编辑器形态。
+   *
+   * 办公外壳里的正文不是整页排版的：飞书文档和 Word 是「一张纸」、
+   * Excel 是网格、PPT 是一张张贴着的幻灯片、企业微信是聊天流。
+   * 分栏翻页在那儿没有意义（而且「一张纸」比滚动容器窄，量出来的页宽会失真），
+   * 所以这些形态下一律按上下滚动走。设置里那两项仍然留着，回到普通主题就生效。
+   */
+  const paged = settings.pageMode === 'paged' && (chrome === 'plain' || chrome === 'code')
   const code = chrome === 'code'
+  /** 块状形态：正文由 ChapterBody 渲染（表格 / 幻灯片 / 聊天） */
+  const blockChrome =
+    chrome === 'chat' || chrome === 'sheet' || chrome === 'slide' ? chrome : null
   // 缩略图上「现在读到哪」的位置。滚动报告本来就限流到 100ms，跟着它一起更新，
   // 免得为了一个装饰性的框每秒重渲染十次仍不够快
   const [mapRatio, setMapRatio] = useState(() => clamp01(entryRatio))
@@ -774,25 +794,42 @@ function ReaderViewImpl({
       className={cx('mn-scroll', paged && 'mn-paged', 'outline-none')}
     >
       <div ref={frameRef} className={cx('mn-frame', paged && 'mn-frame--paged')}>
-        <article
-          ref={contentRef}
-          // 内容是解析时净化过的：DOMPurify 过了一遍，脚本/样式/外链样式表都剥掉了，
-          // 图片指向本地 ObjectURL。所以这里可以放心用 innerHTML。
-          // 代码形态下 decorated.html 是在它之上再过一遍标签（见 lib/code.ts），
-          // 不删不改原文。章末那对「上一章/下一章」在演示模式下不拼进去：
-          // 它的字面意思会露馅，而且状态栏上本来就有翻章按钮
-          dangerouslySetInnerHTML={{
-            __html: decorated.html + (decoy ? '' : chapterNavHtml(hasPrev, hasNext)),
-          }}
-          style={paged ? { transform: `translateX(${-page * layout.step}px)` } : undefined}
-          className={cx(
-            'mn-content',
-            // 演示模式下正文是代码：这一条给 CSS 用来保留缩进（见 code.css）
-            decoy && 'mn-content--code',
-            paged && animate && 'mn-turning',
-            entering && 'mn-chapter-in',
-          )}
-        />
+        {blockChrome ? (
+          // 块状形态（表格 / 幻灯片 / 聊天）：正文不是一片字，而是一格一格的东西，
+          // 由 ChapterBody 渲染。滚动、进度、锚点跳转仍然走这一层——所以这三种形态
+          // 不用各自长出一套「怎么算读到哪了」。
+          <article ref={contentRef} className="mn-content mn-content--blocks">
+            <ChapterBody
+              chrome={blockChrome}
+              html={html}
+              resources={resources}
+              label={label ?? ''}
+              bookTitle={bookTitle ?? ''}
+              author={author ?? ''}
+              percent={mapRatio}
+            />
+          </article>
+        ) : (
+          <article
+            ref={contentRef}
+            // 内容是解析时净化过的：DOMPurify 过了一遍，脚本/样式/外链样式表都剥掉了，
+            // 图片指向本地 ObjectURL。所以这里可以放心用 innerHTML。
+            // 代码形态下 decorated.html 是在它之上再过一遍标签（见 lib/code.ts），
+            // 不删不改原文。章末那对「上一章/下一章」在演示模式下不拼进去：
+            // 它的字面意思会露馅，而且状态栏上本来就有翻章按钮
+            dangerouslySetInnerHTML={{
+              __html: decorated.html + (decoy ? '' : chapterNavHtml(hasPrev, hasNext)),
+            }}
+            style={paged ? { transform: `translateX(${-page * layout.step}px)` } : undefined}
+            className={cx(
+              'mn-content',
+              // 演示模式下正文是代码：这一条给 CSS 用来保留缩进（见 code.css）
+              decoy && 'mn-content--code',
+              paged && animate && 'mn-turning',
+              entering && 'mn-chapter-in',
+            )}
+          />
+        )}
       </div>
     </div>
   )

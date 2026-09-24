@@ -1,4 +1,4 @@
-import type { CodeTokens, ThemeTokens } from './types'
+import type { ChatTokens, CodeTokens, ThemeTokens } from './types'
 
 /**
  * token 名 → CSS 自定义属性名。
@@ -43,3 +43,13 @@ export const CODE_TOKEN_VARS = {
   prop: '--mn-code-prop',
   image: '--mn-code-image',
 } as const satisfies Record<keyof CodeTokens, string>
+
+/**
+ * 聊天形态多出来的那几个变量。和代码形态同一套道理：只有 chrome: 'chat'
+ * 的主题要写它们，别的主题不为用不上的值买单。
+ */
+export const CHAT_TOKEN_VARS = {
+  rail: '--mn-chat-rail',
+  railFg: '--mn-chat-rail-fg',
+  bubble: '--mn-chat-bubble',
+} as const satisfies Record<keyof ChatTokens, string>

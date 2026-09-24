@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { AppFrameSkeleton, AppReader } from '../apps/registry'
 import { CodeExplorer, toggleInSet } from '../components/code/CodeExplorer'
 import { CodeSearch } from '../components/code/CodeSearch'
 import { CodeFrame, CodeShell, CodeStatusItem, type CodeView } from '../components/code/CodeShell'
@@ -32,6 +33,7 @@ import { cx } from '../lib/cx'
 import { useDecoy } from '../store/decoy'
 import { useDim } from '../store/dim'
 import { useHotkeyCombo } from '../store/hotkeys'
+import { useImports } from '../store/imports'
 import { resolveSettings, settingsToVars, useSettings } from '../store/settings'
 import { chromeOf, getTheme } from '../themes/apply'
 
@@ -71,14 +73,20 @@ export function ReaderPage() {
   // 用 ref 的话那一轮写变量的机会就白费了，而且 settings 不变也不会再来第二次——
   // 症状是刷新之后字号、栏宽、双语模式全部退回 CSS 默认值。
   const [readerRoot, setReaderRoot] = useState<HTMLDivElement | null>(null)
+  /** 办公外壳里那个「导入文件」用的文件选择框（企业微信输入区的回形针） */
+  const readerFileInput = useRef<HTMLInputElement>(null)
+  const importFiles = useCallback(() => readerFileInput.current?.click(), [])
 
-  /** 全局「演示模式」开关。快捷键或菜单里切（见 store/decoy） */
+  /** 演示模式（Alt+Q）。快捷键或菜单里切（见 store/decoy） */
   const decoy = useDecoy((state) => state.enabled)
   const decoyId = useDecoy((state) => state.preset)
   const toggleDecoy = useDecoy((state) => state.toggle)
+  /** 导入文件。办公外壳里的「导入」按钮（企业微信输入区、Office 开始屏幕）用它 */
+  const addFiles = useImports((state) => state.addFiles)
 
   /** 摸鱼模式（把文件树和代码区压暗）。开关在 store/dim，键位可改 */
   const dim = useDim((state) => state.enabled)
+  const dimLevel = useDim((state) => state.level)
   const toggleDim = useDim((state) => state.toggle)
   const decoyHotkey = useHotkeyCombo('decoy')
   const dimHotkey = useHotkeyCombo('dim')
@@ -91,6 +99,13 @@ export function ReaderPage() {
   )
   // 形态跟着**这本书生效的**主题走：某本书开了独立主题时，进它的阅读器就换成它的形态
   const chrome = chromeOf(getTheme(settings.themeId))
+  /** 五套办公外壳（doc / chat / page / sheet / slide）。code 与 plain 走各自的分支 */
+  const appChrome =
+    chrome === 'doc' || chrome === 'chat' || chrome === 'page' || chrome === 'sheet' || chrome === 'slide'
+      ? chrome
+      : null
+  /** 要不要读目录：编辑器形态和办公外壳都要（左边那些大纲 / 标签 / 节就是它） */
+  const needsToc = chrome !== 'plain'
 
   // 这本书可能开了独立主题；离开阅读器要还原成全局主题，否则书架会带着阅读主题
   useScopedTheme(settings.themeId, globalSettings.themeId)
@@ -116,6 +131,10 @@ export function ReaderPage() {
     for (const [name, value] of Object.entries(settingsToVars(settings))) {
       readerRoot.style.setProperty(name, value)
     }
+    // 双语模式也挂一个属性：块状形态（表格的行、聊天的消息行）自己要保留布局，
+    // 光看 --mn-alt-display 那个 block / none 会把它们的网格与弹性行拆散
+    // （见 store/settings.ts 的 BILINGUAL_VARS）
+    readerRoot.dataset.bilingual = settings.bilingual
   }, [readerRoot, settings])
 
   // 首次进入：接着上次读到的地方
@@ -133,16 +152,20 @@ export function ReaderPage() {
   // 书架整份数据：编辑器形态的左侧资源管理器列的是整个书架，不只是当前这本
   const allBooks = useBooks()
 
-  // 标签页和面包屑上写的是章节标题（也当文件名用）。只有编辑器形态用得上，
+  // 标签页和面包屑上写的是章节标题（也当文件名用）。编辑器形态和办公外壳都要它，
   // 所以别的形态下给 undefined——那次查询不碰库
   const tocRows = useToc(
-    chrome === 'code' ? book?.id : undefined,
-    chrome === 'code' ? book?.groups : undefined,
+    needsToc ? book?.id : undefined,
+    needsToc ? book?.groups : undefined,
   )
   const titleOfChapter = useCallback(
     (index: number) =>
       tocRows?.find((row) => row.type === 'chapter' && row.index === index)?.label ?? '',
     [tocRows],
+  )
+  const chapterRow = useMemo(
+    () => tocRows?.find((row) => row.type === 'chapter' && row.index === chapterIndex),
+    [tocRows, chapterIndex],
   )
 
   // 邻章读进页缓存，让「下一章」快一点
@@ -256,10 +279,11 @@ export function ReaderPage() {
   }, [bookId])
 
   // ---- 工具栏自动隐藏 ----
-  // 编辑器形态下没有会收起来的工具栏：标题栏、标签页、状态栏一直在，
-  // 那正是这副外壳存在的意义。侧栏的显隐由 t 和活动栏按钮控制。
+  // 只有普通形态有那条会自动收起来的工具栏。编辑器形态和五套办公外壳里
+  // 标题栏、标签页、状态栏一直在——那正是那些外壳存在的意义（真 Office 的
+  // 功能区也不会自己消失）。侧栏的显隐由各自的按钮 / 视图页签 / t 控制。
   useEffect(() => {
-    if (chrome === 'code' || !chromeVisible || tocOpen || settingsOpen) return
+    if (chrome !== 'plain' || !chromeVisible || tocOpen || settingsOpen) return
     const timer = window.setTimeout(() => setChromeVisible(false), CHROME_TIMEOUT)
     return () => window.clearTimeout(timer)
   }, [chrome, chromeVisible, tocOpen, settingsOpen])
@@ -278,9 +302,11 @@ export function ReaderPage() {
       switch (event.key) {
         case 't':
         case 'T':
-          // 编辑器形态下 T 是「收起/展开侧栏」，和编辑器里一样
+          // 编辑器形态下 T 是「收起/展开侧栏」，和编辑器里一样。
+          // 办公外壳那一层的侧栏开关在各自的视图页签上（那儿才是它们的位置），
+          // 所以这里不动它——一个键在两个地方各管一半反而说不清
           if (chrome === 'code') setSideOpen((open) => !open)
-          else setTocOpen((open) => !open)
+          else if (chrome === 'plain') setTocOpen((open) => !open)
           return
         case 's':
         case 'S':
@@ -327,11 +353,13 @@ export function ReaderPage() {
     void navigate('/', { viewTransition: true })
   }, [navigate])
 
-  // 书还没读出来 / 读不出来 / 没能解析：这三种状态在编辑器形态下都长成编辑器，
+  // 书还没读出来 / 读不出来 / 没能解析：这三种状态在带外壳的形态下都长成那副外壳，
   // 不摆标识也不写「正在打开」——骨架和真窗口一样，从书架点进来就不会先闪一下
   // 另一个形状的页面（原来是普通形态那套加载页，看着就是「加载了一下」）
   const shellFallback = (message: ReactNode, action?: { label: string; run: () => void }) =>
-    chrome === 'code' ? (
+    appChrome ? (
+      <AppFrameSkeleton chrome={appChrome} message={message} action={action} />
+    ) : chrome === 'code' ? (
       <CodeFrame title={decoy ? 'workspace' : 'MioNovel'}>
         <div className="mn-code-watermark">
           <p className="text-[13px] text-fg-muted">{message}</p>
@@ -393,6 +421,9 @@ export function ReaderPage() {
         decoySeedValue={decoySeed(book.id, chapterIndex)}
         settings={settings}
         chrome={chrome}
+        label={chapter?.title ?? ''}
+        bookTitle={book.title}
+        author={book.author}
         entryRatio={entryRatio}
         hasPrev={chapterIndex > 0}
         hasNext={chapterIndex < book.chapterCount - 1}
@@ -405,6 +436,67 @@ export function ReaderPage() {
         onTap={handleTap}
       />
     )
+
+  // ---- 五套办公外壳 ----
+  // 外壳只画框，正文仍然是上面那个 readerView（滚动、进度、锚点都归它）。
+  // 各形态需要什么由 AppReader 按 chrome 分派（见 apps/registry.tsx）。
+  if (appChrome) {
+    return (
+      <div ref={setReaderRoot} className="contents">
+        <AppReader
+          chrome={appChrome}
+          book={book}
+          books={allBooks}
+          chapters={tocRows}
+          chapterIndex={chapterIndex ?? 0}
+          chapterCount={book.chapterCount}
+          chapterTitle={chapter?.title ?? ''}
+          chapterHtml={html}
+          chapterChars={chapterRow?.charCount}
+          percent={percent}
+          chapterPercent={ratio}
+          settings={settings}
+          onSettingsChange={handleSettingsChange}
+          onChapter={(index) => goToChapter(index, 0)}
+          onSeek={handleSeek}
+          onBack={backToShelf}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onImport={importFiles}
+          onOpenBook={(target) => openChapterIn(target, target.progress?.chapterIndex ?? 0)}
+          resolveMedia={(src) => resources.get(src)}
+          dim={dim ? dimLevel : 0}
+          dimOn={dim}
+          onToggleDim={() => toggleDim()}
+        >
+          {readerView ?? null}
+        </AppReader>
+
+        <input
+          ref={readerFileInput}
+          type="file"
+          multiple
+          accept=".txt,.epub,text/plain,application/epub+zip"
+          className="hidden"
+          onChange={(event) => {
+            const files = Array.from(event.target.files ?? [])
+            addFiles(files)
+            event.target.value = ''
+          }}
+        />
+
+        <SettingsPanel
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          settings={settings}
+          onChange={handleSettingsChange}
+          perBookEnabled={perBookEnabled}
+          onTogglePerBook={(enabled) => {
+            if (bookId) setPerBookEnabled(bookId, enabled)
+          }}
+        />
+      </div>
+    )
+  }
 
   // ---- 编辑器形态 ----
   if (chrome === 'code') {

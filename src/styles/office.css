@@ -1,0 +1,880 @@
+/* ==========================================================================
+   办公外壳（.mn-office）
+   --------------------------------------------------------------------------
+   Word / Excel / PowerPoint 三套主题走的框：标题栏、页签、功能区、状态栏、
+   开始屏幕。它们本来就是同一个模子——2021 之后的 Office 三件套用的是同一份
+   Fluent 界面，区别只有品牌色和功能区里有哪些命令。
+
+   两条自我约束（和 code.css 一样）：
+
+   1. **规则只认 .mn-office 这个类，不认主题 id**。类由 apps/registry.tsx 按
+      chrome 挂上去，再加一套办公主题时这里一行都不用动。
+   2. **颜色一律取变量**。这里只负责结构（高度、分隔、缩进），颜色全部来自主题
+      token——所以同一副外壳在 Word（蓝）、Excel（绿）、PPT（橙）下都对。
+
+   还有一条和 code.css 不同的地方：**这里没有一像素是「假」的**。
+   功能区里灰掉的按钮是真的 disabled（只读文档里它们本来就该是灰的），
+   会响的按钮按下去屏幕真的会变。
+   ========================================================================== */
+
+.mn-office {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--mn-bg);
+  color: var(--mn-fg);
+  font-family: var(--mn-font-sans);
+}
+
+/* ---- 标题栏 ---- */
+
+.mn-office__title {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px 0 14px;
+  background: var(--mn-surface);
+  font-size: 12.5px;
+  user-select: none;
+}
+
+.mn-office__file {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mn-office__file-name {
+  color: var(--mn-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 「已保存到这台设备」——Office 标题栏里就写着这句，字号小一号、颜色淡一档 */
+.mn-office__saved {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+}
+
+.mn-office__title-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.mn-office__title-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 26px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-office__title-btn:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-office__title-btn.is-active {
+  color: var(--mn-accent);
+}
+
+.mn-office__title-btn:disabled {
+  opacity: 0.45;
+}
+
+.mn-office__avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---- 功能区 ---- */
+
+.mn-ribbon {
+  flex: 0 0 auto;
+  background: var(--mn-surface);
+  border-bottom: 1px solid var(--mn-border);
+  user-select: none;
+}
+
+.mn-ribbon__tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  height: 30px;
+  padding: 0 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.mn-ribbon__tabs::-webkit-scrollbar {
+  height: 0;
+}
+
+.mn-ribbon__tab {
+  position: relative;
+  padding: 0 11px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+  transition: color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-ribbon__tab:hover:not(:disabled) {
+  color: var(--mn-fg);
+}
+
+/* 当前页签：文字用强调色，底下一条同色短线——Office 里就是这样 */
+.mn-ribbon__tab.is-active {
+  color: var(--mn-accent);
+  font-weight: 600;
+}
+
+.mn-ribbon__tab.is-active::after {
+  content: '';
+  position: absolute;
+  inset: auto 8px 0;
+  height: 2px;
+  background: var(--mn-accent);
+  border-radius: 1px;
+}
+
+.mn-ribbon__tab--file {
+  color: var(--mn-accent);
+  font-weight: 600;
+}
+
+.mn-ribbon__tab:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.mn-ribbon__panel {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  height: 92px;
+  padding: 4px 6px 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+/* 一个命令组：中间是按钮，底下一行小字写组名（Office 的分组就是这么标） */
+.mn-ribbon__group {
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px;
+  border-right: 1px solid var(--mn-border);
+}
+
+.mn-ribbon__group:last-child {
+  border-right: 0;
+}
+
+.mn-ribbon__group-body {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  gap: 2px;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  max-height: 68px;
+}
+
+.mn-ribbon__group-label {
+  flex: 0 0 auto;
+  padding: 2px 0 4px;
+  color: var(--mn-fg-faint);
+  font-size: 10.5px;
+  text-align: center;
+}
+
+.mn-ribbon__btn {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 5px;
+  border-radius: 4px;
+  color: var(--mn-fg);
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-ribbon__btn:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+}
+
+.mn-ribbon__btn.is-active {
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+}
+
+.mn-ribbon__btn:disabled {
+  color: var(--mn-fg-faint);
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* 文字按钮：B / I / U / Σ / 字体名这些在真 Office 里本来就是字 */
+.mn-ribbon__btn--text {
+  min-width: 30px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mn-ribbon__glyph {
+  padding: 0 2px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mn-ribbon__btn--text .mn-ribbon__glyph {
+  font-size: 13px;
+}
+
+/* ---- 主体 ---- */
+
+.mn-office__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.mn-office__main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mn-office--immersive .mn-office__main {
+  height: 100%;
+}
+
+/* 左侧窗格：Word 的导航窗格、PPT 的节与缩略图 */
+.mn-office__side {
+  flex: 0 0 236px;
+  width: 236px;
+  display: flex;
+  min-height: 0;
+  background: var(--mn-surface);
+  border-right: 1px solid var(--mn-border);
+}
+
+.mn-office__side-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+
+.mn-office__side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  color: var(--mn-fg-muted);
+  font-size: 12px;
+  user-select: none;
+}
+
+.mn-office__side-sub,
+.mn-office__side-hint {
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+}
+
+.mn-office__side-hint {
+  padding: 10px 12px;
+  line-height: 1.6;
+}
+
+.mn-office__side-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 8px;
+}
+
+.mn-office__side-foot {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-top: 1px solid var(--mn-border);
+}
+
+.mn-office__side-nav {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 26px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  font-size: 12px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-office__side-nav:hover:not(:disabled) {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-office__side-nav:disabled {
+  opacity: 0.4;
+}
+
+/* ---- 状态栏 ---- */
+
+.mn-office__status {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 24px;
+  padding: 0 10px;
+  background: var(--mn-surface-2);
+  border-top: 1px solid var(--mn-border);
+  color: var(--mn-fg-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.mn-office__status-left,
+.mn-office__status-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mn-office__status-text {
+  padding: 0 2px;
+  color: inherit;
+}
+
+.mn-office__status-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 3px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-office__status-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mn-fg) 10%, transparent);
+  color: var(--mn-fg);
+}
+
+.mn-office__status-btn.is-active {
+  color: var(--mn-accent);
+}
+
+.mn-office__status-btn:disabled {
+  opacity: 0.45;
+}
+
+/* 缩放：Word / Excel / PPT 的状态栏右下角都是它，靠右对齐、结尾是百分比 */
+.mn-office__zoom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 4px;
+}
+
+.mn-office__zoom-range {
+  width: 96px;
+}
+
+.mn-office__zoom-value {
+  min-width: 34px;
+  color: var(--mn-fg-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* 窄屏：状态栏上的缩放条收起来（它占的宽度够放三项字数了） */
+@media (max-width: 767px) {
+  .mn-office__zoom-range {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   开始屏幕（.mn-start）
+   --------------------------------------------------------------------------
+   Office 打开时的那一屏：左边「新建」，右边「最近」。三件套共用一个组件，
+   品牌色来自主题的 accent——所以这几条规则里一个色号都没有。
+   ========================================================================== */
+
+.mn-start {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 28px;
+  padding: 32px 40px 0;
+  overflow-y: auto;
+  background: var(--mn-bg);
+}
+
+.mn-start__side {
+  flex: 0 0 218px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mn-start__side-head {
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+}
+
+.mn-start__blank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 12px 16px;
+  border: 1px solid var(--mn-border);
+  border-radius: 6px;
+  background: var(--mn-surface);
+  transition:
+    border-color var(--mn-dur-1) var(--mn-ease),
+    transform var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-start__blank:hover {
+  border-color: var(--mn-accent);
+  transform: translateY(-1px);
+}
+
+.mn-start__blank-icon {
+  color: var(--mn-accent);
+}
+
+.mn-start__blank-label {
+  color: var(--mn-fg);
+  font-size: 13px;
+}
+
+.mn-start__blank-hint {
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.mn-start__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 40px;
+}
+
+.mn-start__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mn-start__head-label {
+  color: var(--mn-fg);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mn-start__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 4px;
+  background: var(--mn-surface);
+  color: var(--mn-fg-faint);
+}
+
+.mn-start__search input {
+  width: 150px;
+  border: 0;
+  background: transparent;
+  color: var(--mn-fg);
+  font-size: 12.5px;
+  outline: none;
+}
+
+.mn-start__search button:hover {
+  color: var(--mn-fg);
+}
+
+.mn-start__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.mn-start__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  border-bottom: 1px solid var(--mn-border);
+  font-size: 12.5px;
+}
+
+.mn-start__row--head {
+  height: 30px;
+  color: var(--mn-fg-muted);
+  border-bottom-color: var(--mn-border-strong);
+}
+
+.mn-start__row:not(.mn-start__row--head):hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-start__open {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  color: var(--mn-fg);
+  text-align: left;
+}
+
+.mn-start__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-left: 4px;
+}
+
+.mn-start__file-icon {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--mn-accent);
+}
+
+.mn-start__when,
+.mn-start__size,
+.mn-start__meta {
+  flex: 0 0 auto;
+  width: 132px;
+  color: var(--mn-fg-muted);
+}
+
+.mn-start__row--head .mn-start__when,
+.mn-start__row--head .mn-start__size,
+.mn-start__row--head .mn-start__meta {
+  color: inherit;
+}
+
+.mn-start__meta {
+  width: 120px;
+}
+
+.mn-start__size {
+  width: 84px;
+}
+
+.mn-start__more {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 24px;
+  color: var(--mn-fg-muted);
+  opacity: 0;
+  transition: opacity var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-start__row:hover .mn-start__more {
+  opacity: 1;
+}
+
+.mn-start__more:hover {
+  background: color-mix(in srgb, var(--mn-fg) 8%, transparent);
+  border-radius: 3px;
+  color: var(--mn-fg);
+}
+
+.mn-start__empty {
+  padding: 22px 4px;
+  color: var(--mn-fg-faint);
+  font-size: 12.5px;
+}
+
+.mn-start__hint {
+  color: var(--mn-fg-faint);
+  font-size: 11.5px;
+}
+
+@media (max-width: 900px) {
+  .mn-start {
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px 16px 0;
+  }
+
+  .mn-start__side {
+    flex: 0 0 auto;
+  }
+
+  .mn-start__when,
+  .mn-start__size {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   几件共用的零件
+   ========================================================================== */
+
+/* 「⋯」菜单（飞书和企业微信的顶栏用它）：一个普通的下拉，不是 VS Code 那种深色 popup */
+.mn-appmenu-wrap {
+  position: relative;
+}
+
+.mn-appmenu-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  font-size: 15px;
+  line-height: 1;
+  transition:
+    background-color var(--mn-dur-1) var(--mn-ease),
+    color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-appmenu-btn:hover,
+.mn-appmenu-btn.is-open {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-appmenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 60;
+  min-width: 224px;
+  padding: 4px 0;
+  background: var(--mn-surface);
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 6px;
+  box-shadow: var(--mn-shadow-float);
+  font-size: 12.5px;
+  animation: mn-pop var(--mn-dur-2) var(--mn-ease) both;
+}
+
+.mn-appmenu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 6px 12px;
+  color: var(--mn-fg);
+  text-align: left;
+}
+
+.mn-appmenu button:hover {
+  background: var(--mn-surface-2);
+}
+
+.mn-appmenu kbd {
+  color: var(--mn-fg-faint);
+  font-family: var(--mn-font-mono);
+  font-size: 10.5px;
+}
+
+.mn-appmenu__rule {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--mn-border);
+}
+
+/* 侧栏/大纲里的一行（Word 的导航窗格、飞书的大纲、企业微信的聊天记录都用它） */
+.mn-navrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 26px;
+  padding: 3px 10px 3px 12px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  text-align: left;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-navrow:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+.mn-navrow.is-active {
+  background: var(--mn-accent-soft);
+  color: var(--mn-accent);
+}
+
+.mn-navrow.is-sub {
+  padding-left: 22px;
+  font-size: 12px;
+}
+
+.mn-navrow__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-navrow__hint {
+  flex: 0 0 auto;
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+}
+
+.mn-navrow__check {
+  flex: 0 0 auto;
+}
+
+.mn-nav-group {
+  padding: 8px 10px 2px 12px;
+  color: var(--mn-fg-faint);
+  font-size: 11px;
+}
+
+/* 摸鱼模式的黑纱：内容区自己盖自己的一层。
+   用 ::after 而不是真塞元素——它纯装饰，不必进 DOM、也不必进无障碍树。
+   哪些地方算「内容区」由各外壳决定（标题栏、功能区、状态栏一律不盖）。 */
+.mn-veil {
+  position: relative;
+}
+
+.mn-veil::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #000;
+  opacity: var(--mn-dim, 0);
+  pointer-events: none;
+  transition: opacity var(--mn-dur-3) var(--mn-ease);
+}
+
+/* 书没读出来 / 读不出来时的空壳：一行字 + 一个出口 */
+.mn-app-skeleton {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 40vh;
+  color: var(--mn-fg-faint);
+  user-select: none;
+}
+
+.mn-app-skeleton__btn {
+  padding: 5px 12px;
+  border: 1px solid var(--mn-border-strong);
+  border-radius: 4px;
+  color: var(--mn-fg-muted);
+  font-size: 12.5px;
+  transition: background-color var(--mn-dur-1) var(--mn-ease);
+}
+
+.mn-app-skeleton__btn:hover {
+  background: var(--mn-surface-2);
+  color: var(--mn-fg);
+}
+
+/* ---- 各形态的尺寸常量 ----
+   挂在 <html> 的 data-chrome 上：标尺在正文容器**之外**（它在功能区下面那条
+   band 里），幻灯片缩略图在左侧窗格里——两处都在正文容器外面，变量如果只写在
+   正文容器上，它们就取不到值（宽度会退成 auto，标尺横贯全窗、缩略图撑满一栏）。
+   这正是 data-chrome 该派上用场的地方：形态的能力，不是某个组件的属性。 */
+
+html[data-chrome='page'] {
+  /* 页面左右留白占纸宽的百分比。标尺上那两个边距标记也用它，
+     所以「标记对齐正文边」是算出来的，不是对出来的 */
+  --mn-word-margin: 11.3%;
+  --mn-word-page: 794px; /* 21cm @96dpi，A4 的宽度 */
+}
+
+html[data-chrome='slide'] {
+  /* 缩略图尺寸与缩放比：大图 900px 宽 → 缩略图 148px 宽。
+     这两个数是配对的，改一个要跟着改另一个 */
+  --mn-ppt-slide: 900px;
+  --mn-ppt-thumb: 148px;
+  --mn-ppt-scale: 0.1644;
+}
+
+/* 外壳形态下的滚动条比阅读时窄一点、更靠边 */
+html[data-chrome='doc'] ::-webkit-scrollbar,
+html[data-chrome='sheet'] ::-webkit-scrollbar,
+html[data-chrome='slide'] ::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+html[data-chrome='page'] ::-webkit-scrollbar-thumb,
+html[data-chrome='sheet'] ::-webkit-scrollbar-thumb,
+html[data-chrome='slide'] ::-webkit-scrollbar-thumb {
+  border: 5px solid transparent;
+}
+
+/* 窄屏：导航窗格 / 幻灯片栏当浮层，别把正文挤成一条 */
+@media (max-width: 767px) {
+  .mn-office__side {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    width: min(78vw, 300px);
+    flex-basis: auto;
+    border-right: 1px solid var(--mn-border-strong);
+    box-shadow: var(--mn-shadow-panel);
+  }
+}
