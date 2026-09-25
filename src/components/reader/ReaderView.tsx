@@ -6,6 +6,7 @@ import type { ReaderSettings } from '../../store/settings'
 import type { ThemeChrome } from '../../themes/types'
 import { ensureHighlighter, highlighterReady } from '../../lib/highlight'
 import { useDecoy } from '../../store/decoy'
+import { useHotkey } from '../../hooks/useHotkeys'
 import { Minimap } from '../code/Minimap'
 import { ChapterBody } from '../../apps/ChapterBody'
 import { cx } from '../../lib/cx'
@@ -592,63 +593,26 @@ function ReaderViewImpl({
   }, [paged, turn])
 
   // ---- 键盘 ----
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return
-      }
-      if (event.metaKey || event.ctrlKey || event.altKey) return
-
-      const viewport = viewportRef.current
-      const step = viewport ? viewport.clientHeight * 0.85 : 600
-
-      switch (event.key) {
-        case 'ArrowRight':
-          event.preventDefault()
-          if (paged) turn(1)
-          else onNext()
-          return
-        case 'ArrowLeft':
-          event.preventDefault()
-          if (paged) turn(-1)
-          else onPrev()
-          return
-        case 'PageDown':
-        case ' ':
-          event.preventDefault()
-          if (paged) turn(1)
-          else scrollBy(step)
-          return
-        case 'PageUp':
-          event.preventDefault()
-          if (paged) turn(-1)
-          else scrollBy(-step)
-          return
-        case 'ArrowDown':
-          event.preventDefault()
-          if (paged) turn(1)
-          else scrollBy(120)
-          return
-        case 'ArrowUp':
-          event.preventDefault()
-          if (paged) turn(-1)
-          else scrollBy(-120)
-          return
-        default:
-          return
-      }
+  // 翻页键不再写死在这里：命令表里的 next-page / prev-page（键位可在阅读设置里改，
+  // 默认 ↓ / → / 空格 / PgDn…）。两种模式各有一半：翻页模式翻列，滚动模式滚大半屏。
+  // 章首章尾翻过去就是上一章 / 下一章（turn 里兜着）；章与章的直跳是另外两条命令
+  // （Ctrl+Alt+← / →），登记在 ReaderPage。
+  useHotkey('next-page', () => {
+    if (paged) {
+      turn(1)
+      return
     }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [paged, turn, scrollBy, onNext, onPrev])
+    const viewport = viewportRef.current
+    scrollBy(viewport ? viewport.clientHeight * 0.85 : 600)
+  })
+  useHotkey('prev-page', () => {
+    if (paged) {
+      turn(-1)
+      return
+    }
+    const viewport = viewportRef.current
+    scrollBy(-(viewport ? viewport.clientHeight * 0.85 : 600))
+  })
 
   // 进入时给滚动容器焦点，滚轮/触控板之外的场景也能用
   useEffect(() => {

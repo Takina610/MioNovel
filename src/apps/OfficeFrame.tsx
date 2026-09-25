@@ -282,6 +282,12 @@ export interface OfficeFrameProps {
    * 这是真 Word 里就有的功能，也是「窗口里只剩一张纸」那一下。
    */
   immersive?: boolean;
+  /**
+   * 这套外壳此刻占着 Esc（Word 的沉浸模式、PPT 的阅读视图）：根元素挂上
+   * data-mn-esc-local，「退出阅读」那条命令看到它就让位，否则按一下 Esc
+   * 既退出沉浸/阅读视图、又被踢回书架。
+   */
+  escLocal?: boolean;
 }
 
 export function OfficeFrame({
@@ -315,6 +321,7 @@ export function OfficeFrame({
   dimOn,
   onToggleDim,
   immersive,
+  escLocal,
 }: OfficeFrameProps) {
   const active = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
   // 功能区能整个收起来（真 Office 里功能区右下角那个小三角就是这个）。
@@ -328,6 +335,7 @@ export function OfficeFrame({
     return (
       <div
         className="mn-office mn-office--immersive"
+        data-mn-esc-local={escLocal ? "" : undefined}
         style={{ ["--mn-dim" as string]: String(dim) }}
       >
         <main className="mn-office__main">{children}</main>
@@ -338,6 +346,7 @@ export function OfficeFrame({
   return (
     <div
       className={cx("mn-office", start && "mn-office--start")}
+      data-mn-esc-local={escLocal ? "" : undefined}
       style={{ ["--mn-dim" as string]: String(dim) }}
     >
       <header className="mn-office__title">
@@ -717,6 +726,8 @@ export function AppMenu({
         aria-label={label}
         aria-expanded={open}
         title={label}
+        // 菜单开着时 Esc 先归它（data-mn-esc-local），别把「退出阅读」连带触发
+        data-mn-esc-local={open ? "" : undefined}
         onClick={() => setOpen((current) => !current)}
       >
         {trigger ?? "⋯"}

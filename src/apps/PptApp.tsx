@@ -1098,6 +1098,7 @@ export function PptApp(props: AppFrameProps) {
       dimOn={props.dimOn}
       onToggleDim={props.onToggleDim}
       immersive={reading}
+      escLocal={reading}
     >
       {/* 幻灯片由 ReaderView 贴着排（它管着滚动与进度），外壳只画框。
           mn-veil：摸鱼模式的黑纱盖在幻灯片区上（缩略图栏、备注带与状态栏不动） */}

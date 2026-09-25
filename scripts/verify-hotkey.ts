@@ -16,6 +16,7 @@
  * 用法：bun run verify:hotkey
  */
 import {
+  comboDisplay,
   comboFromEvent,
   comboProblem,
   DEFAULT_HOTKEYS,
@@ -26,6 +27,7 @@ import {
   keyLabel,
   matchesCombo,
   parseCombo,
+  resolveCombos,
 } from '../src/lib/hotkey'
 
 let checked = 0
@@ -135,16 +137,24 @@ check('同一个单键在 global 档过不了', comboProblem('S', 'global') !== 
 {
   const ids = HOTKEY_COMMANDS.map((command) => command.id)
   check('命令 id 不重复', new Set(ids).size, ids.length)
-  const combos = HOTKEY_COMMANDS.map((command) => command.combo)
-  check('默认组合不重复（两条命令抢同一个键，谁先响说不清）', new Set(combos).size, combos.length)
+  // 一条命令可以绑多个组合（「下一页」默认就有四个）：所有默认组合摊开来看重复
+  const defaultCombos = HOTKEY_COMMANDS.flatMap((command) => command.combos)
+  check('默认组合不重复（两条命令抢同一个键，谁先响说不清）', new Set(defaultCombos).size, defaultCombos.length)
   check(
     '每条默认组合都合法（按它自己的作用域判）',
-    HOTKEY_COMMANDS.every((command) => comboProblem(command.combo, command.scope) === null),
+    HOTKEY_COMMANDS.every((command) =>
+      command.combos.every((combo) => comboProblem(combo, command.scope) === null),
+    ),
     true,
   )
   check(
-    '每条命令都有中文标签',
-    HOTKEY_COMMANDS.every((command) => command.label.trim().length > 0),
+    '每条默认组合都非空',
+    HOTKEY_COMMANDS.every((command) => command.combos.length > 0),
+    true,
+  )
+  check(
+    '每条命令都有中文标签和一行说明',
+    HOTKEY_COMMANDS.every((command) => command.label.trim().length > 0 && command.description.trim().length > 0),
     true,
   )
   check(
@@ -152,9 +162,16 @@ check('同一个单键在 global 档过不了', comboProblem('S', 'global') !== 
     HOTKEY_COMMANDS.filter((command) => command.scope === 'global').map((command) => command.id).join(','),
     'decoy,dim',
   )
-  check('页面里的三条命令是 focused 档', HOTKEY_COMMANDS.filter((c) => c.id === 'settings' || c.id === 'toc' || c.id === 'fullscreen').every((c) => c.scope === 'focused'), true)
-  check('默认组合表和命令表一致', DEFAULT_HOTKEYS.settings, 'S')
-  check('默认组合表和命令表一致（全屏）', DEFAULT_HOTKEYS.fullscreen, 'F')
+  check(
+    '页面命令全部是 focused 档',
+    HOTKEY_COMMANDS.filter((command) => command.scope === 'focused').map((command) => command.id).join(','),
+    'settings,toc,next-page,prev-page,prev-chapter,next-chapter,fullscreen,exit',
+  )
+  check('默认组合表和命令表一致（阅读设置）', DEFAULT_HOTKEYS.settings, ['S'])
+  check('默认组合表和命令表一致（全屏改成了 F11）', DEFAULT_HOTKEYS.fullscreen, ['F11'])
+  check('默认组合表和命令表一致（下一页有四个键）', DEFAULT_HOTKEYS['next-page'], ['ArrowDown', 'ArrowRight', 'Space', 'PageDown'])
+  check('默认组合表和命令表一致（上一章）', DEFAULT_HOTKEYS['prev-chapter'], ['Ctrl+Alt+ArrowLeft'])
+  check('默认组合表和命令表一致（退出阅读）', DEFAULT_HOTKEYS.exit, ['Escape'])
   check('标签表和命令表一致', HOTKEY_LABELS.toc, '目录 / 侧栏')
   check('查得到某条命令的作用域', hotkeyCommandOf('decoy').scope, 'global')
 
@@ -184,6 +201,37 @@ check('同一个单键在 global 档过不了', comboProblem('S', 'global') !== 
     HOTKEY_COMMANDS.filter((command) => command.presence).every((command) => command.scope === 'global'),
     true,
   )
+}
+
+// 6) 一命令多组合：解析出「生效中」的组合与展示形态
+{
+  check(
+    '生效组合丢掉认不出来的条目',
+    resolveCombos(['Alt+Q', 'Hyper+Q'], 'decoy'),
+    ['Alt+Q'],
+  )
+  check(
+    '生效组合丢掉不符合作用域的条目（global 里混进单键）',
+    resolveCombos(['Alt+Q', 'Q'], 'decoy'),
+    ['Alt+Q'],
+  )
+  check('重复条目只留一个', resolveCombos(['Alt+Q', 'Alt+Q'], 'decoy'), ['Alt+Q'])
+  check('没设置过（undefined）回落到空', resolveCombos(undefined, 'dim'), [])
+  // 空数组 = 用户把键全删了，是合法状态，不许偷偷把默认值塞回去
+  check('键全删了就是没有键（不回退默认）', resolveCombos([], 'dim'), [])
+  check('focused 档的单键合法', resolveCombos(['S', 'Ctrl+Shift+S'], 'settings'), ['S', 'Ctrl+Shift+S'])
+  check('上一页的默认键都是 focused 单键', resolveCombos(DEFAULT_HOTKEYS['prev-page'], 'prev-page'), ['ArrowUp', 'ArrowLeft', 'PageUp'])
+
+  check('展示形态：方向键翻成箭头', comboDisplay('ArrowDown'), '↓')
+  check('展示形态：Escape 写成 Esc', comboDisplay('Escape'), 'Esc')
+  check('展示形态：修饰键和键一起翻', comboDisplay('Ctrl+Alt+ArrowLeft'), 'Ctrl+Alt+←')
+  check('展示形态：普通键原样', comboDisplay('Ctrl+Shift+S'), 'Ctrl+Shift+S')
+  check('展示形态：认不出的串原样奉还', comboDisplay('Hyper+Q'), 'Hyper+Q')
+
+  // 章节跳转键与翻页键是物理键（ArrowLeft / PageUp），按 code 判定照样命中
+  check('Ctrl+Alt+← 命中上一章', matchesCombo(keyEvent({ code: 'ArrowLeft', ctrl: true, alt: true }), 'Ctrl+Alt+ArrowLeft'), true)
+  check('PageDown 命中下一页', matchesCombo(keyEvent({ code: 'PageDown', key: 'PageDown' }), 'PageDown'), true)
+  check('空格命中下一页', matchesCombo(keyEvent({ code: 'Space', key: ' ' }), 'Space'), true)
 }
 
 if (problems.length === 0) {

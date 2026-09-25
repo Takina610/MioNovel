@@ -16,7 +16,7 @@ function Cover({ book }: { book: BookRecord }) {
         src={url}
         alt=""
         loading="lazy"
-        // 悬停时封面慢慢放大一点：卡片本身也往上抬，两层动效叠出「拿起来」的感觉
+        // 悬停时封面在卡片里慢慢放大一点：卡片不抬（用户要求去掉上移），就这一层动效
         className="h-full w-full object-cover transition-transform duration-[600ms] ease-[var(--mn-ease)] group-hover:scale-[1.05]"
       />
     )
@@ -93,7 +93,7 @@ export function BookCard({ book, index = 0, onOpen, onMenu }: BookCardProps) {
           'transition-[transform,box-shadow] duration-[var(--mn-dur-2)] ease-[var(--mn-ease)]',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
           !importing &&
-            'hover:-translate-y-1 hover:shadow-[var(--mn-shadow-card)] active:translate-y-0 active:scale-[0.985]',
+            'hover:shadow-[var(--mn-shadow-card)] active:scale-[0.985]',
         )}
       >
         <Cover book={book} />

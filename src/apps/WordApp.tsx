@@ -950,6 +950,7 @@ export function WordApp(props: AppFrameProps) {
       onTab={setTab}
       onBack={props.onBack}
       immersive={immersive}
+      escLocal={immersive}
       band={
         ruler ? (
           <div className="mn-word__ruler-wrap">

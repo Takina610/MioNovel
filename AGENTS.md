@@ -93,12 +93,23 @@
   真正变暗靠的是某一块带 `.mn-veil` 的元素。三件套的正文容器（`.mn-word__body` /
   `.mn-excel__body` / `.mn-ppt__body`）漏挂过一次，于是「摸鱼在正文部分不生效」。
 - **加一个快捷键 = 表里加一条 + 页面上登记一次**：`lib/hotkey.ts` 的 `HOTKEY_COMMANDS`
-  里加一条（id / 标签 / 默认组合 / scope），再在页面上用 `hooks/useHotkeys` 的
-  `useHotkey(id, handler)` 登记。设置面板那一栏、菜单上的键位提示、冲突检查都从这张表推出来。
-  `scope: 'focused'` 允许单键（避开输入框），`'global'` 必须带修饰键（在输入框里也响）。
+  里加一条（id / 标签 / 说明 / 默认组合（可以是**多个**）/ scope），再在页面上用
+  `hooks/useHotkeys` 的 `useHotkey(id, handler)` 登记。设置面板那一栏、菜单上的键位提示、
+  冲突检查都从这张表推出来。`scope: 'focused'` 允许单键（避开输入框），`'global'` 必须带修饰键
+  （在输入框里也响）。翻页键（next-page / prev-page）登记在 ReaderView——翻列和滚动
+  是它内部的事；退出阅读（exit，默认 Esc）登记在 ReaderPage，它要让位给一切挂着
+  `data-mn-esc-local` 的局部界面（Select 下拉、AppMenu、Word 沉浸、PPT 阅读视图）——
+  给某个局部界面占住 Esc，就在它的元素上挂这个标记。
 - **验键盘行为时**：合成的 `new KeyboardEvent('keydown', {...})` 默认 `cancelable: false`，
   于是 `preventDefault()` 静默失效、`defaultPrevented` 永远是 false——照它判会得出
   「快捷键没生效」的错误结论。自己造事件要显式写 `cancelable: true`。
+- **主题封面是截图，类别从 chrome 推导**：`src/assets/theme-shots/<主题 id>.webp`
+  （2560×1360 的原图用 sharp 压到 440 宽 / q50，20 张约 125KB；ThemePicker 用
+  `import.meta.glob` 按文件名取，新主题没图不报错、回落色卡，`verify:apps` 会点名缺图）。
+  类别（常规 / 编辑器 / 通讯 / Office）定义在 `themes/groups.ts`，按 chrome 归组——
+  别在 ThemePicker 里按主题 id 硬排，那样新主题会落不进任何一组。
+  非「常规」主题名称左侧的**产品商标**在 `src/assets/logos/`（官方渠道的真实彩色
+  图标，产品记号例外、亮暗主题共用；别自己画，也别换成单色线条版）。
 
 ## 四、动完手必须过的三关
 

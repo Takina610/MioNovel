@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { hotkeyLiveOn, matchesCombo } from '../lib/hotkey'
+import { hotkeyLiveOn, matchesCombo, resolveCombos } from '../lib/hotkey'
 import { useDecoy } from '../store/decoy'
 import { useDim } from '../store/dim'
 import { useHotkeyBindings } from '../store/hotkeys'
@@ -32,14 +32,14 @@ export function useGlobalHotkeys(): void {
       // 独立主题，那一层才是此刻真正生效的形态（见 themes/apply.ts）。
       const chrome = document.documentElement.dataset.chrome ?? ''
 
-      if (matchesCombo(event, combos.decoy)) {
+      if (resolveCombos(combos.decoy, 'decoy').some((combo) => matchesCombo(event, combo))) {
         if (!hotkeyLiveOn('decoy', chrome)) return
         event.preventDefault()
         toggleDecoy()
         return
       }
 
-      if (matchesCombo(event, combos.dim)) {
+      if (resolveCombos(combos.dim, 'dim').some((combo) => matchesCombo(event, combo))) {
         if (!hotkeyLiveOn('dim', chrome)) return
         event.preventDefault()
         toggleDim()

@@ -92,12 +92,37 @@ export function matchesCombo(event: KeyboardEvent, combo: string): boolean {
  *
  * 必须带 Ctrl / Alt / ⌘ 之一：只带 Shift 的话，在输入框里打一个大写字母就会触发，
  * 而全局快捷键是**不管焦点在哪都会响**的（见 hooks/useGlobalHotkeys）。
+ * focused 档没有这条限制（单键合法），但「认不出来」照样挡。
  */
 export function comboProblem(combo: string, scope: HotkeyScope = 'global'): string | null {
   const parts = parseCombo(combo)
   if (!parts) return '这个组合认不出来'
   if (scope === 'global' && !parts.ctrl && !parts.alt && !parts.meta) return '要带上 Ctrl 或 Alt'
   return null
+}
+
+/**
+ * 组合的**展示**形态：`ArrowDown` 写成 ↓、`Escape` 写成 Esc。
+ * 存储永远用 code 名（匹配按物理键位），只有给人看的那一格才翻译。
+ */
+const KEY_DISPLAY: Record<string, string> = {
+  ArrowDown: '↓',
+  ArrowUp: '↑',
+  ArrowLeft: '←',
+  ArrowRight: '→',
+  Escape: 'Esc',
+}
+
+export function comboDisplay(combo: string): string {
+  const parts = parseCombo(combo)
+  if (!parts) return combo
+  const mods = [
+    parts.ctrl && 'Ctrl',
+    parts.alt && 'Alt',
+    parts.shift && 'Shift',
+    parts.meta && 'Meta',
+  ].filter(Boolean)
+  return [...mods, KEY_DISPLAY[parts.label] ?? parts.label].join('+')
 }
 
 /* ==========================================================================
@@ -118,7 +143,17 @@ export function comboProblem(combo: string, scope: HotkeyScope = 'global'): stri
  */
 export type HotkeyScope = 'focused' | 'global'
 
-export type HotkeyId = 'settings' | 'toc' | 'fullscreen' | 'decoy' | 'dim'
+export type HotkeyId =
+  | 'settings'
+  | 'toc'
+  | 'next-page'
+  | 'prev-page'
+  | 'prev-chapter'
+  | 'next-chapter'
+  | 'fullscreen'
+  | 'exit'
+  | 'decoy'
+  | 'dim'
 
 /**
  * 这个功能在哪些形态下存在。
@@ -138,23 +173,33 @@ export type HotkeyPresence = 'editor' | 'shells'
 export interface HotkeyCommand {
   id: HotkeyId
   label: string
-  /** 默认组合。存的是给人看的一行字，和用户改过之后的格式完全一样 */
-  combo: string
+  /** 这条命令是干什么的。快捷键设置里标题下面那一行说明 */
+  description: string
+  /**
+   * 默认组合，**可以是多个**（比如「下一页」的 ↓ / → / Space / PageDown）。
+   * 存的是给人看的一行字，和用户改过之后的格式完全一样。
+   */
+  combos: string[]
   scope: HotkeyScope
   presence?: HotkeyPresence
 }
 
 export const HOTKEY_COMMANDS: readonly HotkeyCommand[] = [
-  { id: 'settings', label: '阅读设置', combo: 'S', scope: 'focused' },
-  { id: 'toc', label: '目录 / 侧栏', combo: 'T', scope: 'focused' },
-  { id: 'fullscreen', label: '全屏', combo: 'F', scope: 'focused' },
-  { id: 'decoy', label: '演示模式', combo: 'Alt+Q', scope: 'global', presence: 'editor' },
-  { id: 'dim', label: '摸鱼模式', combo: 'Alt+S', scope: 'global', presence: 'shells' },
+  { id: 'settings', label: '阅读设置', description: '打开或关闭阅读设置', combos: ['S'], scope: 'focused' },
+  { id: 'toc', label: '目录 / 侧栏', description: '打开目录，或收起 / 展开侧栏', combos: ['T'], scope: 'focused' },
+  { id: 'next-page', label: '下一页', description: '阅读时翻到下一页', combos: ['ArrowDown', 'ArrowRight', 'Space', 'PageDown'], scope: 'focused' },
+  { id: 'prev-page', label: '上一页', description: '阅读时翻到上一页', combos: ['ArrowUp', 'ArrowLeft', 'PageUp'], scope: 'focused' },
+  { id: 'prev-chapter', label: '上一章', description: '阅读时跳转到上一章', combos: ['Ctrl+Alt+ArrowLeft'], scope: 'focused' },
+  { id: 'next-chapter', label: '下一章', description: '阅读时跳转到下一章', combos: ['Ctrl+Alt+ArrowRight'], scope: 'focused' },
+  { id: 'fullscreen', label: '全屏', description: '进入和退出全屏模式', combos: ['F11'], scope: 'focused' },
+  { id: 'exit', label: '退出阅读', description: '关闭阅读器或退出全屏', combos: ['Escape'], scope: 'focused' },
+  { id: 'decoy', label: '演示模式', description: '把整个界面换成代码的样子', combos: ['Alt+Q'], scope: 'global', presence: 'editor' },
+  { id: 'dim', label: '摸鱼模式', description: '把正文区调暗', combos: ['Alt+S'], scope: 'global', presence: 'shells' },
 ]
 
 export const DEFAULT_HOTKEYS = Object.fromEntries(
-  HOTKEY_COMMANDS.map((command) => [command.id, command.combo]),
-) as Record<HotkeyId, string>
+  HOTKEY_COMMANDS.map((command) => [command.id, command.combos]),
+) as Record<HotkeyId, string[]>
 
 /** 菜单提示与错误文案里要把功能的名字说出来，所以标签也放这儿，和默认值挨着 */
 export const HOTKEY_LABELS = Object.fromEntries(
@@ -178,4 +223,20 @@ export function hotkeyLiveOn(id: HotkeyId, chrome: string): boolean {
   if (presence === 'editor') return chrome === 'code'
   // shells：编辑器 + 五套办公外壳，也就是「不是普通阅读形态」
   return chrome !== '' && chrome !== 'plain'
+}
+
+/**
+ * 一条命令**生效中**的组合：挡掉认不出来的、不符合作用域的、重复的条目。
+ * **空数组是合法结果**——那是用户把键全删了（这个功能暂时没有快捷键），
+ * 不要偷偷把默认值塞回去；默认值只该在「从来没设置过」时出现。
+ */
+export function resolveCombos(raw: string[] | undefined, id: HotkeyId): string[] {
+  const command = hotkeyCommandOf(id)
+  return (raw ?? []).filter(
+    (combo, index, arr) =>
+      typeof combo === 'string' &&
+      combo &&
+      comboProblem(combo, command.scope) === null &&
+      arr.indexOf(combo) === index,
+  )
 }

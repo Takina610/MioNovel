@@ -39,6 +39,7 @@ const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeT
 const { markFinds, clearFinds, countFinds, FIND_MARK } = await import('../src/lib/find.ts')
 
 const { getTheme, listThemes, buildThemeSheet, chromeOf } = await import('../src/themes/apply.ts')
+const { groupThemes } = await import('../src/themes/groups.ts')
 const { DESK_RAIL, DESK_FILTERS, DESK_PANEL_TABS, deskStats, deskUnreadTotal, deskRows, deskViewTitle, deskReceipts, deskChapterRows, deskChapterSummary, deskChapterStateText, deskChapterPayText, deskListTime, deskStampText, deskPeerText, deskIdleDays, deskAuthorOf } = await import('../src/lib/desk.ts')
 const { CODE_TOKEN_VARS, CHAT_TOKEN_VARS, DESK_TOKEN_VARS, PAGE_TOKEN_VARS, SHEET_TOKEN_VARS, SLIDE_TOKEN_VARS, TOKEN_VARS } = await import('../src/themes/vars.ts')
 
@@ -65,6 +66,21 @@ console.log('\n主题注册表')
   check('id 不重复', new Set(ids).size === ids.length, ids.join(','))
   check('旧主题还在（日间 / 夜间 / 两套 VS Code）', ['day', 'night', 'vscode', 'vscode-light'].every((id) => ids.includes(id)))
   check('十二套新主题都在', ['feishu', 'feishu-dark', 'wecom', 'wecom-dark', 'word', 'word-dark', 'excel', 'excel-dark', 'ppt', 'ppt-dark', 'desk', 'desk-dark'].every((id) => ids.includes(id)))
+
+  // 主题选择器按类别分组（常规 / 编辑器 / 通讯 / Office）。类别从 chrome 推导，
+  // 不认主题 id——这里断言的是「每套主题都落组、不重不漏、落对组」，
+  // 加新主题时这里不用改；落错组（比如给新主题忘了声明 chrome）会在这几条里现形
+  const groups = groupThemes(themes)
+  check('主题分成四类，顺序是常规 / 编辑器 / 通讯 / Office', groups.map((group) => group.label).join('/') === '常规/编辑器/通讯/Office', groups.map((group) => group.label).join(','))
+  check('每套主题都落进且只落进一个类别', groups.flatMap((group) => group.themes).length === themes.length)
+  check('常规类只收普通阅读形态', (groups.find((group) => group.label === '常规')?.themes ?? []).every((theme) => chromeOf(theme) === 'plain'))
+  check('编辑器类只收 code 形态', (groups.find((group) => group.label === '编辑器')?.themes ?? []).every((theme) => chromeOf(theme) === 'code'))
+  check('通讯类收的是 doc / chat / desk', (groups.find((group) => group.label === '通讯')?.themes ?? []).every((theme) => ['doc', 'chat', 'desk'].includes(chromeOf(theme))))
+  check('Office 类收的是 page / sheet / slide', (groups.find((group) => group.label === 'Office')?.themes ?? []).every((theme) => ['page', 'sheet', 'slide'].includes(chromeOf(theme))))
+  // 封面是真实截图（src/assets/theme-shots/<主题 id>.webp）。缺了不报错（回落色卡），
+  // 但那是「新主题还没截」的过渡态——内置主题的图都在才算数
+  const shotIds = new Set(readdirSync('src/assets/theme-shots').map((name) => name.replace(/\.webp$/, '')))
+  check('每套内置主题都有封面截图', themes.every((theme) => shotIds.has(theme.id)), `缺：${themes.filter((theme) => !shotIds.has(theme.id)).map((theme) => theme.id).join(',')}`)
 
   // 每个形态都要有亮有暗：只给一种的形态等于「这个主题只有半套」
   for (const chrome of ['doc', 'chat', 'page', 'sheet', 'slide', 'desk']) {

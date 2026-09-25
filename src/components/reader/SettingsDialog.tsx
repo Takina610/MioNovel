@@ -23,13 +23,13 @@ import {
   hotkeyCommandOf,
   hotkeyLiveOn,
   HOTKEY_LABELS,
-  resolveCombo,
+  resolveCombos,
   useHotkeyBindings,
   type HotkeyId,
 } from '../../store/hotkeys'
 import { cx } from '../../lib/cx'
 import { Button } from '../ui/Button'
-import { HotkeyInput } from '../ui/HotkeyInput'
+import { HotkeyRow } from '../ui/HotkeyRow'
 import { Slider } from '../ui/Slider'
 import { Switch } from '../ui/Switch'
 import { ThemePicker } from './ThemePicker'
@@ -146,8 +146,9 @@ export function SettingsDialog({
   const setDimEnabled = useDim((state) => state.setEnabled)
   const setDimLevel = useDim((state) => state.setLevel)
   const combos = useHotkeyBindings((state) => state.combos)
-  const setCombo = useHotkeyBindings((state) => state.setCombo)
-  const resetCombo = useHotkeyBindings((state) => state.resetCombo)
+  const addCombo = useHotkeyBindings((state) => state.addCombo)
+  const removeCombo = useHotkeyBindings((state) => state.removeCombo)
+  const resetCommand = useHotkeyBindings((state) => state.resetCommand)
 
   // 每一大类在不在，读的是**功能自己的形态**（命令表里的 presence，hotkeyLiveOn）：
   // 演示模式只属于编辑器形态，摸鱼模式属于所有带外壳的形态。
@@ -157,10 +158,11 @@ export function SettingsDialog({
   const codeChrome = chrome === 'code'
   const appShell = !codeChrome && chrome !== 'plain'
 
-  /** 两个功能不能绑同一个组合：谁先响应说不清，索性在录的时候挡住 */
+  /** 两个功能不能绑同一个组合：谁先响应说不清，索性在录的时候挡住。
+   *  一条命令可以绑多个组合，所以要对**每一串**都比一遍 */
   const conflictWith = (id: HotkeyId, combo: string): string | null => {
     for (const other of Object.keys(HOTKEY_LABELS) as HotkeyId[]) {
-      if (other !== id && combo === resolveCombo(combos, other)) {
+      if (other !== id && resolveCombos(combos[other], other).includes(combo)) {
         return `这个组合已经给了${HOTKEY_LABELS[other]}`
       }
     }
@@ -254,8 +256,9 @@ export function SettingsDialog({
     decoy: { enabled: decoyEnabled, presetId: decoyPresetId, setEnabled: setDecoyEnabled, setPreset: setDecoyPreset },
     dim: { enabled: dimEnabled, level: dimLevel, setEnabled: setDimEnabled, setLevel: setDimLevel },
     combos,
-    setCombo,
-    resetCombo,
+    addCombo,
+    removeCombo,
+    resetCommand,
     conflictWith,
   })
   // 换主题可能让某大类整个消失（比如从编辑器切回普通阅读），保存的 id 不在了就落回第一类
@@ -325,14 +328,14 @@ export function SettingsDialog({
                     onClick={() => setActiveId(category.id)}
                     aria-current={current || undefined}
                     className={cx(
-                      'flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-[13px]',
+                      'flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2.5 text-[14px]',
                       'transition-[background-color,color] duration-[var(--mn-dur-1)] ease-[var(--mn-ease)]',
                       current
                         ? 'bg-accent-soft font-medium text-accent'
                         : 'text-fg-muted hover:bg-surface-2 hover:text-fg',
                     )}
                   >
-                    <Icon className="h-4 w-4 shrink-0" />
+                    <Icon className="h-5 w-5 shrink-0" />
                     <span className="truncate">{category.label}</span>
                   </button>
                 )
@@ -372,9 +375,10 @@ function buildCategories(args: {
     setEnabled: (enabled: boolean) => void
     setLevel: (level: number) => void
   }
-  combos: Record<HotkeyId, string>
-  setCombo: (id: HotkeyId, combo: string) => void
-  resetCombo: (id: HotkeyId) => void
+  combos: Record<HotkeyId, string[]>
+  addCombo: (id: HotkeyId, combo: string) => void
+  removeCombo: (id: HotkeyId, combo: string) => void
+  resetCommand: (id: HotkeyId) => void
   conflictWith: (id: HotkeyId, combo: string) => string | null
 }): Category[] {
   const {
@@ -388,12 +392,29 @@ function buildCategories(args: {
     usage,
     decoy,
     dim,
-    setCombo,
-    resetCombo,
+    combos,
+    addCombo,
+    removeCombo,
+    resetCommand,
     conflictWith,
   } = args
 
   const categories: Category[] = []
+
+  /** 快捷键设置的一行。标题 / 说明 / 键位组合都从命令表推出来 */
+  const hotkeyRow = (id: HotkeyId) => (
+    <HotkeyRow
+      label={HOTKEY_LABELS[id]}
+      description={hotkeyCommandOf(id).description}
+      combos={resolveCombos(combos[id], id)}
+      defaults={hotkeyCommandOf(id).combos}
+      scope={hotkeyCommandOf(id).scope}
+      onAdd={(combo) => addCombo(id, combo)}
+      onRemove={(combo) => removeCombo(id, combo)}
+      onReset={() => resetCommand(id)}
+      check={(combo) => conflictWith(id, combo)}
+    />
+  )
 
   categories.push({
     id: 'theme',
@@ -608,14 +629,7 @@ function buildCategories(args: {
               </button>
             ))}
           </div>
-          <HotkeyInput
-            name="演示模式快捷键"
-            scope={hotkeyCommandOf('decoy').scope}
-            combo={resolveCombo(args.combos, 'decoy')}
-            onChange={(combo) => setCombo('decoy', combo)}
-            onReset={() => resetCombo('decoy')}
-            check={(combo) => conflictWith('decoy', combo)}
-          />
+          {hotkeyRow('decoy')}
         </>
       ),
     })
@@ -648,38 +662,35 @@ function buildCategories(args: {
             onChange={dim.setLevel}
             format={(value) => `${Math.round(value * 100)}%`}
           />
-          <HotkeyInput
-            name="摸鱼模式快捷键"
-            scope={hotkeyCommandOf('dim').scope}
-            combo={resolveCombo(args.combos, 'dim')}
-            onChange={(combo) => setCombo('dim', combo)}
-            onReset={() => resetCombo('dim')}
-            check={(combo) => conflictWith('dim', combo)}
-          />
+          {hotkeyRow('dim')}
         </>
       ),
     })
   }
 
-  // 页面里的三条命令。演示与摸鱼两条「伪装」功能的键放在各自那一栏更方便对照
+  // 页面里的命令。翻页 / 章节跳转 / 退出阅读只在阅读时响应（书架上没有
+  // 「退出阅读」可退），但**键位表永远全量列出**——设置是找键位的地方，
+  // 按使用页面藏行会让人以为功能没做。演示与摸鱼两条「伪装」功能的键
+  // 放在各自那一栏更方便对照
   categories.push({
     id: 'keys',
     label: '快捷键',
     icon: IconKeyboard,
     node: (
       <>
-        {(['settings', 'toc', 'fullscreen'] as HotkeyId[]).map((id) => (
-          <HotkeyInput
-            key={id}
-            name={HOTKEY_LABELS[id]}
-            scope={hotkeyCommandOf(id).scope}
-            combo={resolveCombo(args.combos, id)}
-            onChange={(combo) => setCombo(id, combo)}
-            onReset={() => resetCombo(id)}
-            check={(combo) => conflictWith(id, combo)}
-          />
-        ))}
-        <p className="text-[11.5px] leading-relaxed text-fg-faint">
+        {(
+          [
+            'settings',
+            'toc',
+            'next-page',
+            'prev-page',
+            'prev-chapter',
+            'next-chapter',
+            'fullscreen',
+            'exit',
+          ] as HotkeyId[]
+        ).map((id) => hotkeyRow(id))}
+        <p className="text-[12px] leading-relaxed text-fg-faint">
           输入框里打字时这些键不生效。
         </p>
       </>

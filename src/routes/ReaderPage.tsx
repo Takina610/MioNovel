@@ -16,7 +16,7 @@ import type { BookRecord } from '../db/db'
 import { useBook, useBooks } from '../hooks/useBooks'
 import { useChapter, warmNeighbours } from '../hooks/useChapter'
 import { useChapterHtml } from '../hooks/useChapterHtml'
-import { useHotkey, useHotkeys } from '../hooks/useHotkeys'
+import { useHotkey } from '../hooks/useHotkeys'
 import { useToc } from '../hooks/useToc'
 import { useScopedTheme, useUserCss } from '../hooks/useTheme'
 import { bookFolderName, chapterFileName } from '../lib/code'
@@ -34,12 +34,12 @@ import { toggleFullscreen } from '../lib/fullscreen'
 import { useDecoy } from '../store/decoy'
 import { useDim } from '../store/dim'
 import {
-  closeSettingsDialog,
   openSettingsDialog,
   toggleSettingsFromHotkey,
   useSettingsDialog,
 } from '../store/settingsDialog'
 import { useHotkeyCombo } from '../store/hotkeys'
+import { comboDisplay } from '../lib/hotkey'
 import { useImports } from '../store/imports'
 import { resolveSettings, settingsToVars, useSettings } from '../store/settings'
 import { chromeOf, getTheme } from '../themes/apply'
@@ -102,6 +102,8 @@ export function ReaderPage() {
   const settingsHotkey = useHotkeyCombo('settings')
   const tocHotkey = useHotkeyCombo('toc')
   const fullscreenHotkey = useHotkeyCombo('fullscreen')
+  const prevChapterHotkey = useHotkeyCombo('prev-chapter')
+  const nextChapterHotkey = useHotkeyCombo('next-chapter')
 
   const perBookStyle = bookId ? perBook[bookId] : undefined
   const perBookEnabled = perBookStyle?.enabled ?? false
@@ -314,8 +316,8 @@ export function ReaderPage() {
   }, [chrome, chapterIndex])
 
   // ---- 快捷键 ----
-  // 三条命令都能在阅读设置里改键（命令表见 lib/hotkey.ts）。
-  // Esc 是约定（关面板），不参与改键，仍然走上面那个 useHotkeys。
+  // 命令表见 lib/hotkey.ts；翻页键（↓ / → / 空格…）登记在 ReaderView——
+  // 翻列和滚动是它内部的事。这里登记的是章与章的跳转和退出。
   useHotkey('toc', () => {
     // 编辑器形态下 T 是「收起/展开侧栏」，和编辑器里一样。
     // 办公外壳那一层的侧栏开关在各自的视图页签上（那儿才是它们的位置），
@@ -325,16 +327,22 @@ export function ReaderPage() {
   })
   useHotkey('settings', toggleSettingsFromHotkey)
   useHotkey('fullscreen', toggleFullscreen)
-
-  useHotkeys(
-    (event) => {
-      if (event.key === 'Escape') {
-        setTocOpen(false)
-        closeSettingsDialog()
-      }
-    },
-    [],
-  )
+  useHotkey('prev-chapter', goPrev)
+  useHotkey('next-chapter', goNext)
+  useHotkey('exit', () => {
+    // 局部界面开着时 Esc 先归它们：下拉框、Word 沉浸模式、PPT 阅读视图
+    // 都在自己的元素上挂着 data-mn-esc-local（AGENTS「Esc 的规矩」）
+    if (document.querySelector('[data-mn-esc-local]')) return
+    if (tocOpen) {
+      setTocOpen(false)
+      return
+    }
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+      return
+    }
+    backToShelf()
+  })
 
   const handleSeek = useCallback(
     (percent: number) => {
@@ -677,14 +685,14 @@ export function ReaderPage() {
                 <CodeStatusItem
                   onClick={goPrev}
                   disabled={(chapterIndex ?? 0) <= 0}
-                  title={`上一章（←）`}
+                  title={prevChapterHotkey ? `上一章（${comboDisplay(prevChapterHotkey)}）` : '上一章'}
                 >
                   上一章
                 </CodeStatusItem>
                 <CodeStatusItem
                   onClick={goNext}
                   disabled={(chapterIndex ?? 0) >= book.chapterCount - 1}
-                  title={`下一章（→）`}
+                  title={nextChapterHotkey ? `下一章（${comboDisplay(nextChapterHotkey)}）` : '下一章'}
                 >
                   下一章
                 </CodeStatusItem>
