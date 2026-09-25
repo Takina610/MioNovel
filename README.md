@@ -3,6 +3,8 @@
 把散在硬盘上的小说（txt / epub）拖进浏览器，变成一个能离线读、能换主题的书架。
 
 文件不上传，全部存在本机浏览器的 IndexedDB 里，装成 PWA 之后断网也能读。
+同一份代码也有三种桌面形态（Tauri 壳 + WebView2，Windows）：免安装的裸 exe、
+NSIS / MSI 安装包、以及数据跟 exe 走的便携版，见「跑起来」的桌面端三条。
 
 ## 跑起来
 
@@ -16,6 +18,10 @@ bun run dev        # http://localhost:5179
 ```bash
 bun run build      # 生产构建（含 Service Worker）
 bun run preview    # 预览构建产物
+bun run app:dev      # 桌面端开发（Tauri + vite，需装 Rust 工具链）
+bun run app:build    # 桌面端构建：exe + NSIS/MSI 安装包（src-tauri/target/release/）
+bun run app:portable # 便携版 zip（先跑 app:build）：exe 加 portable.txt 标记，
+                     # 解开即用，书和设置存旁边的 data\ 文件夹，C 盘不落文件
 bun run typecheck  # tsc --noEmit
 bun run samples    # 生成验收用的样例文件到 samples/
 bun run verify     # 跑验收（38 项 txt + 45 项 epub + 640 份演示模式文件 + 28 项快捷键 + 161 项办公外壳断言）
@@ -23,6 +29,7 @@ bun run verify:decoy   # 只跑演示模式：括号配对、空块、重名方�
 bun run verify:hotkey  # 只跑快捷键：组合解析、键位匹配、录键校验
 bun run verify:apps    # 只跑办公外壳：主题 token、块切分、消息/行/幻灯片、云文档首页、Word / Excel / PPT 的开始屏幕与页签、章内查找、1688 的指标与已读回执、放真图的形态、界面文案
 bun run icons      # 从 public/MioNovel.png 重新生成全套图标（favicon / PWA / apple-touch）
+bun run icons:desktop  # 从同一张原图重新生成桌面端图标与安装器品牌图（src-tauri/icons、installer）
 bun run logo       # 从同一张原图派生界面用的小图（logo-64 / logo-192 / favicon.svg）
 ```
 

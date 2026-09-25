@@ -110,6 +110,19 @@
   别在 ThemePicker 里按主题 id 硬排，那样新主题会落不进任何一组。
   非「常规」主题名称左侧的**产品商标**在 `src/assets/logos/`（官方渠道的真实彩色
   图标，产品记号例外、亮暗主题共用；别自己画，也别换成单色线条版）。
+- **桌面端（`src-tauri/`）三处别动反**：`vite.config.ts` 里按 `TAURI_ENV_PLATFORM` 跳过
+  PWA 的分流别删——桌面壳里注册 Service Worker 会把旧外壳缓存进 WebView2 的用户数据目录，
+  应用更新后还在放旧壳；`tauri.conf.json` 的 `dragDropEnabled: false` 别改回 true——
+  Tauri 默认接管窗口拖放（给的是路径），接管之后 HTML5 的 drop 事件就没了，
+  书架的拖拽导入会整个失效；窗口是 `create: false` + setup 里 `from_config` 手动建的——
+  便携模式（exe 旁边有 `portable.txt`，见 `src/lib.rs`）要往 `data_directory` 传
+  「exe 旁边的路径」，配置里的 `dataDirectory` 字段只认 `%LOCALAPPDATA%` 的相对路径，
+  改回配置直建便携版就失效。前端不引 `@tauri-apps/api`，数据走 IndexedDB、文件走原生
+  File 对象（需要字节不需要路径）。命令：`bun run app:dev` / `app:build` / `app:portable`
+  （要 Rust 工具链），桌面图标与安装器品牌图由 `bun run icons:desktop` 从 MioNovel.png
+  派生（非方形源图先补透明边，sharp 的 resize 先于 extend 执行，两步必须拆开；
+  sharp 不认 BMP，安装器的 header/sidebar 是脚本里手写的 24 位 BMP）。
+  为什么见 SPEC 44 / 45。
 
 ## 四、动完手必须过的三关
 

@@ -1,0 +1,5 @@
+# Cargo 构建产物
+/target/
+
+# tauri build 时从 capabilities 和配置生成的权限 schema
+/gen/schemas/

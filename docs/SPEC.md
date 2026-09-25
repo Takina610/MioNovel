@@ -2234,3 +2234,64 @@ Word 沉浸模式、PPT 阅读视图、OfficeFrame 的 ⋯ 菜单这轮补挂了
 关个下拉就被踢回书架。退出命令的处理顺序：看到标记就走、目录开着先收目录、
 在全屏先退全屏、最后回书架。`verify:hotkey` 45 → 67（默认表自洽、生效组合的
 过滤与去重、空数组不回退、展示形态 ↓/Esc/Ctrl+Alt+←、方向键与空格的物理键命中）。
+
+### 44. 接入 Tauri，Windows 桌面端（2026-09-25）
+
+同一份前端，现在有两种跑法：浏览器里的 PWA，和 `src-tauri/` 装出来的 Windows 桌面程序。
+
+**为什么是 Tauri 不是 Electron。** 这个应用的全部资产（解析器、主题、书架）是静态资源，
+壳只需要「一个窗口 + 一个现代 WebView」。Windows 10/11 自带 WebView2，Tauri 的壳只有几 MB；
+Electron 要自带一份 Chromium，安装包和内存都是几十上百 MB 的起步价。代价是 Rust 工具链——
+但壳里没有任何业务逻辑，`lib.rs` 只有启动窗口一行，维护面很小。
+
+**前端零改动。** 不引 `@tauri-apps/api`。文件导入用的 `<input type=file>` 与 HTML5 拖放
+在 WebView2 里原样工作（拿到 File 对象就有字节，本应用从头到尾不需要真实路径）；
+书在 IndexedDB，WebView2 有自己的持久化用户数据目录；封面/插图的 blob URL 也照常。
+唯一的分流点在 `vite.config.ts`：Tauri 的钩子带着 `TAURI_ENV_*` 环境变量跑 vite，
+借它跳过 PWA 插件——
+
+1. **桌面构建不注册 Service Worker。** SW 是给浏览器补「离线外壳」的，桌面端资源就在
+   exe 旁边，没有离线问题要解；反过来 SW 会把外壳缓存进 WebView2 的用户数据目录，
+   应用更新之后还在放旧壳。没有 SW，`navigateFallback` 的活由 Tauri 的资源解析器接：
+   生产模式下对找不到的路径最终回落 index.html（`tauri/src/manager/mod.rs` 的 `get_asset`），
+   所以 `createBrowserRouter` 在桌面端 F5 刷新 `/read/:id` 不会 404——这是查过源码才敢留的。
+2. **`dragDropEnabled: false`。** Tauri 默认在窗口层接管文件拖放（为的是把真实路径递给
+   Rust 侧），接管之后 WebView2 的 drop 事件就不再触发，书架的拖拽导入会整个失效。
+   关掉它，事件回到 `useFileDrop` 手里。
+
+**窗口与打包。** 默认 1280×800（最小 900×560），标题 MioNovel。打包目标只留 NSIS
+（SimpChinese）：MSI 要再拉一套 WiX 工具链，发布一个就够。窗口图标由 `bun run icons:desktop`
+从 `public/MioNovel.png` 派生——源图不是正方形，脚本先补透明边再交给 `tauri icon`；
+注意 sharp 的管线顺序是固定的（resize 先于 extend），补边和缩放必须拆两步，
+否则出来的不是正方形。`tauri.conf.json` 的 `version` 与 package.json 的手抄对齐，
+发版时两处一起改。
+
+**命令**：`bun run app:dev`（起 vite + 桌面窗口，vite 端口被占会直接报错而不是静默换端口——
+devUrl 写死了 5179）、`bun run app:build`（出 exe + NSIS 安装包）。
+
+### 45. 便携版、MSI、安装器的脸面（2026-09-25)
+
+接上一条，把桌面端的三个分发形态补齐。
+
+**便携版是同一个 exe 加一个标记文件。** 没有编第二个「便携版二进制」：exe 启动时看自己
+旁边有没有 `portable.txt`（`src-tauri/src/lib.rs` 的 `portable_data_dir`），有就把 WebView2
+的用户数据目录指到旁边的 `data\`。书、进度、阅读设置全在那个目录里——它们本来就不是
+Rust 侧存的，是 WebView2 的 IndexedDB/localStorage，所以挪这一个目录就等于全挪了。
+这条路走的是 `WebviewWindowBuilder::data_directory`：Tauri 在 Windows 上默认强制把数据目录
+设成 `%LOCALAPPDATA%\<identifier>`（`tauri/src/manager/webview.rs`「force a data_directory」），
+但注释明说「we do respect user-specification」。窗口因此改成 `create: false` + setup 里
+`from_config` 手动建——配置里的 `dataDirectory` 字段要求相对路径且按 `%LOCALAPPDATA%` 解析，
+表达不了「exe 旁边」，只能走 builder。便携版运行时 C 盘零写入；前提是 WebView2 运行时
+已在系统里（Win10/11 自带，它是系统组件，不算本应用落的文件）。
+
+**MSI 是一行 targets 的事。** `bundle.targets` 从 `["nsis"]` 改成 `["nsis", "msi"]`，
+WiX 工具链由 CLI 首次构建时自动下载。MSI 默认机器级安装（`C:\Program Files\MioNovel`，
+UI 可改目录），和 NSIS 的用户级并存，发布时按场景二选一即可。
+
+**安装器之前用的是 NSIS 默认图标，不是没人注意，是没配。** 把旧 setup.exe 的图标提出来
+一看：地球加蓝箭头，NSIS 的默认脸。bundler 不会自动拿 app 图标当安装器图标，必须显式给
+`installerIcon` / `uninstallerIcon`（指 `icons/icon.ico`）；顺手把两张品牌位图也配了——
+`headerImage`（150×57，每页头部）和 `sidebarImage`（164×314，欢迎/完成页侧图），由
+`bun run icons:desktop` 从 MioNovel.png 派生（`scripts/make-desktop-icons.ts`）：白底居中
+logo、底部一条深青加珊瑚的双色条，颜色取自 M 的笔画；sharp 不认 BMP，脚本里手写了
+24 位 BMP 的编码（未压缩 BGR、行序自下而上、行宽补 4 字节）。

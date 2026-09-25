@@ -10,6 +10,10 @@ desktop.ini
 # 验收用的样例文件由 `bun run samples` 生成，不进仓库
 samples/
 
+# Rust 构建产物与 Tauri 生成的权限 schema（src-tauri/.gitignore 也挡了一道）
+src-tauri/target/
+src-tauri/gen/
+
 # 编辑器 / 工具的运行状态，不属于项目源码
 .zcode/
 

@@ -1,0 +1,28 @@
+[package]
+name = "mionovel"
+version = "0.1.0"
+description = "本地优先的小说阅读器：导入自己的 txt / epub，离线也能读"
+authors = ["Takina"]
+edition = "2021"
+
+# 与 package.json 的 version 手动保持一致（打包进安装包的元数据）。
+
+[lib]
+name = "mionovel_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# 前端不调任何 Tauri API（文件走 WebView2 原生 File 对象、数据走 IndexedDB），
+# 所以这里只有壳本身，没有插件、没有 command。
+tauri = { version = "2", features = [] }
+
+[profile.release]
+# 阅读器是静态资源 + WebView2，本地编译产物压一压体积
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
