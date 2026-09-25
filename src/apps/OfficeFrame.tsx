@@ -11,10 +11,10 @@ import { cx } from "../lib/cx";
 import { IconCheck, IconChevron, IconSliders } from "../components/ui/icons";
 import {
   IconComment,
+  IconDarkMode,
   IconFullscreen,
   IconLauncher,
   IconShare,
-  IconTheme,
 } from "../components/ui/app-icons";
 
 /**
@@ -348,15 +348,19 @@ export function OfficeFrame({
             {titleArt}
           </div>
         ) : null}
-        {brand ? <span className="mn-office__brand">{brand}</span> : null}
-        {titleTools ? <div className="mn-office__qat">{titleTools}</div> : null}
-        <div className="mn-office__file">
-          <span className="mn-office__file-name" title={fileName}>
-            {fileName}
-          </span>
-          {savedHint ? (
-            <span className="mn-office__saved">{savedHint}</span>
-          ) : null}
+        {/* 左侧一串包成一组：中间的搜索框是绝对居中的，这一串长了会钻到它底下，
+            组上有个上界（见 office.css 的 --mn-office-search-half），到了就截文件名 */}
+        <div className="mn-office__title-left">
+          {brand ? <span className="mn-office__brand">{brand}</span> : null}
+          {titleTools ? <div className="mn-office__qat">{titleTools}</div> : null}
+          <div className="mn-office__file">
+            <span className="mn-office__file-name" title={fileName}>
+              {fileName}
+            </span>
+            {savedHint ? (
+              <span className="mn-office__saved">{savedHint}</span>
+            ) : null}
+          </div>
         </div>
         {titleCenter ? (
           <div className="mn-office__title-center">{titleCenter}</div>
@@ -370,7 +374,8 @@ export function OfficeFrame({
             aria-pressed={dimOn}
             onClick={onToggleDim}
           >
-            <IconTheme className="h-4 w-4" />
+            {/* 月亮：设置弹窗里「摸鱼模式」那一栏用的也是它，两处一个意思 */}
+            <IconDarkMode className="h-4 w-4" />
           </button>
           <button
             type="button"

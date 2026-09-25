@@ -435,12 +435,7 @@ html[data-chrome='page'] .mn-scroll::-webkit-scrollbar-thumb {
   .mn-word__search {
     width: min(240px, 34vw);
   }
-
-  /* 窄屏上标题栏那两件（自动保存、升级计划）收起：和 Excel 同一处理 */
-  .mn-office__autosave,
-  .mn-office__alert {
-    display: none;
-  }
+  /* 窄屏上标题栏那两件（自动保存、升级计划）收起：这条已经是办公外壳通用的了（office.css） */
 }
 
 @media (max-width: 767px) {

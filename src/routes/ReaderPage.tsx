@@ -7,7 +7,7 @@ import { CodeFrame, CodeShell, CodeStatusItem, type CodeView } from '../componen
 import { ReaderBottomBar } from '../components/reader/ReaderBottomBar'
 import { ReaderTopBar } from '../components/reader/ReaderTopBar'
 import { ReaderView } from '../components/reader/ReaderView'
-import { SettingsPanel } from '../components/reader/SettingsPanel'
+import { SettingsDialog } from '../components/reader/SettingsDialog'
 import { TocPanel } from '../components/reader/TocPanel'
 import { Button } from '../components/ui/Button'
 import { Logo } from '../components/ui/Logo'
@@ -33,6 +33,12 @@ import { cx } from '../lib/cx'
 import { toggleFullscreen } from '../lib/fullscreen'
 import { useDecoy } from '../store/decoy'
 import { useDim } from '../store/dim'
+import {
+  closeSettingsDialog,
+  openSettingsDialog,
+  toggleSettingsFromHotkey,
+  useSettingsDialog,
+} from '../store/settingsDialog'
 import { useHotkeyCombo } from '../store/hotkeys'
 import { useImports } from '../store/imports'
 import { resolveSettings, settingsToVars, useSettings } from '../store/settings'
@@ -58,7 +64,9 @@ export function ReaderPage() {
   const [pendingFragment, setPendingFragment] = useState('')
   const [chromeVisible, setChromeVisible] = useState(true)
   const [tocOpen, setTocOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  // 阅读设置弹窗的开合在全局 store（store/settingsDialog）：按钮、菜单、快捷键
+  // 从任何一扇门进来都是同一个状态，出发点（从哪个按钮长出来）也在那儿
+  const settingsOpen = useSettingsDialog((state) => state.open)
   // 编辑器形态：侧栏视图、收起状态，以及这次会话里开过的章（标签页）
   const [view, setView] = useState<CodeView>('explorer')
   const [sideOpen, setSideOpen] = useState(() => window.innerWidth >= 768)
@@ -315,14 +323,14 @@ export function ReaderPage() {
     if (chrome === 'code') setSideOpen((open) => !open)
     else if (chrome === 'plain') setTocOpen((open) => !open)
   })
-  useHotkey('settings', () => setSettingsOpen((open) => !open))
+  useHotkey('settings', toggleSettingsFromHotkey)
   useHotkey('fullscreen', toggleFullscreen)
 
   useHotkeys(
     (event) => {
       if (event.key === 'Escape') {
         setTocOpen(false)
-        setSettingsOpen(false)
+        closeSettingsDialog()
       }
     },
     [],
@@ -447,8 +455,11 @@ export function ReaderPage() {
   // ---- 五套办公外壳 ----
   // 外壳只画框，正文仍然是上面那个 readerView（滚动、进度、锚点都归它）。
   // 各形态需要什么由 AppReader 按 chrome 分派（见 apps/registry.tsx）。
+  // 阅读设置弹窗挂在页这一层（函数末尾），不挂在某个分支里：在弹窗里换主题
+  // 会让这三个分支互相切换，挂进分支的话弹窗实例会跟着卸载，收起动画就没了。
+  let shell: ReactNode
   if (appChrome) {
-    return (
+    shell = (
       <div ref={setReaderRoot} className="contents">
         <AppReader
           chrome={appChrome}
@@ -467,7 +478,7 @@ export function ReaderPage() {
           onChapter={(index) => goToChapter(index, 0)}
           onSeek={handleSeek}
           onBack={backToShelf}
-          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenSettings={openSettingsDialog}
           onImport={importFiles}
           onOpenBook={(target) => openChapterIn(target, target.progress?.chapterIndex ?? 0)}
           resolveMedia={(src) => resources.get(src)}
@@ -490,23 +501,12 @@ export function ReaderPage() {
             event.target.value = ''
           }}
         />
-
-        <SettingsPanel
-          open={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          settings={settings}
-          onChange={handleSettingsChange}
-          perBookEnabled={perBookEnabled}
-          onTogglePerBook={(enabled) => {
-            if (bookId) setPerBookEnabled(bookId, enabled)
-          }}
-        />
       </div>
     )
-  }
-
   // ---- 编辑器形态 ----
-  if (chrome === 'code') {
+  // 注意这一支必须挂在 appChrome 的 else 上：之前它是独立的 if + else，
+  // 办公外壳的 shell 会被普通分支盖掉，读起来就只剩一副光壳（2026-09-25 踩过）
+  } else if (chrome === 'code') {
     const chapterFile = chapterFileName(chapter?.title ?? '', chapterIndex ?? 0)
     const folder = bookFolderName(book.title)
     const decoySeedValue = decoySeed(book.id, chapterIndex ?? 0)
@@ -514,7 +514,7 @@ export function ReaderPage() {
     const fakeFolder = decoy ? decoyFolderName(decoyId, book.id) : folder
     const decoyChromeLabel = decoy ? decoyStatus(decoyId) : null
     const cursor = decoyCursor(decoySeedValue)
-    return (
+    shell = (
       // 阅读设置的变量仍然挂在容器上（和默认形态同一套机制），
       // display: contents 让它只做变量用的载体，不进入排版
       <div ref={setReaderRoot} className="contents">
@@ -574,7 +574,7 @@ export function ReaderPage() {
               label: decoy ? 'Preferences: Open Settings' : '阅读设置',
               hint: settingsHotkey,
               separatorBefore: true,
-              onSelect: () => setSettingsOpen(true),
+              onSelect: openSettingsDialog,
             },
             {
               label: decoy ? 'View: Toggle Full Screen' : '全屏',
@@ -692,32 +692,20 @@ export function ReaderPage() {
             )
           }
           statusRatio={percent}
-          onSettings={() => setSettingsOpen(true)}
+          onSettings={openSettingsDialog}
         >
           {/* 正文还没就位时什么都不写：编辑器打开文件时是空白的，
               弹一行「正在打开…」反而看着像另一个应用 */}
           {readerView ?? null}
         </CodeShell>
-
-        <SettingsPanel
-          open={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          settings={settings}
-          onChange={handleSettingsChange}
-          perBookEnabled={perBookEnabled}
-          onTogglePerBook={(enabled) => {
-            if (bookId) setPerBookEnabled(bookId, enabled)
-          }}
-        />
       </div>
     )
-  }
-
-  return (
-    <div
-      ref={setReaderRoot}
-      className="relative h-dvh overflow-hidden bg-reader-bg text-reader-fg"
-    >
+  } else {
+    shell = (
+      <div
+        ref={setReaderRoot}
+        className="relative h-dvh overflow-hidden bg-reader-bg text-reader-fg"
+      >
       {/* 顶部那条发丝进度：工具栏收起来之后，它是唯一还看得见的「读到哪了」 */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-40 h-[3px]">
         <div
@@ -742,7 +730,7 @@ export function ReaderPage() {
         chapterTitle={chapter?.title ?? ''}
         onBack={backToShelf}
         onToc={() => setTocOpen(true)}
-        onSettings={() => setSettingsOpen(true)}
+        onSettings={openSettingsDialog}
       />
 
       <ReaderBottomBar
@@ -766,10 +754,16 @@ export function ReaderPage() {
           setTocOpen(false)
         }}
       />
+      </div>
+    )
+  }
 
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+  return (
+    <>
+      {shell}
+      {/* 阅读设置弹窗挂在页这一层：在弹窗里换主题会让上面的三个分支互相切换，
+          挂进分支的话弹窗实例会跟着卸载，收起动画就没了 */}
+      <SettingsDialog
         settings={settings}
         onChange={handleSettingsChange}
         perBookEnabled={perBookEnabled}
@@ -777,7 +771,7 @@ export function ReaderPage() {
           if (bookId) setPerBookEnabled(bookId, enabled)
         }}
       />
-    </div>
+    </>
   )
 }
 

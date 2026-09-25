@@ -29,9 +29,13 @@ import {
 } from '../lib/decoy'
 import { formatBytes, formatChars, formatPercent } from '../lib/format'
 import { bookPercent } from '../lib/progress'
-import { SettingsPanel } from '../components/reader/SettingsPanel'
+import { SettingsDialog } from '../components/reader/SettingsDialog'
 import { useDecoy } from '../store/decoy'
 import { useDim } from '../store/dim'
+import {
+  openSettingsDialog,
+  toggleSettingsFromHotkey,
+} from '../store/settingsDialog'
 import { useHotkeyCombo } from '../store/hotkeys'
 import { useHotkey } from '../hooks/useHotkeys'
 import { toggleFullscreen } from '../lib/fullscreen'
@@ -94,10 +98,17 @@ export function ShelfPage() {
     },
     [navigate],
   )
+  const globalSettings = useSettings((state) => state.global)
+  const updateSettings = useSettings((state) => state.update)
 
-  if (chrome === 'code') return <CodeShelfPage />
-  if (chrome === 'plain') return <GridShelfPage />
-  return <AppShelf chrome={chrome} navigateToBook={openBook} />
+  return (
+    <>
+      {chrome === 'code' ? <CodeShelfPage /> : chrome === 'plain' ? <GridShelfPage /> : <AppShelf chrome={chrome} navigateToBook={openBook} />}
+      {/* 阅读设置弹窗挂在页这一层：在弹窗里换主题会让三个书架互相切换组件，
+          挂进各自的组件里弹窗实例会跟着卸载，收起动画就没了 */}
+      <SettingsDialog settings={globalSettings} onChange={updateSettings} />
+    </>
+  )
 }
 
 // ==========================================================================
@@ -110,8 +121,6 @@ function GridShelfPage() {
   const addFiles = useImports((state) => state.addFiles)
   const notice = useImports((state) => state.notice)
   const dismissNotice = useImports((state) => state.dismissNotice)
-  const globalSettings = useSettings((state) => state.global)
-  const updateSettings = useSettings((state) => state.update)
 
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortKey>('recent')
@@ -120,7 +129,8 @@ function GridShelfPage() {
   // 刚才那一下到底成没成
   const [panelBookId, setPanelBookId] = useState<string | null>(null)
   const [scrolled, setScrolled] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  // 阅读设置弹窗（SettingsDialog）的开合在全局 store（store/settingsDialog）：
+  // 从哪个按钮开、快捷键开，都是同一个状态；弹窗要从哪个按钮长出来也在那儿
   const fileInput = useRef<HTMLInputElement>(null)
 
   const dragging = useFileDrop(addFiles)
@@ -128,7 +138,7 @@ function GridShelfPage() {
 
   // 书架上的两条命令：设置页里能改键（命令表见 lib/hotkey.ts）。
   // 输入框里打字时它们让位（focused 档），所以搜索时打 s 不会弹出面板
-  useHotkey('settings', () => setSettingsOpen((open) => !open))
+  useHotkey('settings', toggleSettingsFromHotkey)
   useHotkey('fullscreen', toggleFullscreen)
   const panelBook = useMemo(
     () => (panelBookId && books ? (books.find((book) => book.id === panelBookId) ?? null) : null),
@@ -197,7 +207,7 @@ function GridShelfPage() {
               variant="ghost"
               className="px-2.5"
               aria-label="阅读设置"
-              onClick={() => setSettingsOpen(true)}
+              onClick={openSettingsDialog}
             >
               <IconSliders className="h-4.5 w-4.5" />
             </Button>
@@ -294,13 +304,6 @@ function GridShelfPage() {
         onDeleted={() => setPanelBookId(null)}
       />
 
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        settings={globalSettings}
-        onChange={updateSettings}
-      />
-
       <Toast message={notice} onDismiss={dismissNotice} />
 
       {dragging ? <DropHint /> : null}
@@ -318,8 +321,6 @@ function CodeShelfPage() {
   const addFiles = useImports((state) => state.addFiles)
   const notice = useImports((state) => state.notice)
   const dismissNotice = useImports((state) => state.dismissNotice)
-  const globalSettings = useSettings((state) => state.global)
-  const updateSettings = useSettings((state) => state.update)
 
   const [view, setView] = useState<CodeView>('explorer')
   // 窄屏上侧栏是浮层，默认收着——不然一进来就是它盖着正文
@@ -344,7 +345,7 @@ function CodeShelfPage() {
   const [previewRatio, setPreviewRatio] = useState(0)
   const [sort, setSort] = useState<SortKey>('recent')
   const [panelBookId, setPanelBookId] = useState<string | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  // 阅读设置弹窗的开合在全局 store（store/settingsDialog），同格子书架那一份
   const fileInput = useRef<HTMLInputElement>(null)
 
   const dragging = useFileDrop(addFiles)
@@ -352,7 +353,7 @@ function CodeShelfPage() {
   const decoy = useDecoy((state) => state.enabled)
 
   // 编辑器书架上的三条命令：和阅读器里那三条同名同键（改一处两处都变）
-  useHotkey('settings', () => setSettingsOpen((open) => !open))
+  useHotkey('settings', toggleSettingsFromHotkey)
   useHotkey('toc', () => setSideOpen((open) => !open))
   useHotkey('fullscreen', toggleFullscreen)
   const decoyId = useDecoy((state) => state.preset)
@@ -523,7 +524,7 @@ function CodeShelfPage() {
           {
             label: decoy ? 'Preferences: Open Settings' : '阅读设置',
             hint: settingsHotkey,
-            onSelect: () => setSettingsOpen(true),
+            onSelect: openSettingsDialog,
             separatorBefore: true,
           },
           {
@@ -639,7 +640,7 @@ function CodeShelfPage() {
           ) : null
         }
         statusRatio={selected ? percent : undefined}
-        onSettings={() => setSettingsOpen(true)}
+        onSettings={openSettingsDialog}
       >
         {selected && selected.state === 'ready' ? (
           <CodePreview
@@ -701,13 +702,6 @@ function CodeShelfPage() {
         onClose={() => setPanelBookId(null)}
         onRead={(book) => openChapter(book, book.progress?.chapterIndex ?? 0)}
         onDeleted={() => setPanelBookId(null)}
-      />
-
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        settings={globalSettings}
-        onChange={updateSettings}
       />
 
       <Toast message={notice} onDismiss={dismissNotice} />

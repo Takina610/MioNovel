@@ -757,10 +757,11 @@ export function ExcelApp(props: AppFrameProps) {
               onClick: toggleFullscreen,
             },
             {
+              // 摸鱼不露字（用户要求：外壳的屏幕上不出现这几个字，它只在下拉和
+              // 设置弹窗里露面）。这里留一颗纯图标：点一下调暗网格，悬停有说明
               id: 'dim',
-              kind: 'stack',
+              kind: 'icon',
               icon: <IconFocus />,
-              label: '摸鱼模式',
               active: props.dimOn,
               title: props.dimOn ? '退出摸鱼模式' : '摸鱼模式（调暗网格）',
               onClick: props.onToggleDim,

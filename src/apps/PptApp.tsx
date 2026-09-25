@@ -876,7 +876,15 @@ export function PptApp(props: AppFrameProps) {
         rows: [
           [
             mode('fullscreen', <IconSlideshow />, '全屏', false, toggleFullscreen, '全屏'),
-            mode('dim', <IconNotes />, '摸鱼模式', props.dimOn, props.onToggleDim, props.dimOn ? '退出摸鱼模式' : '摸鱼模式（调暗幻灯片）'),
+            // 摸鱼不露字（用户要求）：纯图标，点一下调暗幻灯片，悬停有说明
+            {
+              id: 'dim',
+              kind: 'icon',
+              icon: <IconNotes />,
+              active: props.dimOn,
+              title: props.dimOn ? '退出摸鱼模式' : '摸鱼模式（调暗幻灯片）',
+              onClick: props.onToggleDim,
+            },
           ],
         ],
       },

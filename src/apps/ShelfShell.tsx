@@ -1,14 +1,16 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { BookPanel } from '../components/shelf/BookPanel'
-import { SettingsPanel } from '../components/reader/SettingsPanel'
 import { Toast } from '../components/ui/Toast'
 import type { BookRecord } from '../db/db'
 import { useBooks } from '../hooks/useBooks'
 import { useFileDrop } from '../hooks/useFileDrop'
 import { useHotkey } from '../hooks/useHotkeys'
+import {
+  openSettingsDialog,
+  toggleSettingsFromHotkey,
+} from '../store/settingsDialog'
 import { useDim } from '../store/dim'
 import { useImports } from '../store/imports'
-import { useSettings } from '../store/settings'
 import { cx } from '../lib/cx'
 import { toggleFullscreen } from '../lib/fullscreen'
 
@@ -59,8 +61,6 @@ export function ShelfShell({
   const addFiles = useImports((state) => state.addFiles)
   const notice = useImports((state) => state.notice)
   const dismissNotice = useImports((state) => state.dismissNotice)
-  const globalSettings = useSettings((state) => state.global)
-  const updateSettings = useSettings((state) => state.update)
   const dimOn = useDim((state) => state.enabled)
   const dimLevel = useDim((state) => state.level)
   const toggleDim = useDim((state) => state.toggle)
@@ -68,9 +68,10 @@ export function ShelfShell({
   const fileInput = useRef<HTMLInputElement>(null)
   const dragging = useFileDrop(addFiles)
   const [panelBookId, setPanelBookId] = useState<string | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  // 阅读设置弹窗（SettingsDialog）的开合在全局 store（store/settingsDialog）：
+  // 首页上的按钮、菜单项、快捷键都从这一扇门进，弹窗的出发点也在那儿
 
-  useHotkey('settings', () => setSettingsOpen((open) => !open))
+  useHotkey('settings', toggleSettingsFromHotkey)
   useHotkey('fullscreen', toggleFullscreen)
 
   const panelBook =
@@ -85,7 +86,7 @@ export function ShelfShell({
         onOpen: navigateToBook,
         onMenu: (book) => setPanelBookId(book.id),
         onImport: pickFiles,
-        onOpenSettings: () => setSettingsOpen(true),
+        onOpenSettings: openSettingsDialog,
         dropping: dragging,
         dim: dimOn ? dimLevel : 0,
         dimOn,
@@ -111,13 +112,6 @@ export function ShelfShell({
         onClose={() => setPanelBookId(null)}
         onRead={navigateToBook}
         onDeleted={() => setPanelBookId(null)}
-      />
-
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        settings={globalSettings}
-        onChange={updateSettings}
       />
 
       <Toast message={notice} onDismiss={dismissNotice} />

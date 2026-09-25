@@ -135,8 +135,6 @@ export function ChatApp(props: AppFrameProps) {
       onImport={props.onImport}
       onOpenSettings={props.onOpenSettings}
       dim={props.dim}
-      dimOn={props.dimOn}
-      onToggleDim={props.onToggleDim}
       main={
         <>
           <header className="mn-chat__head">
@@ -482,8 +480,6 @@ function ChatFrame({
   onImport,
   onOpenSettings,
   dim,
-  dimOn,
-  onToggleDim,
   main,
 }: {
   view: ChatView
@@ -495,8 +491,6 @@ function ChatFrame({
   onImport?: () => void
   onOpenSettings: () => void
   dim: number
-  dimOn: boolean
-  onToggleDim: () => void
   main: ReactNode
 }) {
   const [query, setQuery] = useState('')
@@ -562,18 +556,7 @@ function ChatFrame({
           )
         })}
         <div className="flex-1" />
-        <button
-          type="button"
-          className={cx('mn-chat__rail-btn', dimOn && 'is-active')}
-          title={dimOn ? '退出摸鱼模式' : '摸鱼模式（调暗消息区）'}
-          aria-pressed={dimOn}
-          onClick={onToggleDim}
-        >
-          <span className="mn-chat__rail-icon">
-            <span className="text-[19px] leading-none">◐</span>
-          </span>
-          <span className="mn-chat__rail-label">摸鱼</span>
-        </button>
+        {/* 摸鱼的入口在顶栏 ⋯ 菜单和阅读设置里（用户要求：功能栏上不出现这个功能的字样） */}
         <button
           type="button"
           className="mn-chat__rail-btn"
@@ -829,8 +812,6 @@ export function ChatHome({
   onOpenSettings,
   dropping,
   dim,
-  dimOn,
-  onToggleDim,
 }: ShelfProps) {
   const [view, setView] = useState<ChatView>('msg')
   return (
@@ -842,8 +823,6 @@ export function ChatHome({
         onImport={onImport}
         onOpenSettings={onOpenSettings}
         dim={dim}
-        dimOn={dimOn}
-        onToggleDim={onToggleDim}
         onOpenBook={onOpen}
         main={
           <div className="mn-chat__stage mn-veil">

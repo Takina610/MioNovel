@@ -213,3 +213,28 @@ export function IconSidebar(props: IconProps) {
     </Svg>
   )
 }
+
+/** 键盘（设置弹窗里「快捷键」那一栏的记号） */
+export function IconKeyboard(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2.8" y="6.2" width="18.4" height="11.6" rx="2" />
+      <path
+        d="M6.2 9.8h.01M9.4 9.8h.01M12.6 9.8h.01M15.8 9.8h.01M6.4 12.6h.01M9.4 12.6h.01M12.6 12.6h.01M15.6 12.6h.01"
+        strokeWidth="2.2"
+      />
+      <path d="M8.2 15.2h7.6" />
+    </Svg>
+  )
+}
+
+/** 一对尖括号加一道斜杠（设置弹窗里「演示模式」那一栏的记号：正文显示成代码） */
+export function IconCode(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m8.4 7.4-4.6 4.6 4.6 4.6" />
+      <path d="m15.6 7.4 4.6 4.6-4.6 4.6" />
+      <path d="m13.4 5.2-2.8 13.6" />
+    </Svg>
+  )
+}

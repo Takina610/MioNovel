@@ -1241,7 +1241,97 @@ console.log('\n客服工作台（1688）')
 }
 
 /* ==========================================================================
-   七、界面文案：不许写操作指南与自我说明
+   七、阅读设置弹窗：FLIP 出发点
+   ========================================================================== */
+
+console.log('\n设置弹窗（FLIP 出发点）')
+{
+  // 弹窗从触发按钮长出来、关闭缩回去；快捷键开的从中间出、向中间缩。
+  // 这条规矩在屏幕上只能「感觉」出来，对不对要靠这几条算术与状态断言。
+  const { flipStep, CENTER_SCALE } = await import('../src/lib/flip.ts')
+  const {
+    openSettingsDialog,
+    closeSettingsDialog,
+    closeSettingsToCenter,
+    toggleSettingsFromHotkey,
+    notePress,
+    rectOf,
+    originRectNow,
+    useSettingsDialog,
+  } = await import('../src/store/settingsDialog.ts')
+
+  // 反演 transform 套在终点矩形上，弹窗中心要正好落回按钮中心
+  const to = { left: 260, top: 110, width: 800, height: 560 }
+  const from = { left: 30, top: 20, width: 40, height: 24 }
+  const step = flipStep(to, from)
+  check(
+    '反演后弹窗中心正好落在按钮中心',
+    to.left + to.width / 2 + step.dx === from.left + from.width / 2 &&
+      to.top + to.height / 2 + step.dy === from.top + from.height / 2,
+  )
+  check(
+    '缩放比例就是两个矩形宽高之比',
+    step.sx === from.width / to.width && step.sy === from.height / to.height,
+  )
+  check(
+    '快捷键（无出发点）那一档就是居中缩放常数',
+    CENTER_SCALE === 0.92 && CENTER_SCALE < 1,
+  )
+
+  // 开合的规矩：点按钮开的，出发点就是那个按钮；快捷键开的没有出发点
+  const trigger = document.createElement('button')
+  document.body.appendChild(trigger)
+  const triggerRect = { left: 1200, top: 40, width: 36, height: 36 }
+  trigger.getBoundingClientRect = () => triggerRect as DOMRect
+  closeSettingsDialog()
+  notePress(trigger)
+  openSettingsDialog()
+  check(
+    '点过按钮再开：出发点就是那个按钮',
+    useSettingsDialog.getState().open &&
+      originRectNow()?.left === 1200 &&
+      originRectNow()?.width === 36,
+  )
+  closeSettingsDialog()
+  check('关掉之后弹窗收起', useSettingsDialog.getState().open === false)
+  toggleSettingsFromHotkey()
+  check(
+    '快捷键开：没有出发点（从中间弹出、向中间缩回）',
+    useSettingsDialog.getState().open && useSettingsDialog.getState().origin === null,
+  )
+  toggleSettingsFromHotkey()
+  check('快捷键再按一下：收起', useSettingsDialog.getState().open === false)
+
+  // 菜单项点了就卸载：出发点的矩形在按下那一刻已经存了快照，事后照缩
+  notePress(trigger)
+  openSettingsDialog()
+  trigger.remove()
+  check('触发元素卸载后，仍能缩回它原来的位置', originRectNow()?.left === 1200)
+  closeSettingsDialog()
+  check('rectOf 对零尺寸元素不给出发点', rectOf(document.createElement('div')) === null)
+
+  // 换主题的收起：无视出发点、直接向中间缩；下一次打开自动复位
+  const trigger2 = document.createElement('button')
+  document.body.appendChild(trigger2)
+  trigger2.getBoundingClientRect = () => ({ left: 30, top: 30, width: 20, height: 20 }) as DOMRect
+  notePress(trigger2)
+  openSettingsDialog()
+  check('打开后 exitCenter 复位', useSettingsDialog.getState().exitCenter === false)
+  closeSettingsToCenter()
+  check(
+    '换主题后收起：关着、且标记为向中间缩回',
+    useSettingsDialog.getState().open === false && useSettingsDialog.getState().exitCenter === true,
+  )
+  openSettingsDialog()
+  check(
+    '再次打开：exitCenter 复位（出发点恢复为按下的按钮）',
+    useSettingsDialog.getState().exitCenter === false && originRectNow()?.left === 30,
+  )
+  closeSettingsDialog()
+}
+
+/* ==========================================================================
+   八、界面文案：不许写操作指南与自我说明
    ========================================================================== */
 
 console.log('\n界面文案')

@@ -44,6 +44,30 @@
   user-select: none;
 }
 
+/* 标题栏左侧一串（产品记号 + 快速访问 + 文件名）。中间的搜索框是绝对居中的
+   （照截图来的），这一串长了会钻到它底下——给组一个上界：到搜索框左沿就收，
+   文件名自己截断（saved 那行小字不让）。各形态搜索框多宽，见各自的 css；
+   这里的数 = 那个宽度的一半 + 余量 */
+.mn-office__title-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: calc(50% - var(--mn-office-search-half, 190px) - 12px);
+}
+
+html[data-chrome='page'] .mn-office__title-left {
+  --mn-office-search-half: 197px; /* Word 工作簿搜索框 min(370px, 26vw) */
+}
+
+html[data-chrome='sheet'] .mn-office__title-left {
+  --mn-office-search-half: 196px; /* Excel min(368px, 26vw) */
+}
+
+html[data-chrome='slide'] .mn-office__title-left {
+  --mn-office-search-half: 177px; /* PPT min(330px, 24vw) */
+}
+
 /* 产品记号（Word 那个蓝方块）：这一屏最左边的第一件东西 */
 .mn-office__brand {
   display: grid;
@@ -71,6 +95,28 @@
   top: 50%;
   z-index: 2;
   transform: translate(-50%, -50%);
+}
+
+/* 窄屏上标题栏那两件（自动保存、升级计划）收起：搜索框要往中间缩，
+   它们先让位（原来只有 Word 有这条，Excel / PPT 的工作簿屏幕同样需要） */
+@media (max-width: 900px) {
+  .mn-office__autosave,
+  .mn-office__alert {
+    display: none;
+  }
+}
+
+/* 窄屏上中间的搜索框整个让位：它已经缩到没什么可打的字了，还要挤文件名。
+   快速访问那一排（保存 / 撤销 / 重做，全是灰着的）也一样收起，给文件名让路 */
+@media (max-width: 767px) {
+  .mn-office__title-left {
+    max-width: none;
+  }
+
+  .mn-office__title-center,
+  .mn-office__qat {
+    display: none;
+  }
 }
 
 .mn-office__file {
@@ -334,7 +380,24 @@ html[data-chrome='sheet'] {
   height: 102px;
   padding: 10px 8px 0;
   overflow-x: auto;
-  scrollbar-width: thin;
+}
+
+/* 功能区装不下时的横向滚动条：跟主题走的细一条，不是浏览器原生那根。
+   不能写 scrollbar-width: thin——Chromium 认它之后就不再认 ::-webkit-scrollbar，
+   出来的又是原生的样子（用户报的就是这个） */
+.mn-ribbon__panel::-webkit-scrollbar {
+  height: 8px;
+}
+
+.mn-ribbon__panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mn-ribbon__panel::-webkit-scrollbar-thumb {
+  background: var(--mn-border-strong);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
 }
 
 /* Word 那一屏里标题栏、页签行和桌面是**连成一片**的（截图量出来是同一个 #E5EBEF），
