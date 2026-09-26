@@ -1,4 +1,12 @@
-# MioNovel
+<p align="center">
+  <img src="./assets/readme/hero.svg" width="100%" alt="MioNovel——本地优先的小说阅读器：一本书，八种样子">
+</p>
+
+<p align="center">
+  <a href="https://github.com/Takina610/MioNovel/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Takina610/MioNovel?label=release&color=2F6FEB"></a>
+  &nbsp;
+  <a href="https://github.com/Takina610/MioNovel/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Takina610/MioNovel/actions/workflows/ci.yml/badge.svg"></a>
+</p>
 
 把散在硬盘上的小说（txt / epub）拖进浏览器，变成一个能离线读、能换主题的书架。
 
@@ -6,7 +14,50 @@
 同一份代码也有三种桌面形态（Tauri 壳 + WebView2，Windows）：免安装的裸 exe、
 NSIS / MSI 安装包、以及数据跟 exe 走的便携版，见「跑起来」的桌面端三条。
 
+## 长什么样
+
+**安静的阅读器**（六套日间 / 夜间主题）：
+
+<p align="center">
+  <img src="src/assets/theme-shots/day.webp" width="32%" alt="日间主题">
+  <img src="src/assets/theme-shots/sepia.webp" width="32%" alt="怀旧主题">
+  <img src="src/assets/theme-shots/night.webp" width="32%" alt="夜间主题">
+</p>
+
+**换成编辑器**（VS Code 亮 / 暗——书架变资源管理器，正文按代码排版）：
+
+<p align="center">
+  <img src="src/assets/theme-shots/vscode-light.webp" width="49%" alt="VS Code 亮色主题">
+  <img src="src/assets/theme-shots/vscode.webp" width="49%" alt="VS Code 暗色主题">
+</p>
+
+**通讯与工作台**（飞书、企业微信、1688 客服工作台——书是云文档 / 会话 / 买家咨询）：
+
+<p align="center">
+  <img src="src/assets/theme-shots/feishu.webp" width="32%" alt="飞书主题">
+  <img src="src/assets/theme-shots/wecom.webp" width="32%" alt="企业微信主题">
+  <img src="src/assets/theme-shots/desk.webp" width="32%" alt="1688 客户工作台主题">
+</p>
+
+**Office 三件套**（Word、Excel、PPT——按桌面版截图一比一复刻）：
+
+<p align="center">
+  <img src="src/assets/theme-shots/word.webp" width="32%" alt="Word 主题">
+  <img src="src/assets/theme-shots/excel.webp" width="32%" alt="Excel 主题">
+  <img src="src/assets/theme-shots/ppt.webp" width="32%" alt="PPT 主题">
+</p>
+
+上面四组是同一本书的四种样子。每套外壳都有亮暗两版，共 20 套主题，都在应用的主题列表里。
+
 ## 跑起来
+
+**下载安装（Windows）**：到 [Releases](https://github.com/Takina610/MioNovel/releases/latest)
+拿三种形态之一——`*_x64-setup.exe`（NSIS 安装包）、`*.msi`、`*_x64-portable.zip`
+（解开即用，数据存在旁边的 `data\` 文件夹，跟着 exe 走）。需要 WebView2 运行时
+（Win10 / 11 自带）。桌面端还有 `Alt+M` 呼出的小窗模式（置顶悬浮的第二窗口，
+开小窗时主窗口整个藏进托盘）。
+
+**浏览器 / 从源码跑**：
 
 ```bash
 bun install
@@ -50,7 +101,7 @@ bun run logo       # 从同一张原图派生界面用的小图（logo-64 / logo
 
 阅读器里：点正文中间显示/隐藏工具栏，翻页模式下点左右两侧翻页、滚轮和触控板也翻页，
 窗口够宽时一屏并排两页（放不下就退回单页居中），`←` `→` 翻章，`t` 开目录，
-`Esc` 关面板，`f` 全屏。
+`Esc` 关面板，`F11` 全屏。
 
 ## 编辑器主题
 
@@ -109,16 +160,20 @@ Word 是一份假 .docx……）还没设计，所以那几套主题下这一栏
 
 ### 改快捷键
 
-五条命令的键都能改，在阅读设置的「快捷键」一栏里点一下键位、接着按你想用的组合就行。
+命令的键都能改，在阅读设置的「快捷键」一栏里点一下键位、接着按你想用的组合就行。
 `Esc` 取消，`Backspace` 恢复默认，两条命令不能绑成同一个；改完菜单里的提示跟着变。
 
 | 命令 | 默认 | 在哪儿生效 |
 |---|---|---|
-| 阅读设置 | `S` | 书架、五套办公首页、阅读器 |
+| 阅读设置 | `S` | 书架、六套办公首页、阅读器 |
 | 目录 / 侧栏 | `T` | 阅读器（普通主题的目录抽屉、编辑器形态的侧栏）、编辑器书架 |
-| 全屏 | `F` | 书架、五套办公首页、阅读器 |
+| 下一页 / 上一页 | `↓` `→` `Space` `PgDn` / `↑` `←` `PgUp` | 阅读器（翻页模式翻列，滚动模式滚大半屏） |
+| 上一章 / 下一章 | `Ctrl+Alt+←` / `Ctrl+Alt+→` | 阅读器 |
+| 全屏 | `F11` | 书架、六套办公首页、阅读器 |
+| 退出阅读 | `Esc` | 阅读器（也让位给各局部界面） |
 | 演示模式 | `Alt+Q` | 只属于编辑器形态（VS Code 那两套） |
-| 摸鱼模式 | `Alt+S` | 带外壳的形态（VS Code、飞书、企业微信、Word、Excel、PPT） |
+| 摸鱼模式 | `Alt+S` | 带外壳的形态（VS Code、飞书、企业微信、Word、Excel、PPT、1688） |
+| 小窗开关（桌面端） | `Alt+M` | 系统级：别的软件是前台时也响 |
 
 带修饰键的那些不管焦点在哪都会响；`S` / `T` / `F` 是单键，所以在输入框里打字时它们让位——
 在书架的搜索框里打「s」不会把设置面板敲出来。
@@ -273,8 +328,8 @@ src/
     epub/           解包与组装（parse）、包文档（opf）、目录（toc）、
                     封面回退链（cover）、路径解析（paths）、净化与重写（html）
   db/               Dexie schema 与所有数据访问
-  themes/           主题注册表、内置主题（18 套）、样式表生成
-  apps/             五套办公外壳：形态分派（registry）、共用的窗口框与开始屏幕
+  themes/           主题注册表、内置主题（20 套）、样式表生成
+  apps/             六套办公外壳：形态分派（registry）、共用的窗口框与开始屏幕
                     （OfficeFrame）、五种形态各自的外壳与首页、块状正文
                     （Content / ChapterBody）
   store/            zustand：阅读设置、演示模式、摸鱼模式、快捷键（持久化）、导入队列（内存）
@@ -301,9 +356,9 @@ public/             MioNovel.png（标识原图）与由它生成的图标
 - **主题只能通过注册表加**。往 `themes/builtin.ts` 里加一条数据就行；不要在组件里写死颜色，
   也不要在 CSS 里为某个主题写选择器。所有颜色都是 `:root[data-theme=…]` 上的变量，
   组件只认 `bg-bg` / `text-fg-muted` 这类工具类。破了这条，换主题就会只换一半。
-- **界面形态也由主题声明，组件不许认主题 id**。`chrome` 是六种形态之一：
+- **界面形态也由主题声明，组件不许认主题 id**。`chrome` 是八种形态之一：
   `plain`（默认阅读器）、`code`（VS Code）、`doc`（飞书文档）、`chat`（企业微信）、
-  `page`（Word）、`sheet`（Excel）、`slide`（PPT）。组件读 `useChrome()` / `chromeOf()`，
+  `page`（Word）、`sheet`（Excel）、`slide`（PPT）、`desk`（1688 客户工作台）。组件读 `useChrome()` / `chromeOf()`，
   样式只挂在各自的根类上（`.mn-code` / `.mn-doc` / `.mn-chat` / `.mn-office--*`）。
   要判断「这是哪种形态」，永远看这个标志，不要写 `themeId === 'vscode'`——
   那样再加一套同形态的主题就得改一遍组件。

@@ -1,0 +1,27 @@
+# 提交流水线：typecheck + 验收脚本 + 生产构建。
+# verify 是这个仓库的回归防线（解析器 / 演示模式 / 快捷键 / 办公外壳断言），
+# 没有 CI 的时候它只靠本地自觉，现在 push 和 PR 都会跑一遍。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2 # 跟 package.json 的 packageManager 一致
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run typecheck
+
+      - run: bun run verify
+
+      - run: bun run build

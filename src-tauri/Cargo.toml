@@ -1,6 +1,6 @@
 [package]
 name = "mionovel"
-version = "0.1.0"
+version = "1.0.0"
 description = "本地优先的小说阅读器：导入自己的 txt / epub，离线也能读"
 authors = ["Takina"]
 edition = "2021"

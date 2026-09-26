@@ -1,7 +1,7 @@
 {
   "name": "mionovel",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "packageManager": "bun@1.4.2",
   "description": "把本地的小说 txt / epub 变成一个能离线读、能换主题的书架",

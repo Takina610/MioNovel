@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="320" viewBox="0 0 1200 320"
+     role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">MioNovel</title>
+  <desc id="hero-desc">本地优先的小说阅读器：txt / epub 收进书架，离线读；20 套主题——安静的阅读器和七套软件外壳。色板取自应用内置的夜间主题。</desc>
+
+  <!-- 色板 = 内置「夜间」主题的 token（src/themes/builtin.ts） -->
+  <defs>
+    <style>
+      .mn-eyebrow { font: 500 17px ui-monospace, 'Cascadia Mono', Consolas, monospace; letter-spacing: 1.5px; fill: #9BA3AE; }
+      .mn-title   { font: 700 68px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #E6E8EC; }
+      .mn-lead    { font: 600 26px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #E6E8EC; }
+      .mn-sub     { font: 400 21px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #9BA3AE; }
+      .mn-meta    { font: 400 15px ui-monospace, 'Cascadia Mono', Consolas, monospace; fill: #6E7681; }
+      .mn-chrome  { font: 400 18px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #9BA3AE; }
+      .mn-chrome-hi { font: 600 18px -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; fill: #E6E8EC; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="320" rx="24" fill="#16181D"/>
+
+  <!-- 左：标题区 -->
+  <g id="title-block" transform="translate(64 0)">
+    <text class="mn-eyebrow" x="0" y="84">本地优先的小说阅读器 · TXT / EPUB</text>
+    <text class="mn-title" x="0" y="156">MioNovel</text>
+    <text class="mn-lead" x="0" y="204">一本书，八种样子</text>
+    <text class="mn-sub" x="0" y="240">安静的阅读器，和七套「屏幕上是那个软件」的外壳</text>
+    <text class="mn-meta" x="0" y="280">数据全在本机 · PWA 离线可用 · Windows 安装包 / MSI / 便携版</text>
+  </g>
+
+  <!-- 右：书架。八条书脊 = 八种形态（普通 / code / doc / chat / page / sheet / slide / desk），
+       普通阅读器那条用主题 accent 色，挂一枚「正在读」的书签（danger token 色） -->
+  <g id="shelf">
+    <!-- 书脊底对齐 y=246，搁在搁板 y=248 上 -->
+    <g id="spine-plain">
+      <rect x="752"  y="78"  width="35" height="168" rx="5" fill="#6E9BF5"/>
+      <path d="M 777 78 v 44 l 5 -7 l 5 7 v -44 z" fill="#16181D" opacity="0.55"/>
+    </g>
+    <rect x="799"  y="96"  width="35" height="150" rx="5" fill="#1E2127" stroke="#31363F"/>
+    <rect x="846"  y="70"  width="35" height="176" rx="5" fill="#262A31" stroke="#31363F"/>
+    <rect x="893"  y="88"  width="35" height="158" rx="5" fill="#1E2127" stroke="#31363F"/>
+    <rect x="940"  y="76"  width="35" height="170" rx="5" fill="#262A31" stroke="#31363F"/>
+    <rect x="987"  y="98"  width="35" height="148" rx="5" fill="#1E2127" stroke="#31363F"/>
+    <rect x="1034" y="84"  width="35" height="162" rx="5" fill="#262A31" stroke="#31363F"/>
+    <rect x="1081" y="90"  width="35" height="156" rx="5" fill="#1E2127" stroke="#31363F"/>
+    <rect x="740" y="248" width="400" height="2" rx="1" fill="#31363F"/>
+
+    <!-- 形态名 -->
+    <text class="mn-chrome-hi" x="769.5"  y="282" text-anchor="middle">书</text>
+    <text class="mn-chrome"    x="816.5"  y="282" text-anchor="middle">Code</text>
+    <text class="mn-chrome"    x="863.5"  y="282" text-anchor="middle">飞书</text>
+    <text class="mn-chrome"    x="910.5"  y="282" text-anchor="middle">企微</text>
+    <text class="mn-chrome"    x="957.5"  y="282" text-anchor="middle">Word</text>
+    <text class="mn-chrome"    x="1004.5" y="282" text-anchor="middle">Excel</text>
+    <text class="mn-chrome"    x="1051.5" y="282" text-anchor="middle">PPT</text>
+    <text class="mn-chrome"    x="1098.5" y="282" text-anchor="middle">1688</text>
+  </g>
+</svg>

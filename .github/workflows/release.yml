@@ -1,0 +1,53 @@
+# 发布流水线：推 v* 标签触发。在 Windows runner 上构建桌面端三种形态
+# （NSIS 安装包 / MSI / 便携版 zip），一起挂到同一个 GitHub Release 上。
+# 版本号的唯一事实来源是 src-tauri/tauri.conf.json——标签和它对不上就直接失败，
+# 不发一个版本号打架的包。
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2 # 跟 package.json 的 packageManager 一致
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Tauri 壳的 Rust 依赖缓存。首次构建 5-8 分钟，命中缓存后快得多
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 标签与版本号对账
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          conf=$(grep -o '"version": *"[^"]*"' src-tauri/tauri.conf.json | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+          echo "tag=$tag conf=$conf"
+          [ "$tag" = "$conf" ] || { echo "标签 v$tag 和 tauri.conf.json 的 $conf 对不上"; exit 1; }
+
+      - run: bun install --frozen-lockfile
+
+      # 前端构建由 tauri 的 beforeBuildCommand（bun run build）带起来
+      - run: bun run app:build
+
+      - run: bun run app:portable
+
+      - name: 发布到 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/portable/*.zip
+          generate_release_notes: true
