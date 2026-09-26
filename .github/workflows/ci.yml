@@ -20,6 +20,9 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      # 样例文件由脚本生成、不进仓库（.gitignore），verify 需要它们先就位
+      - run: bun run samples
+
       - run: bun run typecheck
 
       - run: bun run verify
