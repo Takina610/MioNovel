@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { useDocumentTitle } from '../../hooks/useDocumentChrome'
 import { cx } from '../../lib/cx'
 import { useDimLevel } from '../../store/dim'
+import { WindowControls, chromeDragProps } from '../ui/WindowControls'
 import {
   IconFiles,
   IconMenu,
@@ -123,7 +124,7 @@ export function CodeShell({
       className={cx('mn-code', dropping && 'mn-drop-active')}
       style={{ '--mn-dim': String(dim) } as CSSProperties}
     >
-      <header className="mn-code__title">
+      <header className="mn-code__title" {...chromeDragProps()} data-mn-drag="">
         <div ref={menuRef} className="flex items-center">
           <button
             type="button"
@@ -157,7 +158,7 @@ export function CodeShell({
           ) : null}
         </div>
 
-        <div className="mn-code__title-text" title={title}>
+        <div className="mn-code__title-text" title={title} data-mn-drag="">
           {title}
         </div>
 
@@ -170,6 +171,9 @@ export function CodeShell({
         >
           <IconSidebar className={cx('h-4.5 w-4.5', sideOpen && 'text-fg')} />
         </button>
+
+        {/* 桌面端非常规主题：原生标题栏收掉了，三颗窗口钮挂在这条顶栏上 */}
+        <WindowControls />
       </header>
 
       <div className="mn-code__body">

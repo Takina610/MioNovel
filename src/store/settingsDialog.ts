@@ -115,3 +115,21 @@ export function toggleSettingsFromHotkey(): void {
 export function originRectNow(): OriginRect | null {
   return rectOf(originEl) ?? useSettingsDialog.getState().origin
 }
+
+/* --------------------------------------------------------------------------
+   右侧设置内容的滚动位置记忆。
+   关掉弹窗再开，停回你上次看到的地方（主题列表里 PPT 那一组、快捷键那一列）。
+   只活在**本次进程**里：软件重启后回到顶部——「记住看到哪」是本次使用里
+   的顺手，不是要跨重启保存的设置，故意不进任何持久化。
+   -------------------------------------------------------------------------- */
+
+const scrollMemory = new Map<string, number>()
+
+/** 某个大类滚到哪了（滚动时随手指记，开与切的时候取） */
+export function rememberSettingsScroll(tabId: string, scrollTop: number): void {
+  scrollMemory.set(tabId, scrollTop)
+}
+
+export function settingsScrollOf(tabId: string): number {
+  return scrollMemory.get(tabId) ?? 0
+}

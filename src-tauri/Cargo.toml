@@ -16,10 +16,11 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 # 数据与文件仍然零 Tauri API（文件走 WebView2 原生 File 对象、数据走 IndexedDB）。
-# 唯一的例外是小窗模式（src/mini.rs）：一个悬浮在所有软件上面的第二窗口，
-# 显隐、置顶、系统级快捷键只有壳管得了——前端只经一个 mini_apply 命令把设置
-# 推过来（走 withGlobalTauri 注入的 window.__TAURI__，不引 @tauri-apps/api 包）。
-tauri = { version = "2", features = [] }
+# 例外是小窗模式（src/mini.rs）与窗口/托盘命令（src/lib.rs）：显隐、置顶、系统级
+# 快捷键、原生标题栏、托盘只有壳管得了——前端只经 withGlobalTauri 注入的
+# window.__TAURI__ 调命令，不引 @tauri-apps/api 包。
+# tray-icon：关窗藏进托盘 / 小窗开着时，通知区要有图标能把主窗口找回来。
+tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-global-shortcut = "2"
 # mini_apply 的配置参数要从 JSON 反序列化
 serde = { version = "1", features = ["derive"] }
@@ -29,6 +30,10 @@ serde_json = "1"
 # 版本跟 tauri 用的对齐（lock 里就是 0.61），HWND 不用换算。
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_UI_HiDpi"] }
+# 挂起藏进托盘的主窗口（ICoreWebView2_3::TrySuspend）：WebView2 不会因为窗口
+# 隐藏就自己省内存，渲染进程的 JS 堆、缓存、封面纹理要宿主主动挂起才放。
+# 版本跟 tauri/wry 用的对齐（0.38），同一份 COM 包装类型才不会在树里翻倍。
+webview2-com = "0.38"
 
 [profile.release]
 # 阅读器是静态资源 + WebView2，本地编译产物压一压体积

@@ -6,6 +6,7 @@ import { RouterProvider } from 'react-router/dom'
 import { ReaderPage } from './routes/ReaderPage'
 import { ShelfPage } from './routes/ShelfPage'
 import { useDecoyFavicon } from './hooks/useDocumentChrome'
+import { useDesktopShell } from './hooks/useDesktopShell'
 import { useGlobalHotkeys } from './hooks/useGlobalHotkeys'
 import { useMiniWindow } from './hooks/useMiniWindow'
 import { useGlobalTheme } from './hooks/useTheme'
@@ -22,6 +23,9 @@ const router = createBrowserRouter([
 
 export function App() {
   useGlobalTheme()
+  // 桌面壳的窗口桥：关窗行为（托盘 / 退出）与原生标题栏的收放。
+  // 浏览器里空转
+  useDesktopShell()
   // 演示模式与摸鱼模式的快捷键（默认 Alt+Q / Alt+S，都能在阅读设置里改）。
   // 挂在最外层而不是某个页面里：书架和阅读器都得能按
   useGlobalHotkeys()

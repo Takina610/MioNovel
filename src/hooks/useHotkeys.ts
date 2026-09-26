@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { hotkeyCommandOf, matchesCombo, type HotkeyId } from '../lib/hotkey'
-import { useHotkeyBindings, useHotkeyCombos } from '../store/hotkeys'
+import { useConflictedCombos, useHotkeyBindings, useHotkeyCombos } from '../store/hotkeys'
 
 export type HotkeyHandler = (event: KeyboardEvent) => void
 
@@ -12,10 +12,15 @@ export type HotkeyHandler = (event: KeyboardEvent) => void
  * **每个页面只登记自己有的那几条**：书架没有目录可开，就不登记 toc；
  * 翻页键登记在 ReaderView，退出阅读登记在 ReaderPage。
  *
+ * **冲突的组合不响**（见 store/hotkeys 的 conflictOwners）：同一串绑在两条命令上，
+ * 谁先响应说不清，两边的这一串都停用——设置里红着的就是它们。
+ *
  * enabled=false 时整个让位（这套外壳里没有这个功能）。
  */
 export function useHotkey(id: HotkeyId, handler: () => void, enabled = true): void {
-  const combos = useHotkeyCombos(id)
+  const all = useHotkeyCombos(id)
+  const conflicted = useConflictedCombos()
+  const combos = all.filter((combo) => !conflicted.has(combo))
   const scope = hotkeyCommandOf(id).scope
   // handler 每次渲染都是新的闭包，用 ref 兜住，免得每渲染一次就换一遍监听
   const latest = useRef(handler)

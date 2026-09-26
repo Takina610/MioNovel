@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
+  DOC_COL_DATA,
+  DOC_COL_MORE,
   DOC_FILTERS,
   DOC_LOCATION,
   DOC_TABS,
   avatarOf,
+  docListColumns,
   docOwnerOf,
   docTimeText,
   homeRows,
@@ -47,6 +50,7 @@ import {
 } from '../components/ui/app-icons'
 import { useHotkeyCombo } from '../store/hotkeys'
 import { toggleFullscreen } from '../lib/fullscreen'
+import { WindowControls, chromeDragProps } from '../components/ui/WindowControls'
 import { AppMenu } from './OfficeFrame'
 import type { ShelfProps } from './ShelfShell'
 
@@ -96,15 +100,32 @@ export function DocHome({
   const dimHotkey = useHotkeyCombo('dim')
 
   // 列宽是 JS 算出来的（见下面的 gridStyle），所以「窗口窄了要收哪几列」也得由 JS 定：
-  // CSS 那边覆盖不了 inline 的 grid-template-columns，硬覆盖会让格子数对不上内容
-  const compact = useNarrow('(max-width: 1180px)')
-  const tight = useNarrow('(max-width: 960px)')
-  const shown = {
-    location: columns.location && !tight,
-    owner: columns.owner && !compact,
-    created: columns.created && !compact,
-    visited: columns.visited,
-  }
+  // CSS 那边覆盖不了 inline 的 grid-template-columns，硬覆盖会让格子数对不上内容。
+  //
+  // 收列按**列表此刻的真实宽度**算（ResizeObserver 量 .mn-doc__table），
+  // 不再按窗口宽度的媒体查询猜——桌面端默认 1280 的窗口下，四列数据
+  // （224×4）加行尾 34px 正好把 `minmax(0, 1fr)` 的标题列压到个位数像素，
+  // 屏幕上就是「每行都没有标题」，拉宽窗口才回来（2026-09-26 修）。
+  // 该显示哪几列的判定在 lib/appdocs.ts 的 docListColumns（纯函数，verify:apps 断言它）
+  const tableResize = useRef<ResizeObserver | null>(null)
+  const [tableWidth, setTableWidth] = useState(0)
+  const attachTable = useCallback((el: HTMLDivElement | null) => {
+    tableResize.current?.disconnect()
+    tableResize.current = null
+    if (!el) return
+    const measure = () => setTableWidth(el.clientWidth)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    tableResize.current = observer
+  }, [])
+  // 卸载时把观察器断掉（组件常驻于书架路由，多数时候到不了这里，防一手）
+  useLayoutEffect(() => () => tableResize.current?.disconnect(), [])
+
+  const shown = useMemo(
+    () => docListColumns(tableWidth, columns),
+    [columns, tableWidth],
+  )
 
   const all = books ?? []
   const needle = query.trim().toLowerCase()
@@ -140,17 +161,16 @@ export function DocHome({
     }
   }
 
-  /** 列宽：标题占剩下的，四列数据各 224px，行尾 34px 是 ⋯。和截图里量到的位置一致 */
+  /** 列宽：标题列吃剩下的全部（minmax(0, 1fr)），其余照量到的列宽来。
+      行数与格子数永远来自同一个 shown，收列只改这一处 */
   const gridStyle = useMemo(() => {
     const tracks = ['minmax(0, 1fr)']
     for (const key of ['location', 'owner', 'created', 'visited'] as const) {
-      if (shown[key]) tracks.push('224px')
+      if (shown[key]) tracks.push(`${DOC_COL_DATA}px`)
     }
-    tracks.push('34px')
+    tracks.push(`${DOC_COL_MORE}px`)
     return { gridTemplateColumns: tracks.join(' ') } as CSSProperties
-    // shown 每次渲染都是新对象，但它的值只跟这几个来源有关
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columns, compact, tight])
+  }, [shown])
 
   const showTable = tab !== 'shared' && tab !== 'starred'
   const notice = noticeFor({ tab, filter, total: all.length, matched: matched.length, query })
@@ -308,8 +328,10 @@ export function DocHome({
 
       {/* ---------------- 右边：主页 ---------------- */}
       <main className="mn-doc__home mn-veil">
-        <header className="mn-doc__top">
-          <h1 className="mn-doc__page-title">主页</h1>
+        <header className="mn-doc__top" {...chromeDragProps()} data-mn-drag="">
+          <h1 className="mn-doc__page-title" data-mn-drag="">
+            主页
+          </h1>
           <div className="mn-doc__top-right">
             <button
               type="button"
@@ -348,6 +370,8 @@ export function DocHome({
               ]}
             />
           </div>
+          {/* 桌面端非常规主题：原生标题栏收掉了，三颗窗口钮挂在这条顶栏上 */}
+          <WindowControls />
         </header>
 
         <div className="mn-doc__home-scroll">
@@ -459,7 +483,7 @@ export function DocHome({
           ) : !showTable || rows.length === 0 ? (
             <p className="mn-doc__notice">{notice}</p>
           ) : layout === 'list' ? (
-            <div className="mn-doc__table" role="table">
+            <div className="mn-doc__table" role="table" ref={attachTable}>
               <div className="mn-doc__head-row" role="row" style={gridStyle}>
                 <span className="mn-doc__cell">标题</span>
                 {shown.location ? <span className="mn-doc__cell">位置</span> : null}
@@ -651,23 +675,4 @@ function noticeFor({
     return `没有${label}的文档`
   }
   return '没有文档'
-}
-
-/**
- * 窗口是不是窄到某个程度。
- *
- * 只用来决定列表中收哪几列——列宽是 JS 算的（gridStyle），CSS 覆盖不了那串
- * inline 的 grid-template-columns：硬覆盖会让格子数和单元格数对不上，
- * 多出来的格子会掉到下一行去。
- */
-function useNarrow(query: string): boolean {
-  const [narrow, setNarrow] = useState(() => window.matchMedia(query).matches)
-  useEffect(() => {
-    const mq = window.matchMedia(query)
-    const onChange = () => setNarrow(mq.matches)
-    onChange()
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [query])
-  return narrow
 }

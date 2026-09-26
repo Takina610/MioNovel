@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { desktopInvoke, isDesktop } from '../lib/desktop'
 import { resolveCombos } from '../lib/hotkey'
-import { useHotkeyBindings } from '../store/hotkeys'
+import { useConflictedCombos, useHotkeyBindings } from '../store/hotkeys'
 import { miniAvailable, useMini } from '../store/mini'
 import { useSettings } from '../store/settings'
 
@@ -23,14 +23,19 @@ export function useMiniWindow(): void {
   const corner = useMini((state) => state.corner)
   const rawCombos = useHotkeyBindings((state) => state.combos['mini-window'])
   const themeId = useSettings((state) => state.global.themeId)
+  const conflicted = useConflictedCombos()
 
   // 任何主题都能开小窗（小窗视觉直接沿用全局主题：亮色主题下小窗是亮的、
   // 暗色下是暗的）。可用性判断与设置弹窗里那一栏的出现条件是同一个函数
   // （store/mini 的 miniAvailable）
   const available = miniAvailable(themeId, isDesktop())
   const active = enabled && available
-  // 依赖要稳定：数组直接进依赖会让 effect 每次渲染都重推一遍配置
-  const hotkeys = resolveCombos(rawCombos, 'mini-window').join('|')
+  // 依赖要稳定：数组直接进依赖会让 effect 每次渲染都重推一遍配置。
+  // 冲突的组合不推给壳（见 store/hotkeys 的 conflictOwners）：页面里的命令
+  // 停用，系统级的这一份也得跟着停，不然同一个键两处各响各的
+  const hotkeys = resolveCombos(rawCombos, 'mini-window')
+    .filter((combo) => !conflicted.has(combo))
+    .join('|')
 
   useEffect(() => {
     if (!isDesktop()) return

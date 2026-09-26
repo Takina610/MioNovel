@@ -216,6 +216,45 @@ export function docTimeText(timestamp: number, now: number = Date.now()): string
 /** 列表里「位置」那一列。我们只有一个空间，所有人的文档都在这里 */
 export const DOC_LOCATION = '我的空间'
 
+/* ---- 文档列表的列宽 ---- */
+
+/** 一列数据 224px，行尾 34px 是 ⋯。和飞书截图里量到的位置一致 */
+export const DOC_COL_DATA = 224
+export const DOC_COL_MORE = 34
+/** 标题列的底线（`minmax(0, 1fr)` 之外至少给它这么多）。
+ *  桌面端默认 1280 的窗口下，四列数据加行尾正好把标题列压成个位数像素——
+ *  「每行都没有标题，拉宽窗口才回来」就是这么来的（2026-09-26 修） */
+export const DOC_COL_TITLE_MIN = 260
+
+export interface DocColumns {
+  location: boolean
+  owner: boolean
+  created: boolean
+  visited: boolean
+}
+
+/**
+ * 列表此刻该显示哪几列。width 是**列表容器的真实宽度**（组件里用
+ * ResizeObserver 量，不用窗口宽度猜），toggles 是用户在「显示设置」里的开关。
+ *
+ * 规矩：先给标题列留出底线，剩下的宽度按 最近访问 → 所有者 → 创建时间 → 位置
+ * 的次序把数据列依次请上桌，坐不下就不上——位置那列每行都是同一个值，最先让路；
+ * 最近访问说的是「读到哪了」，最后让。收列由 JS 决定：列宽是 JS 算的
+ * grid-template-columns，CSS 覆盖不了 inline 样式。
+ */
+export function docListColumns(width: number, toggles: DocColumns): DocColumns {
+  let budget = width - DOC_COL_MORE - DOC_COL_TITLE_MIN
+  const result: DocColumns = { location: false, owner: false, created: false, visited: false }
+  if (budget < 0) return result
+  for (const key of ['visited', 'owner', 'created', 'location'] as const) {
+    if (!toggles[key]) continue
+    if (budget < DOC_COL_DATA) break
+    result[key] = true
+    budget -= DOC_COL_DATA
+  }
+  return result
+}
+
 /** 列表里「所有者」那一列。书里的作者名是真数据，没有就写「我」 */
 export function docOwnerOf(book: BookRecord): string {
   return book.author.trim() || '我'

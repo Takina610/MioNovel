@@ -22,6 +22,7 @@ import {
 } from '../components/ui/app-icons'
 import { useHotkeyCombo } from '../store/hotkeys'
 import { toggleFullscreen } from '../lib/fullscreen'
+import { WindowControls, chromeDragProps } from '../components/ui/WindowControls'
 import { AppMenu, NavRow } from './OfficeFrame'
 import type { AppFrameProps } from './types'
 
@@ -112,7 +113,7 @@ export function DocApp(props: AppFrameProps) {
 
   return (
     <div className="mn-doc" style={{ ['--mn-dim' as string]: String(props.dim) }}>
-      <header className="mn-doc__bar">
+      <header className="mn-doc__bar" {...chromeDragProps()} data-mn-drag="">
         <button
           type="button"
           className="mn-doc__icon-btn"
@@ -124,7 +125,7 @@ export function DocApp(props: AppFrameProps) {
               原来写的是 rotate-180，屏幕上是一个朝上的箭头（2026-09-24 修） */}
           <IconChevron className="h-5 w-5 rotate-90" />
         </button>
-        <div className="mn-doc__name" title={book.title}>
+        <div className="mn-doc__name" title={book.title} data-mn-drag="">
           {book.title}
         </div>
         <div className="mn-doc__bar-right">
@@ -162,6 +163,8 @@ export function DocApp(props: AppFrameProps) {
             ]}
           />
         </div>
+        {/* 桌面端非常规主题：原生标题栏收掉了，三颗窗口钮挂在这条顶栏上 */}
+        <WindowControls />
       </header>
 
       <div className="mn-doc__body">

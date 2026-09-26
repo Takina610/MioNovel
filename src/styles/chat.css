@@ -484,6 +484,22 @@
   border-radius: 6px;
 }
 
+/* 无框窗口的按钮条（桌面端非常规主题，见 ui/WindowControls）：首页的主区
+   没有顶栏，三颗窗口钮浮在右上角，整条兼任标题栏拖拽区。absolute 的基准
+   是 .mn-chat__main（它本来就是 relative） */
+.mn-chat__winctl {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  height: 40px;
+  padding-right: 8px;
+}
+
 /* 顶栏那几个按钮。盒子 36 配 24 的图标：照截图量出来的——参考图右上角那两个图标
    （⋯ 与人＋）的墨迹约 19×17.5px，而我们 h-4 的图标墨迹只有 9-11px（这批记号墨迹
    只占 24 格的 60% 上下），所以看着小一圈。24 的盒子让墨迹回到 14-17px。 */

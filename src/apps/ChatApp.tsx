@@ -42,6 +42,7 @@ import {
 } from '../components/ui/app-icons'
 import { useHotkeyCombo } from '../store/hotkeys'
 import { toggleFullscreen } from '../lib/fullscreen'
+import { WindowControls, chromeDragProps } from '../components/ui/WindowControls'
 import { AppMenu } from './OfficeFrame'
 import type { AppFrameProps } from './types'
 import type { ShelfProps } from './ShelfShell'
@@ -137,8 +138,8 @@ export function ChatApp(props: AppFrameProps) {
       dim={props.dim}
       main={
         <>
-          <header className="mn-chat__head">
-            <div className="mn-chat__peer">
+          <header className="mn-chat__head" {...chromeDragProps()} data-mn-drag="">
+            <div className="mn-chat__peer" data-mn-drag="">
               <span className="mn-chat__peer-name" title={book.title}>
                 {book.title}
               </span>
@@ -185,6 +186,8 @@ export function ChatApp(props: AppFrameProps) {
                 ]}
               />
             </div>
+            {/* 桌面端非常规主题：原生标题栏收掉了，三颗窗口钮挂在这条顶栏上 */}
+            <WindowControls />
           </header>
 
           <div className="mn-chat__body">
@@ -825,41 +828,48 @@ export function ChatHome({
         dim={dim}
         onOpenBook={onOpen}
         main={
-          <div className="mn-chat__stage mn-veil">
-            <div className="mn-chat__empty">
-              <p className="mn-chat__empty-title">选择一个会话</p>
-              <p className="mn-chat__empty-hint">
-                {books === undefined
-                  ? '正在打开书架…'
-                  : books.length === 0
-                    ? '还没有会话'
-                    : `共 ${books.length} 个会话`}
-              </p>
-              {books && books.length > 0 ? (
-                <div className="mn-chat__empty-recent">
-                  {books.slice(0, 5).map((book) => (
-                    <button
-                      key={book.id}
-                      type="button"
-                      className="mn-chat__empty-row"
-                      onClick={() => onOpen(book)}
-                    >
-                      <span className="truncate">{book.title}</span>
-                      <span className="mn-chat__empty-meta">
-                        {formatRelativeTime(book.lastReadAt || book.addedAt)}
-                      </span>
-                    </button>
-                  ))}
+          <>
+            {/* 无框窗口的按钮条（桌面端非常规主题）：首页的主区没有顶栏，
+                三颗窗口钮浮在右上角，上面那 40px 也兼任拖拽区（styles/chat.css） */}
+            <div className="mn-chat__winctl" {...chromeDragProps()} data-mn-drag="">
+              <WindowControls />
+            </div>
+            <div className="mn-chat__stage mn-veil">
+              <div className="mn-chat__empty">
+                <p className="mn-chat__empty-title">选择一个会话</p>
+                <p className="mn-chat__empty-hint">
+                  {books === undefined
+                    ? '正在打开书架…'
+                    : books.length === 0
+                      ? '还没有会话'
+                      : `共 ${books.length} 个会话`}
+                </p>
+                {books && books.length > 0 ? (
+                  <div className="mn-chat__empty-recent">
+                    {books.slice(0, 5).map((book) => (
+                      <button
+                        key={book.id}
+                        type="button"
+                        className="mn-chat__empty-row"
+                        onClick={() => onOpen(book)}
+                      >
+                        <span className="truncate">{book.title}</span>
+                        <span className="mn-chat__empty-meta">
+                          {formatRelativeTime(book.lastReadAt || book.addedAt)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="mn-chat__empty-actions">
+                  <button type="button" className="mn-chat__empty-btn" onClick={onImport}>
+                    <IconImport className="h-4 w-4" />
+                    导入文件
+                  </button>
                 </div>
-              ) : null}
-              <div className="mn-chat__empty-actions">
-                <button type="button" className="mn-chat__empty-btn" onClick={onImport}>
-                  <IconImport className="h-4 w-4" />
-                  导入文件
-                </button>
               </div>
             </div>
-          </div>
+          </>
         }
       />
     </div>

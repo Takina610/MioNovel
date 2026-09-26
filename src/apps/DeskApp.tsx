@@ -25,6 +25,8 @@ import { readStateOf, wordDateText } from '../lib/appdocs'
 import { formatBytes, formatChars } from '../lib/format'
 import { cx } from '../lib/cx'
 import { toggleFullscreen } from '../lib/fullscreen'
+import { desktopInvoke } from '../lib/desktop'
+import { useFrameless, chromeDragProps } from '../components/ui/WindowControls'
 import { useHotkeyCombo } from '../store/hotkeys'
 import { listThemes, themePreset } from '../themes/apply'
 import {
@@ -99,8 +101,34 @@ import type { ShelfProps } from './ShelfShell'
  *    所以往下读几屏，那一列会一条条变成「已读」——它是这一屏里最像客服工具、也最经得住
  *    看的一处。
  */
+
+/**
+ * 右上那排仿 1688 窗口的钮，桌面端非常规主题下是真的（原生标题栏收掉了，
+ * 走 ui/WindowControls 的同一套命令）：最小化 / 最大化接窗口命令，
+ * 「关闭」按设置-高级里选的关窗行为执行。浏览器里维持原样——
+ * 最小化没有对应物，最大化退成全屏，没有「关窗口」这回事。
+ */
+function useDeskWindowButtons(onBack: (() => void) | null) {
+  const frameless = useFrameless()
+  return {
+    minimize: frameless
+      ? { title: '最小化', disabled: false, onClick: () => void desktopInvoke('window_minimize') }
+      : { title: '最小化（浏览器里没有最小化）', disabled: true, onClick: undefined },
+    maximize: frameless
+      ? { title: '最大化 / 还原', disabled: false, onClick: () => void desktopInvoke<boolean>('window_toggle_maximize') }
+      : { title: '最大化（把窗口全屏）', disabled: false, onClick: toggleFullscreen },
+    close: frameless
+      ? { title: '关闭窗口', disabled: false, onClick: () => void desktopInvoke('window_close') }
+      : onBack
+        ? { title: '关闭这个会话，回到工作台', disabled: false, onClick: onBack }
+        : { title: '关闭（已经在工作台首页上了）', disabled: true, onClick: undefined },
+  }
+}
+
 export function DeskApp(props: AppFrameProps) {
   const { book, books, chapters } = props
+  // 右上那排窗口钮：桌面端非常规主题下是真窗口命令（见 useDeskWindowButtons）
+  const deskButtons = useDeskWindowButtons(props.onBack ?? null)
   const [view, setView] = useState<DeskView>('reception')
   const [filter, setFilter] = useState<DeskFilter>('now')
   const [query, setQuery] = useState('')
@@ -288,7 +316,7 @@ export function DeskApp(props: AppFrameProps) {
 
       <div className="mn-desk__work">
         {/* ---------------- 顶上那一条：身份 / 指标 / 窗口按钮与页签 ---------------- */}
-        <header className="mn-desk__top">
+        <header className="mn-desk__top" {...chromeDragProps()} data-mn-drag="">
           <div className="mn-desk__ident">
             {/* 「1688」是产品记号：色号写死在 desk.css 里（同飞书的商标、PPT 的记号） */}
             <span className="mn-desk__mark" aria-hidden>
@@ -357,27 +385,30 @@ export function DeskApp(props: AppFrameProps) {
               <button
                 type="button"
                 className="mn-desk__wbtn"
-                title="最小化（浏览器里没有最小化）"
+                title={deskButtons.minimize.title}
                 aria-label="最小化"
-                disabled
+                disabled={deskButtons.minimize.disabled}
+                onClick={deskButtons.minimize.onClick}
               >
                 <IconDeskDash className="mn-desk__wicon" />
               </button>
               <button
                 type="button"
                 className="mn-desk__wbtn"
-                title="最大化（把窗口全屏）"
+                title={deskButtons.maximize.title}
                 aria-label="最大化"
-                onClick={toggleFullscreen}
+                disabled={deskButtons.maximize.disabled}
+                onClick={deskButtons.maximize.onClick}
               >
                 <IconFullscreen className="mn-desk__wicon" />
               </button>
               <button
                 type="button"
                 className="mn-desk__wbtn"
-                title="关闭这个会话，回到工作台"
+                title={deskButtons.close.title}
                 aria-label="关闭"
-                onClick={props.onBack}
+                disabled={deskButtons.close.disabled}
+                onClick={deskButtons.close.onClick}
               >
                 <IconClose className="mn-desk__wicon" />
               </button>
@@ -1279,6 +1310,9 @@ export function DeskHome({
   dimOn,
   onToggleDim,
 }: ShelfProps) {
+  // 右上那排窗口钮：桌面端非常规主题下是真窗口命令（见 useDeskWindowButtons）。
+  // 首页没有「回工作台」可回，浏览器里这一格保持灰着
+  const deskButtons = useDeskWindowButtons(null)
   const [view, setView] = useState<DeskView>('reception')
   const [filter, setFilter] = useState<DeskFilter>('now')
   const [query, setQuery] = useState('')
@@ -1346,7 +1380,7 @@ export function DeskHome({
       </nav>
 
       <div className="mn-desk__work">
-        <header className="mn-desk__top">
+        <header className="mn-desk__top" {...chromeDragProps()} data-mn-drag="">
           <div className="mn-desk__ident">
             <span className="mn-desk__mark" aria-hidden>
               1688
@@ -1397,27 +1431,30 @@ export function DeskHome({
               <button
                 type="button"
                 className="mn-desk__wbtn"
-                title="最小化（浏览器里没有最小化）"
+                title={deskButtons.minimize.title}
                 aria-label="最小化"
-                disabled
+                disabled={deskButtons.minimize.disabled}
+                onClick={deskButtons.minimize.onClick}
               >
                 <IconDeskDash className="mn-desk__wicon" />
               </button>
               <button
                 type="button"
                 className="mn-desk__wbtn"
-                title="最大化（把窗口全屏）"
+                title={deskButtons.maximize.title}
                 aria-label="最大化"
-                onClick={toggleFullscreen}
+                disabled={deskButtons.maximize.disabled}
+                onClick={deskButtons.maximize.onClick}
               >
                 <IconFullscreen className="mn-desk__wicon" />
               </button>
               <button
                 type="button"
                 className="mn-desk__wbtn"
-                title="关闭（已经在工作台首页上了）"
+                title={deskButtons.close.title}
                 aria-label="关闭"
-                disabled
+                disabled={deskButtons.close.disabled}
+                onClick={deskButtons.close.onClick}
               >
                 <IconClose className="mn-desk__wicon" />
               </button>

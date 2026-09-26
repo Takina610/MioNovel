@@ -1,8 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { hotkeyLiveOn, matchesCombo, resolveCombos } from '../lib/hotkey'
 import { useDecoy } from '../store/decoy'
 import { useDim } from '../store/dim'
-import { useHotkeyBindings } from '../store/hotkeys'
+import { conflictedCombos, useHotkeyBindings } from '../store/hotkeys'
 
 /**
  * 两个「伪装」功能的快捷键，挂在 App 上——书架、阅读器、五套外壳底下都得能按。
@@ -19,6 +19,9 @@ export function useGlobalHotkeys(): void {
   const combos = useHotkeyBindings((state) => state.combos)
   const toggleDecoy = useDecoy((state) => state.toggle)
   const toggleDim = useDim((state) => state.toggle)
+  // 冲突的组合不响（见 store/hotkeys 的 conflictOwners）：两处绑了同一串，
+  // 谁先响应说不清，两边的这一串都停用
+  const conflicted = useMemo(() => conflictedCombos(combos), [combos])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -32,14 +35,22 @@ export function useGlobalHotkeys(): void {
       // 独立主题，那一层才是此刻真正生效的形态（见 themes/apply.ts）。
       const chrome = document.documentElement.dataset.chrome ?? ''
 
-      if (resolveCombos(combos.decoy, 'decoy').some((combo) => matchesCombo(event, combo))) {
+      if (
+        resolveCombos(combos.decoy, 'decoy').some(
+          (combo) => !conflicted.has(combo) && matchesCombo(event, combo),
+        )
+      ) {
         if (!hotkeyLiveOn('decoy', chrome)) return
         event.preventDefault()
         toggleDecoy()
         return
       }
 
-      if (resolveCombos(combos.dim, 'dim').some((combo) => matchesCombo(event, combo))) {
+      if (
+        resolveCombos(combos.dim, 'dim').some(
+          (combo) => !conflicted.has(combo) && matchesCombo(event, combo),
+        )
+      ) {
         if (!hotkeyLiveOn('dim', chrome)) return
         event.preventDefault()
         toggleDim()
@@ -47,5 +58,5 @@ export function useGlobalHotkeys(): void {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [combos, toggleDecoy, toggleDim])
+  }, [combos, conflicted, toggleDecoy, toggleDim])
 }

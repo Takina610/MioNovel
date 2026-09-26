@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { AnimatePresence, motion, type Variants } from 'motion/react'
 import { storageUsage, type StorageUsage } from '../../db/books'
 import { formatBytes } from '../../lib/format'
@@ -6,6 +6,7 @@ import {
   FONT_STACKS,
   SETTING_RANGES,
   useSettings,
+  type CloseAction,
   type ReaderSettings,
 } from '../../store/settings'
 import { chromeOf, getTheme, themePreset } from '../../themes/apply'
@@ -26,10 +27,13 @@ import {
   closeSettingsDialog,
   closeSettingsToCenter,
   originRectNow,
+  rememberSettingsScroll,
+  settingsScrollOf,
   useSettingsDialog,
   type OriginRect,
 } from '../../store/settingsDialog'
 import {
+  conflictLabels,
   hotkeyCommandOf,
   hotkeyLiveOn,
   HOTKEY_LABELS,
@@ -139,6 +143,8 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const open = useSettingsDialog((state) => state.open)
   const panelRef = useRef<HTMLDivElement>(null)
+  /** 右侧内容那一栏（真正滚动的容器）。滚动位置按大类记在 store 里 */
+  const paneRef = useRef<HTMLDivElement>(null)
   /** 打开前焦点在哪，关闭时还回去（键盘读者的 Tab 别凭空掉进页面顶上） */
   const restoreFocusRef = useRef<HTMLElement | null>(null)
 
@@ -165,6 +171,8 @@ export function SettingsDialog({
   // 「弹窗里有这一栏」和「壳上真的会有窗」不许各判各的。读**全局**主题——
   // 某本书的独立主题管不到书架级的功能
   const globalThemeId = useSettings((state) => state.global.themeId)
+  const closeAction = useSettings((state) => state.closeAction)
+  const setCloseAction = useSettings((state) => state.setCloseAction)
   const miniEnabled = useMini((state) => state.enabled)
   const miniCorner = useMini((state) => state.corner)
   const miniOpacity = useMini((state) => state.opacity)
@@ -182,16 +190,11 @@ export function SettingsDialog({
   const codeChrome = chrome === 'code'
   const appShell = !codeChrome && chrome !== 'plain'
 
-  /** 两个功能不能绑同一个组合：谁先响应说不清，索性在录的时候挡住。
-   *  一条命令可以绑多个组合，所以要对**每一串**都比一遍 */
-  const conflictWith = (id: HotkeyId, combo: string): string | null => {
-    for (const other of Object.keys(HOTKEY_LABELS) as HotkeyId[]) {
-      if (other !== id && resolveCombos(combos[other], other).includes(combo)) {
-        return `这个组合已经给了${HOTKEY_LABELS[other]}`
-      }
-    }
-    return null
-  }
+  /**
+   * 冲突的判定只有一份（store/hotkeys 的 conflictOwners）：录键不拦冲突，
+   * 冲突的组合红着、两边的这一串都停用——这里只负责把「和谁撞了」递给每一行。
+   */
+  const conflictsOf = (id: HotkeyId) => conflictLabels(combos, id)
 
   useEffect(() => {
     if (!open) return
@@ -268,6 +271,15 @@ export function SettingsDialog({
     }
   }, [open])
 
+  // 关掉再开（或在左边换大类），右边停回上次看到的地方。
+  // 只记本次会话，重启回到顶部（见 store/settingsDialog 的 scrollMemory）。
+  // useLayoutEffect：在首帧画出之前就把 scrollTop 写好，别让用户看见「先在顶上跳一下」
+  useLayoutEffect(() => {
+    if (!open) return
+    const pane = paneRef.current
+    if (pane) pane.scrollTop = settingsScrollOf(activeId)
+  }, [open, activeId])
+
   const categories = buildCategories({
     settings,
     onChange,
@@ -277,6 +289,9 @@ export function SettingsDialog({
     perBookEnabled,
     onTogglePerBook,
     usage,
+    desktop: isDesktop(),
+    closeAction,
+    setCloseAction,
     decoy: { enabled: decoyEnabled, presetId: decoyPresetId, setEnabled: setDecoyEnabled, setPreset: setDecoyPreset },
     dim: { enabled: dimEnabled, level: dimLevel, setEnabled: setDimEnabled, setLevel: setDimLevel },
     mini: {
@@ -294,7 +309,7 @@ export function SettingsDialog({
     addCombo,
     removeCombo,
     resetCommand,
-    conflictWith,
+    conflictsOf,
   })
   // 换主题可能让某大类整个消失（比如从编辑器切回普通阅读），保存的 id 不在了就落回第一类
   const active = categories.find((category) => category.id === activeId) ?? categories[0]
@@ -377,7 +392,11 @@ export function SettingsDialog({
               })}
             </nav>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 max-md:p-4">
+            <div
+              ref={paneRef}
+              onScroll={(event) => rememberSettingsScroll(activeId, event.currentTarget.scrollTop)}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 max-md:p-4"
+            >
               <div key={active.id} className="mn-fade space-y-5">
                 {active.node}
               </div>
@@ -398,6 +417,9 @@ function buildCategories(args: {
   perBookEnabled?: boolean
   onTogglePerBook?: (enabled: boolean) => void
   usage: StorageUsage | null
+  desktop: boolean
+  closeAction: CloseAction
+  setCloseAction: (action: CloseAction) => void
   decoy: {
     enabled: boolean
     presetId: string
@@ -425,7 +447,7 @@ function buildCategories(args: {
   addCombo: (id: HotkeyId, combo: string) => void
   removeCombo: (id: HotkeyId, combo: string) => void
   resetCommand: (id: HotkeyId) => void
-  conflictWith: (id: HotkeyId, combo: string) => string | null
+  conflictsOf: (id: HotkeyId) => Array<{ combo: string; others: string[] }>
 }): Category[] {
   const {
     settings,
@@ -436,6 +458,9 @@ function buildCategories(args: {
     perBookEnabled,
     onTogglePerBook,
     usage,
+    desktop,
+    closeAction,
+    setCloseAction,
     decoy,
     dim,
     mini,
@@ -443,7 +468,7 @@ function buildCategories(args: {
     addCombo,
     removeCombo,
     resetCommand,
-    conflictWith,
+    conflictsOf,
   } = args
 
   const categories: Category[] = []
@@ -456,10 +481,10 @@ function buildCategories(args: {
       combos={resolveCombos(combos[id], id)}
       defaults={hotkeyCommandOf(id).combos}
       scope={hotkeyCommandOf(id).scope}
+      conflicts={conflictsOf(id)}
       onAdd={(combo) => addCombo(id, combo)}
       onRemove={(combo) => removeCombo(id, combo)}
       onReset={() => resetCommand(id)}
-      check={(combo) => conflictWith(id, combo)}
     />
   )
 
@@ -812,6 +837,28 @@ function buildCategories(args: {
           />
         ) : null}
 
+        {/* 桌面端才有「关窗口」这回事。选择推给壳执行：原生标题栏的 × 和
+            外壳顶栏上的「关闭」都按这里选的来（hooks/useDesktopShell） */}
+        {desktop ? (
+          <section className="space-y-2">
+            <SectionTitle>关闭窗口时</SectionTitle>
+            <div className="grid grid-cols-2 gap-2">
+              <ModeButton
+                active={closeAction === 'hide'}
+                label="隐藏到托盘"
+                check={false}
+                onClick={() => setCloseAction('hide')}
+              />
+              <ModeButton
+                active={closeAction === 'exit'}
+                label="退出程序"
+                check={false}
+                onClick={() => setCloseAction('exit')}
+              />
+            </div>
+          </section>
+        ) : null}
+
         <section className="space-y-2">
           <SectionTitle>自定义 CSS</SectionTitle>
           <textarea
@@ -853,11 +900,14 @@ function ModeButton({
   label,
   hint,
   onClick,
+  check = true,
 }: {
   active: boolean
   label: string
-  hint: string
+  hint?: string
   onClick: () => void
+  /** 选中的记号（✓）。「关闭窗口时」这类二选一不画：选中态靠边框和字色已经足够 */
+  check?: boolean
 }) {
   return (
     <button
@@ -875,9 +925,9 @@ function ModeButton({
     >
       <span className="flex items-center gap-1.5">
         <span className={cx('block text-[13px]', active ? 'text-accent' : 'text-fg')}>{label}</span>
-        {active ? <IconCheck className="mn-pop h-3.5 w-3.5 text-accent" /> : null}
+        {active && check ? <IconCheck className="mn-pop h-3.5 w-3.5 text-accent" /> : null}
       </span>
-      <span className="mt-0.5 block text-[11px] text-fg-faint">{hint}</span>
+      {hint ? <span className="mt-0.5 block text-[11px] text-fg-faint">{hint}</span> : null}
     </button>
   )
 }

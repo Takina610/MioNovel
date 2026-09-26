@@ -1,6 +1,7 @@
+import { useMemo } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { DEFAULT_HOTKEYS, resolveCombos, type HotkeyId } from '../lib/hotkey'
+import { conflictedCombos, DEFAULT_HOTKEYS, resolveCombos, type HotkeyId } from '../lib/hotkey'
 
 export {
   DEFAULT_HOTKEYS,
@@ -9,6 +10,9 @@ export {
   hotkeyCommandOf,
   hotkeyLiveOn,
   resolveCombos,
+  conflictOwners,
+  conflictedCombos,
+  conflictLabels,
 } from '../lib/hotkey'
 export type { HotkeyCommand, HotkeyId, HotkeyPresence, HotkeyScope } from '../lib/hotkey'
 
@@ -97,6 +101,15 @@ export function useHotkeyCombos(id: HotkeyId): string[] {
 /** 组件里读单个功能的**第一个**组合（菜单提示用；键全删了就是空串） */
 export function useHotkeyCombo(id: HotkeyId): string {
   return useHotkeyCombos(id)[0] ?? ''
+}
+
+/**
+ * 冲突判定在 lib/hotkey.ts（conflictOwners / conflictedCombos / conflictLabels，
+ * 纯函数、验收脚本直接断言）。这里只留 React 的入口：组件里读冲突集合用。
+ */
+export function useConflictedCombos(): Set<string> {
+  const combos = useHotkeyBindings((state) => state.combos)
+  return useMemo(() => conflictedCombos(combos), [combos])
 }
 
 /** 与 hooks 无关的场合（验收脚本）用这个：菜单提示的那一串 */

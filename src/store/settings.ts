@@ -140,9 +140,19 @@ export interface PerBookStyle {
   settings: Partial<ReaderSettings>
 }
 
+/**
+ * 桌面端「关闭窗口时」的行为。exit = 退出主程序（小窗一起退，壳的职责，
+ * 前端不为它露出字）；hide = 藏进托盘，通知区图标能把窗口找回来。
+ * 浏览器里没有「窗口」可关，这个设置只在桌面端出现（设置弹窗里判 isDesktop）。
+ * 执行人在壳上（src-tauri/src/lib.rs 的 handle_main_close），
+ * hooks/useDesktopShell 负责把这份选择推过去。
+ */
+export type CloseAction = 'exit' | 'hide'
+
 interface SettingsState {
   global: ReaderSettings
   perBook: Record<string, PerBookStyle>
+  closeAction: CloseAction
   /** 改全局设置。某一本开了独立设置时，改这里不会影响它 */
   update: (patch: Partial<ReaderSettings>) => void
   /** 改某本书的设置（自动把它标成独立） */
@@ -150,6 +160,7 @@ interface SettingsState {
   setPerBookEnabled: (bookId: string, enabled: boolean) => void
   /** 撤掉这本书的独立设置，回到全局 */
   clearPerBook: (bookId: string) => void
+  setCloseAction: (action: CloseAction) => void
 }
 
 export const useSettings = create<SettingsState>()(
@@ -157,6 +168,7 @@ export const useSettings = create<SettingsState>()(
     (set) => ({
       global: DEFAULT_SETTINGS,
       perBook: {},
+      closeAction: 'exit',
 
       update: (patch) => set((state) => ({ global: { ...state.global, ...patch } })),
 
@@ -183,6 +195,8 @@ export const useSettings = create<SettingsState>()(
           delete next[bookId]
           return { perBook: next }
         }),
+
+      setCloseAction: (closeAction) => set({ closeAction }),
     }),
     { name: 'mionovel:settings', version: 1 },
   ),

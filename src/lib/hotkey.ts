@@ -252,3 +252,48 @@ export function resolveCombos(raw: string[] | undefined, id: HotkeyId): string[]
       arr.indexOf(combo) === index,
   )
 }
+
+/* ==========================================================================
+   冲突
+   --------------------------------------------------------------------------
+   录键**不拦**冲突（拦了用户就看不到「这两处撞了」）：同一串绑在两条命令上，
+   谁先响应说不清，后果是两边的这一串都停用——设置里红着的 chip 加一行
+   「和谁撞了」。运行时把冲突串从生效组合里剔掉（hooks/useHotkeys、
+   useGlobalHotkeys、useMiniWindow 推给壳的那份），三处读的都是这三个纯函数。
+   ========================================================================== */
+
+/** 组合 → 绑了它的**所有**命令。同一串出现两条以上就是冲突 */
+export function conflictOwners(combos: Record<HotkeyId, string[]>): Map<string, HotkeyId[]> {
+  const owners = new Map<string, HotkeyId[]>()
+  for (const command of HOTKEY_COMMANDS) {
+    for (const combo of resolveCombos(combos[command.id], command.id)) {
+      owners.set(combo, [...(owners.get(combo) ?? []), command.id])
+    }
+  }
+  return owners
+}
+
+/** 冲突着的组合集合（被两条以上命令绑着的串） */
+export function conflictedCombos(combos: Record<HotkeyId, string[]>): Set<string> {
+  const conflicted = new Set<string>()
+  for (const [combo, ids] of conflictOwners(combos)) {
+    if (ids.length > 1) conflicted.add(combo)
+  }
+  return conflicted
+}
+
+/** 某条命令的冲突明细：它的哪一串和哪些功能撞了（文案里要把功能名报出来） */
+export function conflictLabels(
+  combos: Record<HotkeyId, string[]>,
+  id: HotkeyId,
+): Array<{ combo: string; others: string[] }> {
+  const owners = conflictOwners(combos)
+  const result: Array<{ combo: string; others: string[] }> = []
+  for (const combo of resolveCombos(combos[id], id)) {
+    const others = (owners.get(combo) ?? []).filter((other) => other !== id)
+    if (others.length > 0) {
+      result.push({ combo, others: others.map((other) => HOTKEY_LABELS[other]) })
+    }
+  }
+  return result
+}

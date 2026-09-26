@@ -163,6 +163,9 @@
   display: flex;
   align-items: stretch;
   background: var(--mn-surface);
+  /* 标题栏是「窗口的一部分」不是内容：文字不可选中，双击留给最大化/还原
+     （桌面端无框窗口，见 ui/WindowControls 的 chromeDragProps） */
+  user-select: none;
 }
 
 /* 身份那一段占的正是会话列表那一列（240） */

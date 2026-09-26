@@ -1,7 +1,23 @@
 import { useEffect } from 'react'
 import { applyTheme, chromeOf, getTheme, installThemeSheet } from '../themes/apply'
-import type { ThemeChrome } from '../themes/types'
+import type { ReaderTheme, ThemeChrome } from '../themes/types'
+import { desktopInvoke, isDesktop, isMiniWindow } from '../lib/desktop'
 import { useSettings } from '../store/settings'
+
+/**
+ * 桌面端把原生标题栏的收放跟住**这一次应用的主题**：非常规主题（七套外壳
+ * 形态）收掉原生标题栏——最小化 / 最大化 / 关闭挪进外壳顶栏
+ * （ui/WindowControls）；普通阅读形态还原带边的窗口。小窗不走这里
+ * （它天生无框，且这命令只认主窗口）。
+ *
+ * 放在应用主题的地方而不是用一个观察器去盯 DOM 属性：同一次提交里
+ * 「新挂载的组件读属性、effect 写属性」的先后在 StrictMode 下对不上，
+ * 观察器会错过唯一一次变化（踩过）。主题在哪应用，命令就在哪推。
+ */
+function syncWindowDecorations(theme: ReaderTheme): void {
+  if (!isDesktop() || isMiniWindow()) return
+  void desktopInvoke('set_decorations', { visible: chromeOf(theme) === 'plain' })
+}
 
 /**
  * 应用全局主题。
@@ -18,15 +34,23 @@ export function useGlobalTheme(): void {
   }, [])
 
   useEffect(() => {
-    applyTheme(getTheme(themeId))
+    const theme = getTheme(themeId)
+    applyTheme(theme)
+    syncWindowDecorations(theme)
   }, [themeId])
 }
 
 /** 阅读器里用：某本书可能开了独立主题，离开时要还原成全局的 */
 export function useScopedTheme(themeId: string, fallbackThemeId: string): void {
   useEffect(() => {
-    applyTheme(getTheme(themeId))
-    return () => applyTheme(getTheme(fallbackThemeId))
+    const theme = getTheme(themeId)
+    applyTheme(theme)
+    syncWindowDecorations(theme)
+    return () => {
+      const fallback = getTheme(fallbackThemeId)
+      applyTheme(fallback)
+      syncWindowDecorations(fallback)
+    }
   }, [themeId, fallbackThemeId])
 }
 

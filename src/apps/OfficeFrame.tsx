@@ -16,6 +16,7 @@ import {
   IconLauncher,
   IconShare,
 } from "../components/ui/app-icons";
+import { WindowControls, chromeDragProps } from "../components/ui/WindowControls";
 
 /**
  * Office 三件套共用的窗户框：标题栏、功能区、状态栏，以及开始屏幕。
@@ -349,7 +350,7 @@ export function OfficeFrame({
       data-mn-esc-local={escLocal ? "" : undefined}
       style={{ ["--mn-dim" as string]: String(dim) }}
     >
-      <header className="mn-office__title">
+      <header className="mn-office__title" {...chromeDragProps()} data-mn-drag="">
         {/* 装饰画放在最前面：它绝对定位压在最右边，DOM 里排在前面才画在底下
             （排在后面会盖住头像和那几个按钮） */}
         {titleArt ? (
@@ -362,7 +363,7 @@ export function OfficeFrame({
         <div className="mn-office__title-left">
           {brand ? <span className="mn-office__brand">{brand}</span> : null}
           {titleTools ? <div className="mn-office__qat">{titleTools}</div> : null}
-          <div className="mn-office__file">
+          <div className="mn-office__file" data-mn-drag="">
             <span className="mn-office__file-name" title={fileName}>
               {fileName}
             </span>
@@ -406,6 +407,8 @@ export function OfficeFrame({
             {avatar}
           </span>
         </div>
+        {/* 桌面端非常规主题：原生标题栏收掉了，三颗窗口钮挂在这条顶栏上 */}
+        <WindowControls />
       </header>
 
       {/* 开始屏幕上没有功能区：真 Office 那两屏就是分开的（页签为空 = 这是开始屏幕）。

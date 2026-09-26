@@ -24,6 +24,9 @@ use tauri::{AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, Web
 
 /// 轮询鼠标的间隔。太密费电，太疏「离开就消失」就迟钝
 const POLL_INTERVAL: Duration = Duration::from_millis(120);
+/// 主窗口最小化多久后挂起它的 WebView2（后台省内存）。太短，快速最小化/
+/// 还原会来回挂起；太长，用户「最小化当托盘用」要等很久才见效
+const MINIMIZE_SUSPEND_DELAY: Duration = Duration::from_secs(10);
 /// 内置尺寸（逻辑像素）。物理尺寸随 DPI 放大，落角按 outer_size 反推
 const MINI_WIDTH: f64 = 340.0;
 const MINI_HEIGHT: f64 = 420.0;
@@ -84,6 +87,11 @@ pub struct MiniState {
     last_resize: std::sync::Arc<Mutex<Option<std::time::Instant>>>,
     /// 尺寸落盘的文件（数据目录里的 mini-size.json）。None = 没地方写
     size_file: Mutex<Option<PathBuf>>,
+    /// 主窗口的 WebView2 此刻是否处于挂起/省内存态（lib.rs 的 trim_main_webview
+    /// 与本文件的 poll_minimized 共同读写——托盘/小窗/最小化三条路都走它）
+    pub(crate) main_trimmed: std::sync::atomic::AtomicBool,
+    /// 主窗口是从什么时候开始最小化的。None = 不在最小化态
+    main_minimized_since: Mutex<Option<std::time::Instant>>,
 }
 
 impl MiniState {
@@ -97,7 +105,20 @@ impl MiniState {
             last_size: std::sync::Arc::new(Mutex::new(None)),
             last_resize: std::sync::Arc::new(Mutex::new(None)),
             size_file: Mutex::new(None),
+            main_trimmed: std::sync::atomic::AtomicBool::new(false),
+            main_minimized_since: Mutex::new(None),
         }
+    }
+
+    /// 小窗此刻开没开。托盘的显隐与「关主窗 = 藏还是退」（lib.rs）都要问它：
+    /// 小窗开着时关主窗只能藏——退出会把悬浮的小窗一起带走
+    pub fn mini_enabled(&self) -> bool {
+        self.config
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|config| config.enabled)
+            .unwrap_or(false)
     }
 }
 
@@ -149,9 +170,11 @@ pub async fn mini_apply(app: AppHandle, config: MiniConfig) -> Result<(), String
 /// 三条路都走到这里：前端推配置、快捷键在壳里翻转、小窗里的「放大」按钮。
 fn apply_windows(app: &AppHandle, config: &MiniConfig) {
     if config.enabled {
-        if let Some(main) = app.get_webview_window(MAIN_LABEL) {
-            let _ = main.hide();
-        }
+        // 开小窗前把主窗口整个藏起来（摸鱼的完整形态：任务栏里像没有这个应用）。
+        // 藏完顺带挂起它的 WebView2（lib.rs 的 hide_main_window）——挂起中的
+        // 页面不跑 JS，主窗口那 500ms 的标志轮询也停了，无妨：窗口行为都在壳里
+        // 即时做，标志等主窗口回来（resume）后第一拍补同步
+        crate::hide_main_window(app);
         match ensure_window(app, config) {
             Ok(window) => {
                 place(&window, &config.corner);
@@ -160,28 +183,28 @@ fn apply_windows(app: &AppHandle, config: &MiniConfig) {
             Err(err) => {
                 log(format!("小窗创建失败：{err}"));
                 // 建不出来就把主窗口还回去，别让用户两边都扑空
-                if let Some(main) = app.get_webview_window(MAIN_LABEL) {
-                    let _ = main.show();
-                    let _ = main.set_focus();
-                }
+                crate::show_main_window(app);
             }
         }
     } else {
         // **销毁而不是常驻**：一份 webview 就是几十 MB 的渲染进程，
         // 用户关了小窗它们就该还给系统（内存是第一投诉）。用户拖的尺寸
         // 已经落盘在 mini-size.json，重建时原样恢复；阅读进度在 IndexedDB
-        // 里也没丢过。主窗口此时多半还藏着，一并还原
+        // 里也没丢过。主窗口此时多半还藏着，一并还原（show_main_window
+        // 会先 Resume 挂起的 WebView2）
         if let Some(window) = app.get_webview_window(MINI_LABEL) {
             win32_set_visible(&window, false);
             let _ = window.close();
         }
         if let Some(main) = app.get_webview_window(MAIN_LABEL) {
             if !main.is_visible().unwrap_or(false) {
-                let _ = main.show();
-                let _ = main.set_focus();
+                crate::show_main_window(app);
             }
         }
     }
+    // 托盘跟着小窗的开关走（lib.rs）：主窗口藏起来的期间，通知区得有图标
+    // 能把它请回来
+    crate::sync_tray(app);
 }
 
 
@@ -199,9 +222,72 @@ fn push_theme(window: &WebviewWindow, theme_id: &str) {
         "window.__MN_APPLY_THEME__ && window.__MN_APPLY_THEME__({id})"
     ));
 }
+/// 主窗口最小化超过 MINIMIZE_SUSPEND_DELAY 就挂起它的 WebView2（后台省内存），
+/// 还原即恢复。状态标志只有 main_trimmed 一份，托盘/小窗的藏窗路径
+/// （lib.rs 的 hide_main_window / show_main_window）读写的是同一个。
+///
+/// **只管「可见但最小化」的窗口**：藏进托盘/小窗模式（窗口已隐藏）的挂起
+/// 归 lib.rs 管——隐藏的窗口 IsIconic 恒为 false，这里若插手会把托盘挂起
+/// 又给恢复回去，内存白省。
+fn poll_minimized(app: &AppHandle) {
+    let Some(main) = app.get_webview_window(MAIN_LABEL) else {
+        return;
+    };
+    if !win32_visible(&main) {
+        return;
+    }
+    let iconic = main_is_iconic(&main);
+    let trimmed = app
+        .state::<MiniState>()
+        .main_trimmed
+        .load(std::sync::atomic::Ordering::Relaxed);
+    if iconic == trimmed {
+        // 要么都「正常显示」（无事可做），要么都「最小化且已挂起」（等还原）
+        return;
+    }
+    if iconic {
+        let state = app.state::<MiniState>();
+        let since = {
+            let mut guard = state.main_minimized_since.lock().unwrap();
+            *guard.get_or_insert_with(std::time::Instant::now)
+        };
+        if since.elapsed() < MINIMIZE_SUSPEND_DELAY {
+            return;
+        }
+        crate::trim_main_webview(app, true);
+    } else {
+        // 还原了：清掉计时，恢复 WebView2
+        let state = app.state::<MiniState>();
+        *state.main_minimized_since.lock().unwrap() = None;
+        crate::trim_main_webview(app, false);
+    }
+}
+
+/// 主窗口是不是最小化态（Win32 直读：dispatcher 的查询从非主线程不可靠，
+/// 见 window_physical_rect 上的注释）
+#[cfg(windows)]
+fn main_is_iconic(window: &WebviewWindow) -> bool {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, IsIconic, GET_ANCESTOR_FLAGS};
+    let Ok(hwnd) = window.hwnd() else {
+        return false;
+    };
+    let root = unsafe { GetAncestor(HWND(hwnd.0), GET_ANCESTOR_FLAGS(2)) }; // GA_ROOT
+    unsafe { IsIconic(HWND(root.0)).as_bool() }
+}
+
+#[cfg(not(windows))]
+fn main_is_iconic(_window: &WebviewWindow) -> bool {
+    false
+}
+
 /// 悬浮显隐的一拍。悬浮区永远是「角落矩形」：位置钉在角上，
 /// 拖拽改大小之后下一拍就按新尺寸重新贴角（锚定的两条边不动，另一边伸缩）
 fn poll_hover(app: &AppHandle) {
+    // 主窗口最小化 10s → 挂起它的 WebView2；还原 → 恢复。放在小窗逻辑之前：
+    // 小窗没开（配置还是 None）的时候它也要工作
+    poll_minimized(app);
+
     let (enabled, corner) = {
         let state = app.state::<MiniState>();
         let guard = state.config.lock().unwrap();
@@ -599,11 +685,10 @@ fn apply_hotkeys(app: &AppHandle, hotkeys: &[String]) {
     }
 }
 
-/// 小窗右上角的「放大」：主窗口立刻还原、小窗立刻收掉，配置翻回关；
-/// restore 标志留给主窗口的轮询去消费，把设置里的开关同步回关。
-/// 窗口操作在这里直接做——主窗口要马上回来，等不了被节流的轮询。
-#[tauri::command]
-pub async fn mini_request_restore(app: AppHandle) {
+/// 把主窗口请回来。两个入口共用：托盘图标（左键 / 菜单）与小窗右上角的
+/// 「放大」。小窗开着就先收掉、主窗口藏着的就还原；restore 标志留给
+/// 主窗口的轮询把设置里的开关同步回关。
+pub fn reveal_main(app: &AppHandle) {
     use std::sync::atomic::Ordering;
     let state = app.state::<MiniState>();
     state.restore_requested.store(true, Ordering::Relaxed);
@@ -615,13 +700,25 @@ pub async fn mini_request_restore(app: AppHandle) {
                 *guard = Some(next.clone());
                 next
             }
-            None => return,
+            // 配置还没从主窗口推过来（刚启动就点了托盘）：直接把主窗口亮出来
+            None => {
+                crate::show_main_window(app);
+                return;
+            }
         }
     };
-    apply_windows(&app, &config);
+    apply_windows(app, &config);
     if let Some(main) = app.get_webview_window(MAIN_LABEL) {
         let _ = main.set_focus();
     }
+}
+
+/// 小窗右上角的「放大」：主窗口立刻还原、小窗立刻收掉，配置翻回关；
+/// restore 标志留给主窗口的轮询去消费，把设置里的开关同步回关。
+/// 窗口操作在这里直接做——主窗口要马上回来，等不了被节流的轮询。
+#[tauri::command]
+pub async fn mini_request_restore(app: AppHandle) {
+    reveal_main(&app);
 }
 
 /// 前端来取「快捷键 / 放大按钮按过了」这两个标志：取走即清
@@ -678,7 +775,7 @@ fn load_size_file(path: &Option<PathBuf>) -> Option<(f64, f64)> {
 /// eprintln 会当场 panic 把整个 command 炸掉（踩过）。
 /// 依次尝试 TEMP、exe 旁边：TEMP 可能指向不存在的目录（比如从 bash 启动时
 /// 是 /tmp），create 只建文件不建父目录，会静默失败（踩过）。
-fn log(message: String) {
+pub(crate) fn log(message: String) {
     use std::io::Write;
     let mut path = std::env::temp_dir().join("mionovel-mini.log");
     if !std::fs::OpenOptions::new()

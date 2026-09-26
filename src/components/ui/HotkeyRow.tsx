@@ -1,8 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { comboDisplay, comboFromEvent, comboProblem, type HotkeyScope } from '../../lib/hotkey'
 import { cx } from '../../lib/cx'
 import { useHotkeyBindings } from '../../store/hotkeys'
 import { IconClose } from './icons'
+
+/** 这一行里的一个冲突组合：它和哪些别的功能绑了同一串 */
+export interface ComboConflict {
+  combo: string
+  others: string[]
+}
 
 interface HotkeyRowProps {
   /** 功能名，这一行左上角的字就是它 */
@@ -17,8 +23,9 @@ interface HotkeyRowProps {
   onAdd: (combo: string) => void
   onRemove: (combo: string) => void
   onReset: () => void
-  /** 组合本身合不合法之外还要查的条件（比如已被另一个功能占用），返回文案表示不可用 */
-  check?: (combo: string) => string | null
+  /** 这一行里冲突着的组合（和别的功能绑了同一串）。冲突不拦着录——
+   *  红字加上「两边的这一串都停用」就是后果，比录的时候挡住更看得见 */
+  conflicts?: ComboConflict[]
 }
 
 /**
@@ -26,6 +33,10 @@ interface HotkeyRowProps {
  * 每串组合是一枚 chip，右边的 ×（做大了一点，好点）删掉它；右上角点
  * 「设置快捷键」进入录键，按下的组合**追加**进去。偏离默认时旁边出现
  * 「恢复默认」。
+ *
+ * **冲突的组合标红**：同一串绑在两条命令上，谁先响应说不清，两边的这一串
+ * 都停用（运行时判定见 store/hotkeys 的 conflictOwners），chip 底下一行字
+ * 说清和谁撞了。
  *
  * 录键期间键盘事件由它自己吃掉（capture + preventDefault + stopPropagation）：
  * 不这么做的话，用户想把 Alt+S 绑给演示模式，摸鱼模式会先被切一遍——
@@ -43,12 +54,16 @@ export function HotkeyRow({
   onAdd,
   onRemove,
   onReset,
-  check,
+  conflicts,
 }: HotkeyRowProps) {
   const [recording, setRecording] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const setGlobalRecording = useHotkeyBindings((state) => state.setRecording)
+  const conflictedCombos = useMemo(
+    () => new Set((conflicts ?? []).map((item) => item.combo)),
+    [conflicts],
+  )
 
   useEffect(() => {
     setGlobalRecording(recording)
@@ -80,11 +95,12 @@ export function HotkeyRow({
         setError('这个组合已经绑过了')
         return
       }
-      const problem = comboProblem(next, scope) ?? check?.(next) ?? null
+      const problem = comboProblem(next, scope)
       if (problem) {
         setError(problem)
         return
       }
+      // 和别的功能撞了也照录：设置里会标红、这一串两边都停用（见 conflicts）
       onAdd(next)
       setError(null)
       stop()
@@ -101,7 +117,7 @@ export function HotkeyRow({
       window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('pointerdown', onPointerDown, true)
     }
-  }, [recording, combos, onAdd, onReset, check, scope])
+  }, [recording, combos, onAdd, onReset, scope])
 
   // 和默认对不上了才给「恢复默认」：贴着默认的时候它只是噪音
   const modified =
@@ -152,27 +168,48 @@ export function HotkeyRow({
       </div>
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        {combos.map((combo) => (
-          <span
-            key={combo}
-            className="flex items-center gap-0.5 rounded-lg border border-border bg-bg py-1 pl-2.5 pr-1 font-mono text-[12.5px] text-fg"
-          >
-            {comboDisplay(combo)}
-            <button
-              type="button"
-              aria-label={`删除 ${label}的 ${comboDisplay(combo)}`}
-              onClick={() => onRemove(combo)}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-fg-faint transition-[background-color,color] duration-[var(--mn-dur-1)] ease-[var(--mn-ease)] hover:bg-surface-2 hover:text-danger"
+        {combos.map((combo) => {
+          const conflicted = conflictedCombos.has(combo)
+          return (
+            <span
+              key={combo}
+              className={cx(
+                'flex items-center gap-0.5 rounded-lg border bg-bg py-1 pl-2.5 pr-1 font-mono text-[12.5px]',
+                conflicted
+                  ? // 冲突的组合：红着，运行时它也不响（两边的这一串都停用）
+                    'border-danger text-danger'
+                  : 'border-border text-fg',
+              )}
             >
-              {/* × 比常规图标大一号：它删的是整串组合，点错比点不到更伤 */}
-              <IconClose className="h-4 w-4" />
-            </button>
-          </span>
-        ))}
+              {comboDisplay(combo)}
+              <button
+                type="button"
+                aria-label={`删除 ${label}的 ${comboDisplay(combo)}`}
+                onClick={() => onRemove(combo)}
+                className="flex h-6 w-6 items-center justify-center rounded-md text-fg-faint transition-[background-color,color] duration-[var(--mn-dur-1)] ease-[var(--mn-ease)] hover:bg-surface-2 hover:text-danger"
+              >
+                {/* × 比常规图标大一号：它删的是整串组合，点错比点不到更伤 */}
+                <IconClose className="h-4 w-4" />
+              </button>
+            </span>
+          )
+        })}
         {combos.length === 0 ? (
           <span className="text-[12.5px] text-fg-faint">未绑定快捷键</span>
         ) : null}
       </div>
+
+      {/* 冲突说清「和谁」：用户要能照着这行字去把另一处改掉 */}
+      {conflicts && conflicts.length > 0 ? (
+        <div className="mt-2 space-y-0.5" role="alert">
+          {conflicts.map((item) => (
+            <p key={item.combo} className="text-[12px] leading-relaxed text-danger">
+              {comboDisplay(item.combo)} 和「{item.others.join('」「')}
+              」存在冲突，冲突的快捷键已被停用
+            </p>
+          ))}
+        </div>
+      ) : null}
 
       {error ? (
         <p className="mt-2 text-[12px] text-danger" role="alert">

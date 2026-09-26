@@ -595,6 +595,9 @@
   gap: 12px;
   height: 56px;
   padding: 0 26px 0 28px;
+  /* 标题栏是「窗口的一部分」不是内容：文字不可选中，双击留给最大化/还原
+     （桌面端无框窗口，见 ui/WindowControls 的 chromeDragProps） */
+  user-select: none;
 }
 
 .mn-doc__page-title {

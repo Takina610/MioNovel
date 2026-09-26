@@ -35,7 +35,7 @@ const { chapterMessages, avatarInitial, chatSender, messageSender, CHAT_ME, CHAT
 const { chapterRows, activeRowOf, rowsTotal, SHEET_COLUMNS, SHEET_HEAD } = await import('../src/lib/sheet.ts')
 const { chapterSlides, slideBudget } = await import('../src/lib/slide.ts')
 const { chapterFileName } = await import('../src/lib/code.ts')
-const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeText, homeRows, pinnedBook, docOwnerOf, DOC_TABS, DOC_FILTERS, WORD_TABS, WORD_STYLES, WORD_HOME_TABS, WORD_NAV_TABS, wordHomeRows, wordDateText, EXCEL_TABS, EXCEL_HOME_TABS, excelHomeRows, greetingText, PPT_TABS, PPT_HOME_TABS, PPT_TEMPLATES, pptHomeRows, slideStatusText } = await import('../src/lib/appdocs.ts')
+const { fileNameFor, sectionNameOf, avatarOf, sheetNameOf, readStateOf, docTimeText, homeRows, pinnedBook, docOwnerOf, docListColumns, DOC_COL_DATA, DOC_COL_MORE, DOC_COL_TITLE_MIN, DOC_TABS, DOC_FILTERS, WORD_TABS, WORD_STYLES, WORD_HOME_TABS, WORD_NAV_TABS, wordHomeRows, wordDateText, EXCEL_TABS, EXCEL_HOME_TABS, excelHomeRows, greetingText, PPT_TABS, PPT_HOME_TABS, PPT_TEMPLATES, pptHomeRows, slideStatusText } = await import('../src/lib/appdocs.ts')
 const { markFinds, clearFinds, countFinds, FIND_MARK } = await import('../src/lib/find.ts')
 
 const { getTheme, listThemes, buildThemeSheet, chromeOf } = await import('../src/themes/apply.ts')
@@ -752,6 +752,37 @@ console.log('\n云文档首页（飞书）')
   check('一本书都没有时不摆置顶行', pinnedBook([]) === undefined)
   check('所有者：没有作者就写「我」', docOwnerOf(book({ author: '' })) === '我' && docOwnerOf(book({ author: '张三' })) === '张三')
   check('四个页签、四档筛选都写的是中文标签', DOC_TABS.length === 4 && DOC_FILTERS.length === 4 && DOC_TABS.every((t) => !!t.label))
+
+  // 收列按列表的真实宽度算（docListColumns）：默认 1280 的窗口下，四列数据
+  // 加行尾正好把标题列压成 0——「书架每行都没有标题」就是它防的那件事。
+  // 标题列保住底线（260）之后，剩余宽度按 最近访问 → 所有者 → 创建时间 → 位置 依次上桌
+  const allOn = { location: true, owner: true, created: true, visited: true }
+  const wide = docListColumns(1920 - 300 - 48, allOn)
+  check('宽屏四列数据全都在', Object.values(wide).every(Boolean), JSON.stringify(wide))
+  const defaultWidth = docListColumns(1280 - 300 - 48, allOn)
+  check(
+    '默认 1280 窗口收掉创建时间与位置（标题列保住）',
+    defaultWidth.visited && defaultWidth.owner && !defaultWidth.created && !defaultWidth.location,
+    JSON.stringify(defaultWidth),
+  )
+  check(
+    '标题列永远有 260px 可用（再窄的容器也不摆撑爆它的列组合）',
+    (() => {
+      for (let width = DOC_COL_MORE + DOC_COL_TITLE_MIN; width <= 1600; width += 8) {
+        const shown = docListColumns(width, allOn)
+        const cols = ['location', 'owner', 'created', 'visited'].filter((k) => shown[k as keyof typeof shown]).length
+        if (width - DOC_COL_MORE - cols * DOC_COL_DATA < DOC_COL_TITLE_MIN) return false
+      }
+      return true
+    })(),
+  )
+  const narrowCols = docListColumns(560, allOn)
+  check('窄屏只剩最近访问（别的列全让路）', narrowCols.visited && !narrowCols.owner && !narrowCols.created && !narrowCols.location, JSON.stringify(narrowCols))
+  check(
+    '显示设置里关掉的列不因变宽而回来',
+    docListColumns(1600, { location: true, owner: true, created: true, visited: false }).visited === false,
+  )
+  check('容器量到之前（0 宽）不摆任何数据列', Object.values(docListColumns(0, allOn)).every((v) => !v))
 }
 
 /* ==========================================================================
@@ -1344,6 +1375,32 @@ console.log('\n设置弹窗（FLIP 出发点）')
     useSettingsDialog.getState().exitCenter === false && originRectNow()?.left === 30,
   )
   closeSettingsDialog()
+
+  // 滚动位置的记忆：关掉再开（或换大类）停回上次看到的地方。
+  // 只记本次进程——没有持久化，重启自然回到顶部（这是刻意的，不是漏了）
+  const { rememberSettingsScroll, settingsScrollOf } = await import('../src/store/settingsDialog.ts')
+  rememberSettingsScroll('theme', 412)
+  rememberSettingsScroll('keys', 96)
+  check('按大类各记各的', settingsScrollOf('theme') === 412 && settingsScrollOf('keys') === 96)
+  check('没记过的大类从顶上开始', settingsScrollOf('advanced') === 0)
+  rememberSettingsScroll('theme', 580)
+  check('同一个大类再滚就覆盖', settingsScrollOf('theme') === 580)
+}
+
+/* ==========================================================================
+   七点五、桌面壳的桥：关窗行为
+   ========================================================================== */
+
+console.log('\n桌面壳的桥（关窗行为）')
+{
+  // 设置是唯一事实来源，壳是执行人（src-tauri/src/lib.rs 的 handle_main_close）。
+  // 这里断言 store 这一侧：默认退、可切换、别的设置动了它也不跟着动
+  const { useSettings } = await import('../src/store/settings.ts')
+  check('默认是「关窗即退」', useSettings.getState().closeAction === 'exit')
+  useSettings.getState().setCloseAction('hide')
+  check('可以切成「隐藏到托盘」', useSettings.getState().closeAction === 'hide')
+  useSettings.getState().setCloseAction('exit')
+  check('也可以切回「退出程序」', useSettings.getState().closeAction === 'exit')
 }
 
 /* ==========================================================================

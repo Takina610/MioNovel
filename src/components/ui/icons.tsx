@@ -50,6 +50,37 @@ export function IconClose(props: IconProps) {
   )
 }
 
+/* ---- 窗口控制（桌面端无框窗口的三个钮，见 ui/WindowControls） ----
+   照 Windows 标题栏那三个记号的形状画：一条横杠、一个方框、两个叠着的方框。 */
+
+/** 最小化 */
+export function IconWindowMin(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5 12h14" />
+    </Svg>
+  )
+}
+
+/** 最大化 */
+export function IconWindowMax(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="5.75" y="5.75" width="12.5" height="12.5" rx="1.2" />
+    </Svg>
+  )
+}
+
+/** 还原（窗口已最大化时，最大化那格换它） */
+export function IconWindowRestore(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="5.75" y="8" width="10.25" height="10.25" rx="1.2" />
+      <path d="M8.6 5.75h8.4a1.25 1.25 0 0 1 1.25 1.25v8.4" />
+    </Svg>
+  )
+}
+
 /** 下拉箭头的那个尖。展开时由调用方转 180° */
 export function IconChevron(props: IconProps) {
   return (

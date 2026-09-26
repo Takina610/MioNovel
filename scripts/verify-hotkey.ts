@@ -19,6 +19,9 @@ import {
   comboDisplay,
   comboFromEvent,
   comboProblem,
+  conflictedCombos,
+  conflictLabels,
+  conflictOwners,
   DEFAULT_HOTKEYS,
   hotkeyCommandOf,
   hotkeyLiveOn,
@@ -28,6 +31,7 @@ import {
   matchesCombo,
   parseCombo,
   resolveCombos,
+  type HotkeyId,
 } from '../src/lib/hotkey'
 
 let checked = 0
@@ -237,6 +241,32 @@ check('同一个单键在 global 档过不了', comboProblem('S', 'global') !== 
   check('Ctrl+Alt+← 命中上一章', matchesCombo(keyEvent({ code: 'ArrowLeft', ctrl: true, alt: true }), 'Ctrl+Alt+ArrowLeft'), true)
   check('PageDown 命中下一页', matchesCombo(keyEvent({ code: 'PageDown', key: 'PageDown' }), 'PageDown'), true)
   check('空格命中下一页', matchesCombo(keyEvent({ code: 'Space', key: ' ' }), 'Space'), true)
+}
+
+// 7) 冲突：同一串绑在两条命令上，判定要说「这两处撞了」，运行时两边的这一串都停用
+{
+  // 出厂默认不得自带冲突：出厂就红着等于让用户拿到一个坏的应用
+  check('默认组合没有冲突', [...conflictedCombos({ ...DEFAULT_HOTKEYS })].length, 0)
+
+  // 用户把 摸鱼模式 和 演示模式 绑到同一串：两边都进冲突集合
+  const clashing = { ...DEFAULT_HOTKEYS, dim: ['Alt+Q'], decoy: ['Alt+Q'] } as Record<HotkeyId, string[]>
+  check('两处绑同一串 → 冲突集合认出这一串', [...conflictedCombos(clashing)], ['Alt+Q'])
+  check('没撞的串不进冲突集合', conflictedCombos(clashing).has('Ctrl+Shift+J'), false)
+  check(
+    '冲突明细报得出「和谁」（给设置里的红字用）',
+    conflictLabels(clashing, 'dim'),
+    [{ combo: 'Alt+Q', others: ['演示模式'] }],
+  )
+  check('没冲突的命令明细为空', conflictLabels(clashing, 'settings'), [])
+  check('三条命令绑同一串 → 全算冲突', (() => {
+    const triple = { ...clashing, settings: ['Alt+Q'] } as Record<HotkeyId, string[]>
+    const owners = conflictOwners(triple).get('Alt+Q') ?? []
+    return owners.length === 3 && conflictedCombos(triple).has('Alt+Q')
+  })(), true)
+  // 撞掉的串从生效组合里剔除，但**别的**串照常生效：
+  // 「冲突的快捷键不能使用」说的是冲突的那一串，不是整条命令报废
+  const dimSurvivors = resolveCombos(clashing.dim, 'dim')
+  check('命令的其他串不受牵连（判定输入本身没被改）', dimSurvivors, ['Alt+Q'])
 }
 
 if (problems.length === 0) {
