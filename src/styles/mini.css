@@ -1,0 +1,47 @@
+/* ==========================================================================
+   小窗模式（桌面端，main.tsx 按 window.__MN_MINI__ 渲染 MiniApp）
+   --------------------------------------------------------------------------
+   颜色全部来自主题令牌：常规主题的令牌表在这个窗口里照样编译进 :root
+   （mini/MiniApp 的 useGlobalTheme），小窗用的就是当前那套常规主题的
+   reader-bg / reader-fg。这里只写「窗口本身」的几条——圆角、边、滚动区，
+   行列与颜色尽量交给工具类。
+   ========================================================================== */
+
+/* 透明窗口：圆角和阴影画在 .mn-mini 上，窗口本体（body）不能留背景，
+   不然四个直角会把圆角盖掉 */
+body:has(.mn-mini) {
+  background: transparent;
+}
+
+.mn-mini {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--mn-border-strong);
+  background: var(--mn-reader-bg);
+  color: var(--mn-reader-fg);
+  box-shadow: var(--mn-shadow-panel);
+}
+
+/* 正文滚动区。不用 .mn-scroll 那条规则（那是整页阅读器的），
+   小窗的留白按小窗的尺寸给 */
+.mn-mini__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 14px 18px;
+}
+
+/* 变暗的黑纱（摸鱼模式那层纱的思路）：盖在全部内容上，浓度由
+   store/mini 的 dim 写在元素上；pointer-events 让它不挡下面的按钮 */
+.mn-mini__veil {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 100%);
+  pointer-events: none;
+  border-radius: 12px;
+}

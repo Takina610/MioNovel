@@ -15,9 +15,20 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-# 前端不调任何 Tauri API（文件走 WebView2 原生 File 对象、数据走 IndexedDB），
-# 所以这里只有壳本身，没有插件、没有 command。
+# 数据与文件仍然零 Tauri API（文件走 WebView2 原生 File 对象、数据走 IndexedDB）。
+# 唯一的例外是小窗模式（src/mini.rs）：一个悬浮在所有软件上面的第二窗口，
+# 显隐、置顶、系统级快捷键只有壳管得了——前端只经一个 mini_apply 命令把设置
+# 推过来（走 withGlobalTauri 注入的 window.__TAURI__，不引 @tauri-apps/api 包）。
 tauri = { version = "2", features = [] }
+tauri-plugin-global-shortcut = "2"
+# mini_apply 的配置参数要从 JSON 反序列化
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# 小窗悬浮显影时不能把用户正打字的前台窗口顶下去：给窗口补 WS_EX_NOACTIVATE。
+# 版本跟 tauri 用的对齐（lock 里就是 0.61），HWND 不用换算。
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_UI_HiDpi"] }
 
 [profile.release]
 # 阅读器是静态资源 + WebView2，本地编译产物压一压体积

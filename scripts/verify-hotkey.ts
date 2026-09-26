@@ -158,9 +158,14 @@ check('同一个单键在 global 档过不了', comboProblem('S', 'global') !== 
     true,
   )
   check(
-    '两条「伪装」功能是全局档（不带修饰键会在输入框里误触发）',
+    '两条「伪装」功能与小窗开关是全局档（不带修饰键会在输入框里误触发）',
     HOTKEY_COMMANDS.filter((command) => command.scope === 'global').map((command) => command.id).join(','),
-    'decoy,dim',
+    'decoy,dim,mini-window',
+  )
+  check(
+    '小窗开关没有 presence（它是系统级命令，由桌面壳注册，不按形态出现）',
+    hotkeyCommandOf('mini-window').presence,
+    undefined,
   )
   check(
     '页面命令全部是 focused 档',

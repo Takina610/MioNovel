@@ -5,12 +5,22 @@ import { formatBytes } from '../../lib/format'
 import {
   FONT_STACKS,
   SETTING_RANGES,
+  useSettings,
   type ReaderSettings,
 } from '../../store/settings'
 import { chromeOf, getTheme, themePreset } from '../../themes/apply'
+import { isDesktop } from '../../lib/desktop'
 import { DECOY_PRESETS } from '../../lib/decoy'
 import { useDecoy } from '../../store/decoy'
 import { DIM_LEVEL_RANGE, useDim } from '../../store/dim'
+import {
+  MINI_CORNERS,
+  MINI_DIM_RANGE,
+  MINI_OPACITY_RANGE,
+  miniAvailable,
+  useMini,
+  type MiniCorner,
+} from '../../store/mini'
 import { CENTER_SCALE, flipStep, type FlipRect } from '../../lib/flip'
 import {
   closeSettingsDialog,
@@ -39,6 +49,7 @@ import {
   IconCharSpacing,
   IconDarkMode,
   IconGear,
+  IconImmersiveReader,
   IconTheme,
 } from '../ui/app-icons'
 
@@ -150,6 +161,19 @@ export function SettingsDialog({
   const removeCombo = useHotkeyBindings((state) => state.removeCombo)
   const resetCommand = useHotkeyBindings((state) => state.resetCommand)
 
+  // 小窗模式（桌面端 + 常规主题才出现）。判断与壳的桥共用 miniAvailable：
+  // 「弹窗里有这一栏」和「壳上真的会有窗」不许各判各的。读**全局**主题——
+  // 某本书的独立主题管不到书架级的功能
+  const globalThemeId = useSettings((state) => state.global.themeId)
+  const miniEnabled = useMini((state) => state.enabled)
+  const miniCorner = useMini((state) => state.corner)
+  const miniOpacity = useMini((state) => state.opacity)
+  const miniDim = useMini((state) => state.dim)
+  const setMiniEnabled = useMini((state) => state.setEnabled)
+  const setMiniCorner = useMini((state) => state.setCorner)
+  const setMiniOpacity = useMini((state) => state.setOpacity)
+  const setMiniDim = useMini((state) => state.setDim)
+
   // 每一大类在不在，读的是**功能自己的形态**（命令表里的 presence，hotkeyLiveOn）：
   // 演示模式只属于编辑器形态，摸鱼模式属于所有带外壳的形态。
   // 这么写是为了让「弹窗里有这一栏」与「这个键按得响」永远是同一件事——
@@ -255,6 +279,17 @@ export function SettingsDialog({
     usage,
     decoy: { enabled: decoyEnabled, presetId: decoyPresetId, setEnabled: setDecoyEnabled, setPreset: setDecoyPreset },
     dim: { enabled: dimEnabled, level: dimLevel, setEnabled: setDimEnabled, setLevel: setDimLevel },
+    mini: {
+      available: miniAvailable(globalThemeId, isDesktop()),
+      enabled: miniEnabled,
+      corner: miniCorner,
+      opacity: miniOpacity,
+      dim: miniDim,
+      setEnabled: setMiniEnabled,
+      setCorner: setMiniCorner,
+      setOpacity: setMiniOpacity,
+      setDim: setMiniDim,
+    },
     combos,
     addCombo,
     removeCombo,
@@ -375,6 +410,17 @@ function buildCategories(args: {
     setEnabled: (enabled: boolean) => void
     setLevel: (level: number) => void
   }
+  mini: {
+    available: boolean
+    enabled: boolean
+    corner: MiniCorner
+    opacity: number
+    dim: number
+    setEnabled: (enabled: boolean) => void
+    setCorner: (corner: MiniCorner) => void
+    setOpacity: (opacity: number) => void
+    setDim: (dim: number) => void
+  }
   combos: Record<HotkeyId, string[]>
   addCombo: (id: HotkeyId, combo: string) => void
   removeCombo: (id: HotkeyId, combo: string) => void
@@ -392,6 +438,7 @@ function buildCategories(args: {
     usage,
     decoy,
     dim,
+    mini,
     combos,
     addCombo,
     removeCombo,
@@ -593,6 +640,59 @@ function buildCategories(args: {
       </>
     ),
   })
+
+  // 小窗模式那一栏只属于桌面端的常规主题（判断与壳的桥共用 miniAvailable，
+  // 见 store/mini）。它不在「快捷键」那一栏里重复列行：那栏是页面里的命令，
+  // 小窗开关是系统级的，键位说明放在自己的栏里才对得上
+  if (mini.available) {
+    categories.push({
+      id: 'mini',
+      label: '小窗模式',
+      icon: IconImmersiveReader,
+      node: (
+        <>
+          <Switch label="显示小窗" checked={mini.enabled} onChange={mini.setEnabled} />
+          <section className="space-y-2">
+            <SectionTitle>位置</SectionTitle>
+            <div className="grid grid-cols-2 gap-1.5">
+              {MINI_CORNERS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => mini.setCorner(item.id)}
+                  aria-pressed={mini.corner === item.id}
+                  className={cx(
+                    'rounded-lg border px-3 py-1.5 text-[12.5px]',
+                    'transition-[border-color,background-color,color,transform,box-shadow] duration-[var(--mn-dur-2)] ease-[var(--mn-ease)] active:scale-[0.97]',
+                    mini.corner === item.id
+                      ? 'border-accent bg-accent-soft text-accent shadow-[0_0_0_3px_color-mix(in_srgb,var(--mn-accent)_12%,transparent)]'
+                      : 'border-border text-fg-muted hover:border-border-strong hover:bg-surface-2',
+                  )}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </section>
+          <Slider
+            label="透明度"
+            value={mini.opacity}
+            {...MINI_OPACITY_RANGE}
+            onChange={mini.setOpacity}
+            format={(value) => `${Math.round(value * 100)}%`}
+          />
+          <Slider
+            label="变暗"
+            value={mini.dim}
+            {...MINI_DIM_RANGE}
+            onChange={mini.setDim}
+            format={(value) => (value === 0 ? '不变暗' : `${Math.round(value * 100)}%`)}
+          />
+          {hotkeyRow('mini-window')}
+        </>
+      ),
+    })
+  }
 
   // 演示模式那一栏只属于编辑器形态：它在别的主题下要显示什么，是以后单独设计的
   // 一件事（见 docs/SPEC.md 决定记录 30）。条件读 hotkeyLiveOn：

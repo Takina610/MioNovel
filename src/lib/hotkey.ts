@@ -154,6 +154,7 @@ export type HotkeyId =
   | 'exit'
   | 'decoy'
   | 'dim'
+  | 'mini-window'
 
 /**
  * 这个功能在哪些形态下存在。
@@ -195,6 +196,17 @@ export const HOTKEY_COMMANDS: readonly HotkeyCommand[] = [
   { id: 'exit', label: '退出阅读', description: '关闭阅读器或退出全屏', combos: ['Escape'], scope: 'focused' },
   { id: 'decoy', label: '演示模式', description: '把整个界面换成代码的样子', combos: ['Alt+Q'], scope: 'global', presence: 'editor' },
   { id: 'dim', label: '摸鱼模式', description: '把正文区调暗', combos: ['Alt+S'], scope: 'global', presence: 'shells' },
+  // 小窗开关是**系统级**快捷键：别的软件是前台时它也要响，所以它不在这里的
+  // 任何页面登记（useHotkey / useGlobalHotkeys 都没有它），而是由桌面壳注册——
+  // hooks/useMiniWindow 把生效中的组合推给 src-tauri/src/mini.rs。
+  // scope 仍是 global：系统快捷键更不能是不带修饰键的单键
+  {
+    id: 'mini-window',
+    label: '小窗开关',
+    description: '打开或关闭小窗，任何软件在前台时都响（桌面端）',
+    combos: ['Alt+M'],
+    scope: 'global',
+  },
 ]
 
 export const DEFAULT_HOTKEYS = Object.fromEntries(

@@ -1379,6 +1379,58 @@ console.log('\n界面文案')
   check('界面文案里没有操作指南 / 自我说明式的句子', hits.length === 0, hits.join(' | '))
 }
 
+/* ==========================================================================
+   小窗模式
+   ========================================================================== */
+
+console.log('\n小窗模式')
+{
+  const { miniShelfBooks } = await import('../src/mini/shelf.ts')
+  const { MINI_CORNERS, miniAvailable } = await import('../src/store/mini.ts')
+
+  const now = new Date(2026, 8, 25, 12, 0, 0).getTime() // 2026-09-25 12:00
+  const book = (over: Partial<BookRecord>): BookRecord => ({
+    id: 'b',
+    state: 'ready',
+    title: '未命名',
+    author: '',
+    format: 'txt',
+    addedAt: now,
+    lastReadAt: now,
+    totalChars: 1000,
+    chapterCount: 1,
+    charOffsets: [0, 1000],
+    groups: [],
+    progress: null,
+    fileName: 'x.txt',
+    fileSize: 1,
+    signature: 's',
+    ...over,
+  })
+
+  // 小窗的书架只显示导入的书：importing / error 是半成品，进去也没有正文可读
+  const shelf = [
+    book({ id: 'importing', state: 'importing', title: '导入中' }),
+    book({ id: 'error', state: 'error', title: '解析失败' }),
+    book({ id: 'old', title: '三天前读过', progress: { chapterIndex: 0, ratio: 0.5, updatedAt: now - 3 * 86_400_000 } }),
+    book({ id: 'fresh', title: '一分钟前读过', progress: { chapterIndex: 0, ratio: 0.1, updatedAt: now - 60_000 } }),
+    book({ id: 'unread', title: '没读过', addedAt: now - 86_400_000 }),
+  ]
+  const listed = miniShelfBooks(shelf)
+  const ids = listed.map((item) => item.id).join(',')
+  check('只列导入成功的书（importing / error 不进小窗）', ids === 'fresh,unread,old', ids)
+  check('最近读过的排最前', listed[0]?.id === 'fresh')
+  // 小窗里没有排序控件：默认顺序就得是「接着读哪本」的顺序
+  check('没读过的按加入时间落在「最近读过的」后面', listed[1]?.id === 'unread')
+
+  check('四个落角都在（左上 / 右上 / 左下 / 右下）', MINI_CORNERS.map((item) => item.id).join(',') === 'top-left,top-right,bottom-left,bottom-right')
+  // 可用性只有一个判断（store/mini 的 miniAvailable）：设置弹窗里那一栏
+  // 与推给壳的 enabled 共用它——「面板里有开关」和「壳上真的会有窗」不许各判各的
+  check('浏览器（非桌面端）里没有小窗', miniAvailable('day', false) === false)
+  check('常规主题 + 桌面端可用', miniAvailable('day', true) === true)
+  check('任何主题都可开小窗（小窗跟随全局主题明暗）', miniAvailable('feishu', true) === true && miniAvailable('vscode', true) === true && miniAvailable('ppt-dark', true) === true)
+}
+
 /* ========================================================================== */
 
 console.log(`\n${failures === 0 ? '全部通过' : '有失败项'}（${checks} 项断言，${failures} 项失败）`)

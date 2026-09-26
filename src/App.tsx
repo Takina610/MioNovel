@@ -7,6 +7,7 @@ import { ReaderPage } from './routes/ReaderPage'
 import { ShelfPage } from './routes/ShelfPage'
 import { useDecoyFavicon } from './hooks/useDocumentChrome'
 import { useGlobalHotkeys } from './hooks/useGlobalHotkeys'
+import { useMiniWindow } from './hooks/useMiniWindow'
 import { useGlobalTheme } from './hooks/useTheme'
 
 /**
@@ -24,6 +25,9 @@ export function App() {
   // 演示模式与摸鱼模式的快捷键（默认 Alt+Q / Alt+S，都能在阅读设置里改）。
   // 挂在最外层而不是某个页面里：书架和阅读器都得能按
   useGlobalHotkeys()
+  // 小窗模式与桌面壳的桥：设置变化推给壳、壳上的系统级快捷键发回来翻开关。
+  // 浏览器里空转（PWA 没有小窗这回事）
+  useMiniWindow()
   // 演示模式下标签页图标也换掉（小说图标配代码窗口太显眼）
   useDecoyFavicon()
   return <RouterProvider router={router} />

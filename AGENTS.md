@@ -96,7 +96,9 @@
   里加一条（id / 标签 / 说明 / 默认组合（可以是**多个**）/ scope），再在页面上用
   `hooks/useHotkeys` 的 `useHotkey(id, handler)` 登记。设置面板那一栏、菜单上的键位提示、
   冲突检查都从这张表推出来。`scope: 'focused'` 允许单键（避开输入框），`'global'` 必须带修饰键
-  （在输入框里也响）。翻页键（next-page / prev-page）登记在 ReaderView——翻列和滚动
+  （在输入框里也响）。**唯一的例外是 `mini-window`（小窗开关）**：它是系统级快捷键，
+  要在别的软件是前台时也响，所以不在页面登记，由桌面壳经 global-shortcut 插件注册
+  （见下一条）。翻页键（next-page / prev-page）登记在 ReaderView——翻列和滚动
   是它内部的事；退出阅读（exit，默认 Esc）登记在 ReaderPage，它要让位给一切挂着
   `data-mn-esc-local` 的局部界面（Select 下拉、AppMenu、Word 沉浸、PPT 阅读视图）——
   给某个局部界面占住 Esc，就在它的元素上挂这个标记。
@@ -123,6 +125,41 @@
   派生（非方形源图先补透明边，sharp 的 resize 先于 extend 执行，两步必须拆开；
   sharp 不认 BMP，安装器的 header/sidebar 是脚本里手写的 24 位 BMP）。
   为什么见 SPEC 44 / 45。
+- **小窗模式（桌面端第二窗口，`src-tauri/src/mini.rs` + `src/mini/`）的规矩**：
+  显隐归壳管（120ms 轮询光标对窗口矩形），前端不许自己 show/hide；窗口带
+  `WS_EX_NOACTIVATE`——悬浮显影**不能抢前台焦点**，别去掉；第二个窗口必须和主窗口
+  指向同一个 `data_directory`（便携版同理），不然小窗的 IndexedDB 是空的。
+  前端↔壳只有两条通道：`mini_apply`（推设置）与 `mini_take_events`（500ms 扫一次
+  「快捷键 / 放大按钮按过了」的标志，取走即清）——都不走事件通道（排障成本高，见 SPEC 46）；
+  走 `withGlobalTauri` 注入的 `window.__TAURI__`（`lib/desktop.ts`，仍然不引
+  `@tauri-apps/api` 包；浏览器里静默不动作）。`mini_apply` **必须是 async command**：
+  同步 command 在主线程上跑，窗口的创建/定位/查位置要等事件循环应答，主线程等自己
+  = 全壳死锁（踩过）。GUI 子系统下诊断不能 `eprintln!`（stderr 无效会 panic 炸掉
+  command），壳里统一用 `mini.rs` 的 `log()` 写 `%TEMP%\mionovel-mini.log`。
+  小窗落角用 `outer_size()`（物理像素）算——`inner_size(340,420)` 是**逻辑像素**，
+  高 DPI 下按常量算会让窗探出屏幕外（踩过）。
+  开小窗时主窗口整个隐藏、关掉/「放大」时还原（`apply_windows`）；快捷键与「放大」
+  的窗口行为在壳里**即时**做（主窗口藏着时它的定时器被节流到 1s 起，等前端轮询
+  太慢），标志只管让 store 跟上。鼠标离开小窗 = 前端 mouseleave 发 `mini_hide_now`
+  立刻藏（轮询只是兜底）。透明度/变暗是 store/mini 的小窗自有设置，不经壳。
+  窗口可拖边改大小（`resizable` + 建窗**必须** `auto_resize()`，否则页面不跟随）；
+  尺寸由轮询线程直读 OS（Win32 GetWindowRect，dispatcher 的 outer_size 滞后）对账
+  并落盘 mini-size.json，禁用=hide 不销毁（销毁会丢尺寸）。小窗内滚到章尾就停，
+  滚轮不跳章。任何主题都可开小窗（跟随全局主题明暗），`miniAvailable` 只看桌面端；
+  poll_hover 的「关闭状态兜底隐藏」分支别再丢（丢了就是「关了还在」）；主窗口关闭
+  ＝app.exit（小窗是附属）；查询类（尺寸/位置/DPI/显示器）直调 Win32，dispatcher
+  的查询从非主线程会静默降级（scale 变 1.0、monitor 变 None），且 `window.hwnd()`
+  是 webview 子窗口——Win32 显隐它无效，显隐取 `GetAncestor(GA_ROOT)` 直调
+  ShowWindow（dispatcher hide 排队会有「渐隐」）。主题不跟 localStorage 走：
+  mini_apply 带 theme_id，壳用 initialization_script 注入（首帧即正确）+
+  页面就绪后 mini_ready 主动拉取。禁用=销毁 mini webview（省一份渲染进程
+  ~100MB），尺寸由 mini-size.json 保底。
+  「小窗可不可用」只有 `store/mini` 的 `miniAvailable(themeId, desktop)` 一个判断
+  （桌面端 + **全局**主题是 plain），设置弹窗那一栏与推给壳的 enabled 共用它；
+  系统级快捷键 `mini-window` 在命令表里（设置 UI、冲突检查都从表推），但**不在页面登记**，
+  由壳经 global-shortcut 插件注册（组合变了 = 推配置，壳全拆重挂）。小窗书架只列
+  `state: 'ready'` 的书（`mini/shelf.ts` 的 `miniShelfBooks`，verify:apps 有断言）。
+  为什么见 SPEC 46。
 
 ## 四、动完手必须过的三关
 

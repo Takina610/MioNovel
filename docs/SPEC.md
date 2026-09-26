@@ -2295,3 +2295,112 @@ UI 可改目录），和 NSIS 的用户级并存，发布时按场景二选一�
 `bun run icons:desktop` 从 MioNovel.png 派生（`scripts/make-desktop-icons.ts`）：白底居中
 logo、底部一条深青加珊瑚的双色条，颜色取自 M 的笔画；sharp 不认 BMP，脚本里手写了
 24 位 BMP 的编码（未压缩 BGR、行序自下而上、行宽补 4 字节）。
+
+### 46. 小窗模式：悬浮在所有软件上面的第二窗口（2026-09-25）
+
+桌面端独有：阅读设置里开了小窗，一个 340×520 的无框窗口落在你挑定的屏幕角上，
+层级永远最高。它平时是**藏着的**——鼠标挪进它占的那块屏幕区域才显示，离开立刻藏回去。
+开它的场景就是「在别的软件里干活时顺便读几行」，所以每个细节都围着「别打扰正事」转。
+
+**「默认不显示 + 悬浮显影」做在 Rust 这边，靠轮询不靠事件。** 一个隐藏的窗口在 Windows
+上根本不参与命中测试，没有事件可听；反过来一个显示着的透明窗口，透明区域照样吃掉鼠标
+（WebView2 的 HWND 是矩形）。所以：窗口平时 `visible: false`（不挡任何点击），
+Rust 侧一个 120ms 的轮询线程拿 `cursor_position()` 对着窗口矩形比——进了就 show、
+出了就 hide。「立刻消失」因此没有延迟，也永远不会有「看不见却挡着点」的窗户。
+
+**窗口绝不抢焦点。** show() 在 Windows 上是 SW_SHOW（会激活）——悬浮窗一闪，
+你正在打字的那个软件就失焦了，这是致命的。创建后补 `WS_EX_NOACTIVATE`（顺带
+`WS_EX_TOOLWINDOW`，不进 Alt-Tab）：ShowWindow 不再激活，鼠标滚轮照常滚给悬停
+窗口（Win10 起），点击照常送达，前台窗口全程不动。小窗里因此没有输入框，也不需要。
+
+**前端零 Tauri API 的规矩有一条受控的例外。** 数据与文件照旧不经过任何 Tauri API；
+但窗口的显隐、置顶、系统级快捷键只有壳管得了。桥只有两个命令：主窗口把设置
+`invoke('mini_apply', { config })` 推给壳（开关、落角、快捷键）；壳收到系统快捷键
+按下时置一个标志，前端每 500ms `mini_take_toggle` 来取（取走即清）。**不走事件
+通道**：listen 的订阅时序、权限、事件名校验排障成本太高，而这个壳本来就在轮询
+光标，多扫一个标志位不值一提。开关状态只有 `store/mini` 一份，壳只是执行人。
+调用走 `app.withGlobalTauri` 注入的 `window.__TAURI__`（`lib/desktop.ts`），**不引**
+`@tauri-apps/api` 包，浏览器里全部静默不动作。小窗是第二个 webview，必须指向
+**同一个** WebView2 用户数据目录（便携模式同理），IndexedDB 才是同一份——
+不然小窗书架是空的。
+
+**两个一踩就死的坑，都藏在「窗口操作必须在 async command 里做」。** 其一，同步
+command 跑在主线程上，而建窗、定位、查位置都要经 dispatcher 等事件循环应答——
+主线程等自己，`mini_apply` 永远不返回，悬浮轮询线程的每个查询也跟着饿死；
+表象是「窗口建出来了但永远在默认位置、永远不显示」，`mini_apply` 改成 async 才通。
+其二，GUI 子系统（windows_subsystem=windows）下 stderr 句柄无效，诊断不能写
+`eprintln!`——它失败即 panic，会把整个 command 炸掉；壳里统一用
+`mini.rs` 的 `log()` 写进 `%TEMP%\mionovel-mini.log`。
+
+**同一份前端装两次。** 小窗加载同一个 index.html，壳的 initialization_script 塞
+`window.__MN_MINI__`，main.tsx 据此渲染 MiniApp 而不是路由。里面只有两个视图：
+书架是**一列文字**（`miniShelfBooks` 只列 `state: 'ready'` 的书——importing/error
+是半成品；最近读过的在最上面），正文是上下滚动、滚到章尾接着滚就是下一章。
+进度写同一张表，主窗口和小窗互相接得上。
+
+**「只有常规主题才有小窗」的判断只有一个函数。** `store/mini` 的 `miniAvailable(themeId,
+desktop)`：桌面端 + 全局主题是普通阅读形态。设置弹窗里那一栏的出现条件与推给壳的
+enabled 用它——主题切到外壳主题时窗口整个收起（设置留着，切回来自己恢复），面板里
+有开关、壳上没窗户这种分裂不会出现。
+
+**开小窗 = 主窗口自动藏起来，这是这个功能的一半意义。** `apply_windows`（三条路共用：
+前端推配置、快捷键在壳里翻转、小窗里的「放大」按钮）：开小窗前把主窗口 `hide()`——
+任务栏里像没有这个应用；关小窗时主窗口 `show()` + 抢回焦点。小窗头部右侧有一个
+**放大按钮**：`mini_request_restore` 直接还原主窗口、关掉小窗、把配置翻回关，再置一个
+restore 标志让主窗口的轮询把设置同步回关——窗口行为不等待任何轮询，因为**主窗口藏着
+的时候，浏览器把它的定时器节流到 1s 起**，等轮询再翻就太慢了；这也是快捷键按下时壳
+直接在 Rust 侧翻转配置的原因。轮询（`mini_take_events`，取走即清）只负责让 store 跟上。
+
+**透明度与变暗是小窗自己的设置**（`store/mini` 的 `opacity` / `dim`），不经过壳：
+前者是根元素的整体不透明度，后者是盖在内容上的黑纱（摸鱼模式那层纱的思路，
+`pointer-events: none` 不挡按钮）。两个滑条在小窗模式那一栏里。
+
+**「离开立刻消失」是两条腿**：壳的 120ms 光标轮询兜底，小窗自己的 `mouseleave`
+（`mini_hide_now`）事件驱动零延迟——鼠标一出去窗口就没了，没有过渡动画可看。
+
+**窗口大小归用户**：小窗 `resizable(true)`（tao 对无框窗口做边缘命中测试）+ 建窗时
+**必须 `auto_resize()`**——webview 默认不随窗口伸缩，不开它，窗口缩了页面还卡在
+建窗尺寸。用户拖出来的尺寸由轮询线程每拍直读 OS（Windows 上 `GetWindowRect`，
+绕开 dispatcher 的 outer_size——它是排队的异步应答，拖拽刚结束会拿到滞后的旧值，
+同一拍两次调用能读出不同结果）与 last_size 对账，变了就落盘到数据目录的
+mini-size.json（跨重启）；建窗尺寸的优先级：会话内拖过的 > 落盘的 > 内置默认。
+**页面的 innerWidth/innerHeight 在模态拖拽循环里不更新、resize 事件也不派发**
+（WebView2 实测），别指望 JS 上报；resizable 之后钳制范围（宽 240–800、高
+320–1200）写在壳和 store 各一份即可，但**别把宽的 max 给高度用**——高度被钳到
+最少 800，拖出来的新尺寸永远「无变化」，对账不落盘（踩过，排查了一下午）。
+禁用小窗是 `hide()` 而不是销毁：窗口活着，用户拖的尺寸、读到的章节天然都在。
+
+**小窗里滚到章尾就停在章尾**：滚轮不做章与章的跳转（主阅读器的翻页键才管换章），
+换章用头部那对按钮。这是刻意的——「一直往下滚被拽去下一章」对小窗的碎片阅读
+太打扰。
+
+**试用返工（同日）：「关了还在」「关软件后进程残留」与全主题开放。**
+其一，poll_hover 的「关闭状态兜底隐藏」分支在历次改动中被挤丢了——`mini_apply`
+hide 一次，下一拍轮询又按旧逻辑 show 回来，用户怎么关小窗都「还在」；恢复
+`if !enabled { hide; return }` 后每拍按死关闭状态。其二，主窗口关闭＝整个应用退出
+（`CloseRequested` → `app.exit(0)`）：小窗是附属窗口，主窗口没了它不该拖着进程
+继续悬浮。其三，主题限制解除：任何主题都能开小窗，`miniAvailable` 只看桌面端——
+小窗的视觉本来就直接沿用全局主题令牌，亮色主题下是亮的、暗色下是暗的，
+不需要（也不应该）按主题白名单。
+排查中顺带实锤两条 dispatcher 的坑：**非主线程的窗口查询（scale_factor 返回 1.0、
+monitor 返回 None）会静默降级**——查询类一律直调 Win32（GetWindowRect /
+GetMonitorInfoW / GetDpiForWindow），dispatcher 只留操作类（show/hide/set_position）；
+**`window.hwnd()` 拿到的是 webview 子窗口**，对它做 Win32 显隐只藏得到内容、
+藏不到真正的顶层窗口——显隐走 dispatcher 的 show/hide 才是对父窗口的。
+
+**主题不跟随与渐隐的修复（同日二轮返工）**：重开的小窗还是旧主题——
+WebView2 的 localStorage 跨进程可见性有延迟，销毁重建的小窗从 localStorage
+初始化会读到旧值。修法是**不走 localStorage**：mini_apply 随配置带上全局
+theme_id，壳在建窗的 initialization_script 里注入（页面任何 JS 之前执行，
+首帧即正确主题），页面挂载后再 `mini_ready` 主动拉一次（建窗早期的 eval
+会落在还没挂好 handler 的页面上被丢掉）；运行中的主题变化由壳 `eval` 注入
+`window.__MN_APPLY_THEME__`。「消失时的过渡动画」实测为 hide 排队延迟叠加
+透明度/变暗设置的静态外观——显隐改走 Win32 顶层窗口直调（`window.hwnd()`
+取 `GetAncestor(GA_ROOT)` 归一到顶层再 ShowWindow）后瞬时消失。
+
+**小窗开关是系统级快捷键，登记方式和页面命令不同。** 它要在别的软件是前台时也响，
+所以不在任何页面登记（useHotkey / useGlobalHotkeys 都没有它），由壳经
+`tauri-plugin-global-shortcut` 注册。但它**仍在命令表里**（lib/hotkey.ts 的
+`mini-window`）：设置 UI（HotkeyRow）、默认值、冲突检查都从表里推，这是表作为
+唯一事实来源的延伸。组合变了壳全拆重挂；某一串认不出来只跳过那一串。
+
